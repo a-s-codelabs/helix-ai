@@ -1,0 +1,216 @@
+---
+alwaysApply: true
+---
+
+# Svelte 5 Migration Rules
+
+## Core Requirements
+- Use Svelte 5 for all new and migrated Svelte projects.
+- In `package.json`, set `"svelte": "^5"` in `dependencies` or `devDependencies`.
+- Prefer `<script lang="ts">` for TypeScript support in components.
+- Update all SvelteKit or Vite plugins to versions compatible with Svelte 5 (e.g., `@sveltejs/vite-plugin-svelte@^5`).
+
+## Reactivity Syntax Changes
+
+### State Management
+- Replace `let` declarations with `$state` rune for reactive state:
+  ```svelte
+  // Svelte 4
+  let count = 0;
+  
+  // Svelte 5
+  let count = $state(0);
+  ```
+
+### Reactive Statements
+- Replace `$:` with `$derived` for computed values:
+  ```svelte
+  // Svelte 4
+  $: double = count * 2;
+  
+  // Svelte 5
+  const double = $derived(count * 2);
+  ```
+
+- Replace `$:` with `$effect` for side effects:
+  ```svelte
+  // Svelte 4
+  $: {
+    if (count > 5) {
+      alert('Count is too high!');
+    }
+  }
+  
+  // Svelte 5
+  $effect(() => {
+    if (count > 5) {
+      alert('Count is too high!');
+    }
+  });
+  ```
+
+### Props
+- Replace `export let` with `$props()` destructuring:
+  ```svelte
+  // Svelte 4
+  export let optional = 'unset';
+  export let required;
+  
+  // Svelte 5
+  let { optional = 'unset', required } = $props();
+  ```
+
+- Use `$bindable()` for two-way binding:
+  ```svelte
+  // Svelte 5
+  let { value = $bindable() } = $props();
+  ```
+
+## Event Changes
+
+### DOM Events
+- Replace `on:` directive with event properties:
+  ```svelte
+  // Svelte 4
+  <button on:click={() => count++}>
+  
+  // Svelte 5
+  <button onclick={() => count++}>
+  ```
+
+### Component Events
+- Replace `createEventDispatcher` with callback props:
+  ```svelte
+  // Svelte 4
+  import { createEventDispatcher } from 'svelte';
+  const dispatch = createEventDispatcher();
+  dispatch('event', data);
+  
+  // Svelte 5
+  let { onEvent } = $props();
+  onEvent?.(data);
+  ```
+
+### Event Modifiers
+- Replace event modifiers with function wrappers:
+  ```svelte
+  // Svelte 4
+  <button on:click|preventDefault={handler}>
+  
+  // Svelte 5
+  <button onclick={(e) => { e.preventDefault(); handler(e); }}>
+  ```
+
+## Snippets Instead of Slots
+
+### Default Content
+- Replace `<slot />` with `children` prop:
+  ```svelte
+  // Svelte 4
+  <slot />
+  
+  // Svelte 5
+  let { children } = $props();
+  {@render children?.()}
+  ```
+
+### Named Slots
+- Replace named slots with snippet props:
+  ```svelte
+  // Svelte 4
+  <slot name="header" />
+  
+  // Svelte 5
+  let { header } = $props();
+  {@render header()}
+  ```
+
+### Slot Props
+- Replace slot props with snippet parameters:
+  ```svelte
+  // Svelte 4
+  <slot item={entry} />
+  
+  // Svelte 5
+  let { item } = $props();
+  {@render item(entry)}
+  ```
+
+## Component Instantiation
+
+### Mounting Components
+- Replace `new Component()` with `mount()`:
+  ```js
+  // Svelte 4
+  const app = new Component({ target: document.getElementById("app") });
+  
+  // Svelte 5
+  import { mount } from 'svelte';
+  const app = mount(Component, { target: document.getElementById("app") });
+  ```
+
+### Server Rendering
+- Replace component `.render()` with `render()` function:
+  ```js
+  // Svelte 4
+  const { html, head } = App.render({ props: { message: 'hello' }});
+  
+  // Svelte 5
+  import { render } from 'svelte/server';
+  const { html, head } = render(App, { props: { message: 'hello' }});
+  ```
+
+## Dynamic Components
+
+### Component References
+- `<svelte:component>` is no longer necessary:
+  ```svelte
+  // Svelte 4
+  <svelte:component this={Thing} />
+  
+  // Svelte 5
+  <Thing />
+  ```
+
+## Migration Tools
+
+### Automatic Migration
+- Use `npx sv migrate svelte-5` for automatic migration
+- Use VS Code command "Migrate Component to Svelte 5 Syntax"
+- Use Playground "Migrate" button
+
+### Manual Cleanup Required
+- Convert `createEventDispatcher` manually
+- Convert `beforeUpdate/afterUpdate` to `$effect.pre` and `$effect`
+- Handle event modifiers manually
+- Update component instantiation code
+
+## Breaking Changes
+
+### Runes Mode Only
+- Bindings to component exports not allowed (use `bind:this`)
+- Bindings need `$bindable()` rune
+- `accessors` option ignored
+- `immutable` option ignored
+- Classes not auto-reactive (use `$state` fields)
+
+### General Breaking Changes
+- Modern browser required (no IE support)
+- Stricter HTML structure validation
+- Whitespace handling changed
+- `null`/`undefined` become empty string
+- Touch/wheel events are passive
+- Attribute/prop syntax stricter
+
+## Best Practices
+- Test all components with Svelte 5 runtime and dev tools
+- Use TypeScript for better type safety
+- Prefer explicit reactivity with runes
+- Use callback props instead of event dispatchers
+- Use snippets instead of slots for better flexibility
+- Review migration guide for edge cases and advanced patterns
+
+## Resources
+- [Svelte 5 Migration Guide](https://svelte.dev/docs/svelte/v5-migration-guide)
+- [Svelte 5 Tutorial](https://svelte.dev/tutorial)
+- [Svelte 5 Runes Documentation](https://svelte.dev/docs/svelte/runes)
