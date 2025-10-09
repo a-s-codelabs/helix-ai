@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Telescope UI Demo</title>
   <style>
+    html {
+      z-index: 99999;
+    }
     body {
       margin: 0;
       padding: 0;
@@ -15,13 +18,13 @@
   </style>
 </head>
 <body>
-  <div id="app"></div>
   <script type="module">
     import App from './telescope-ui/App.svelte';
     import { mount } from 'svelte';
     
+    // Mount the app directly to the body using a portal
     const app = mount(App, {
-      target: document.getElementById('app')
+      target: document.body
     });
   </script>
 </body>

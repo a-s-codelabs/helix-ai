@@ -31,34 +31,34 @@ function createSearchStore() {
 
   return {
     subscribe,
-    
+
     // Show the search UI
     show: () => update(state => ({ ...state, isVisible: true })),
-    
+
     // Hide the search UI
     hide: () => {
       clearHighlights();
-      update(state => ({ 
-        ...state, 
-        isVisible: false, 
-        query: '', 
-        results: [], 
-        currentIndex: 0, 
-        totalResults: 0 
+      update(state => ({
+        ...state,
+        isVisible: false,
+        query: '',
+        results: [],
+        currentIndex: 0,
+        totalResults: 0
       }));
     },
-    
+
     // Perform search
     search: (query: string) => {
       if (!query.trim()) {
         clearHighlights();
-        update(state => ({ 
-          ...state, 
-          query: '', 
-          results: [], 
-          currentIndex: 0, 
+        update(state => ({
+          ...state,
+          query: '',
+          results: [],
+          currentIndex: 0,
           totalResults: 0,
-          isSearching: false 
+          isSearching: false
         }));
         return;
       }
@@ -76,8 +76,8 @@ function createSearchStore() {
         {
           acceptNode: (node) => {
             const text = node.textContent || '';
-            return text.toLowerCase().includes(query.toLowerCase()) 
-              ? NodeFilter.FILTER_ACCEPT 
+            return text.toLowerCase().includes(query.toLowerCase())
+              ? NodeFilter.FILTER_ACCEPT
               : NodeFilter.FILTER_REJECT;
           }
         }
@@ -85,48 +85,48 @@ function createSearchStore() {
 
       let index = 0;
       let node: Text | null;
-      
+
       while (node = walker.nextNode() as Text | null) {
         const text = node.textContent || '';
         const regex = new RegExp(`(${query})`, 'gi');
         const matches = [...text.matchAll(regex)];
-        
+
         for (const match of matches) {
           if (match.index !== undefined) {
             // Create a wrapper element for highlighting
             const wrapper = document.createElement('span');
             wrapper.className = 'telescope-search-highlight';
             wrapper.setAttribute('data-search-index', index.toString());
-            
+
             // Split the text and wrap the match
             const beforeText = text.substring(0, match.index);
             const matchText = text.substring(match.index, match.index + match[0].length);
             const afterText = text.substring(match.index + match[0].length);
-            
+
             wrapper.innerHTML = `${beforeText}<mark class="telescope-search-match">${matchText}</mark>${afterText}`;
-            
+
             // Replace the text node with our wrapper
             node.parentNode?.replaceChild(wrapper, node);
-            
+
             results.push({
               element: wrapper,
               text: matchText,
               index,
               highlighted: false
             });
-            
+
             highlightElements.push(wrapper);
             index++;
           }
         }
       }
 
-      update(state => ({ 
-        ...state, 
-        results, 
-        totalResults: results.length, 
+      update(state => ({
+        ...state,
+        results,
+        totalResults: results.length,
         currentIndex: 0,
-        isSearching: false 
+        isSearching: false
       }));
 
       // Highlight the first result
@@ -134,35 +134,35 @@ function createSearchStore() {
         highlightResult(0);
       }
     },
-    
+
     // Navigate to next result
     next: () => {
       update(state => {
         if (state.results.length === 0) return state;
-        
+
         const newIndex = (state.currentIndex + 1) % state.results.length;
         highlightResult(newIndex);
         scrollToResult(newIndex);
-        
+
         return { ...state, currentIndex: newIndex };
       });
     },
-    
+
     // Navigate to previous result
     previous: () => {
       update(state => {
         if (state.results.length === 0) return state;
-        
-        const newIndex = state.currentIndex === 0 
-          ? state.results.length - 1 
+
+        const newIndex = state.currentIndex === 0
+          ? state.results.length - 1
           : state.currentIndex - 1;
         highlightResult(newIndex);
         scrollToResult(newIndex);
-        
+
         return { ...state, currentIndex: newIndex };
       });
     },
-    
+
     // Clear all highlights
     clearHighlights: () => {
       clearHighlights();
@@ -197,8 +197,8 @@ function createSearchStore() {
   function scrollToResult(index: number) {
     const result = document.querySelector(`[data-search-index="${index}"]`);
     if (result) {
-      result.scrollIntoView({ 
-        behavior: 'smooth', 
+      result.scrollIntoView({
+        behavior: 'smooth',
         block: 'center',
         inline: 'nearest'
       });

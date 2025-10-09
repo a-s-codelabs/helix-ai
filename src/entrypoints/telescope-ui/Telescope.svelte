@@ -1,21 +1,34 @@
 <script lang="ts">
-  import { fly } from 'svelte/transition';
-  import { quintOut } from 'svelte/easing';
-  import { createEventDispatcher } from 'svelte';
+  import { fly } from "svelte/transition";
+  import { quintOut } from "svelte/easing";
+  import MicIcon from "./icons/Mic.svelte";
+  import AttachmentIcon from "./icons/Attachment.svelte";
+  import UpIcon from "./icons/Up.svelte";
+  import DownIcon from "./icons/Down.svelte";
+  import SearchIcon from "./icons/Search.svelte";
+  import { State } from "./type";
 
-  // Props using Svelte 5 runes
-  let { 
-    state = $bindable('empty' as 'empty' | 'filled' | 'search' | 'summary'),
-    inputValue = $bindable(''),
-    placeholder = 'Find or ask...',
+  let {
+    state = $bindable("empty" as State),
+    inputValue = $bindable(""),
+    placeholder = "Find or ask...",
     searchIndex = 1,
     totalResults = 19,
-    summaryTitle = '',
-    summaryContent = '',
+    summaryTitle = "",
+    summaryContent = "",
     suggestedQuestions = [] as string[],
-    disabled = false
+    disabled = false,
+    onInput,
+    onStateChange,
+    onAsk,
+    onVoiceInput,
+    onAttachment,
+    onClear,
+    onSuggestedQuestion,
+    onSearchNavigation,
+    onClose,
   }: {
-    state?: 'empty' | 'filled' | 'search' | 'summary';
+    state?: State;
     inputValue?: string;
     placeholder?: string;
     searchIndex?: number;
@@ -24,77 +37,87 @@
     summaryContent?: string;
     suggestedQuestions?: string[];
     disabled?: boolean;
+    onInput?: ({ value }: { value: string }) => void;
+    onStateChange?: ({ state }: { state: State }) => void;
+    onAsk?: ({ value }: { value: string }) => void;
+    onVoiceInput?: () => void;
+    onAttachment?: () => void;
+    onClear?: () => void;
+    onSuggestedQuestion?: ({ question }: { question: string }) => void;
+    onSearchNavigation?: ({
+      direction,
+      currentIndex,
+    }: {
+      direction: "up" | "down";
+      currentIndex: number;
+    }) => void;
+    onClose?: () => void;
   } = $props();
 
-  // Event dispatcher - using Svelte 5 approach
-  let dispatch = createEventDispatcher();
-
-  // Refs using Svelte 5
   let inputElement: HTMLTextAreaElement;
 
-  // Derived state using Svelte 5 runes
-  let isExpanded = $derived(state === 'summary');
-  let isInputExpanded = $derived(inputValue.length > 50 || inputValue.includes('\n'));
+  let isExpanded = $derived(state === "summary");
+  let isInputExpanded = $derived(
+    inputValue.length > 50 || inputValue.includes("\n")
+  );
 
   function handleInput(event: Event) {
     const target = event.target as HTMLTextAreaElement;
     inputValue = target.value;
-    dispatch('input', { value: inputValue });
-    
-    // Auto-resize textarea
+    onInput?.({ value: inputValue });
+
     autoResize(target);
-    
-    if (inputValue.length > 0 && state === 'empty') {
-      dispatch('stateChange', { state: 'filled' });
-    } else if (inputValue.length === 0 && state === 'filled') {
-      dispatch('stateChange', { state: 'empty' });
+
+    if (inputValue.length > 0 && state === "empty") {
+      onStateChange?.({ state: "filled" });
+    } else if (inputValue.length === 0 && state === "filled") {
+      onStateChange?.({ state: "empty" });
     }
   }
 
   function autoResize(textarea: HTMLTextAreaElement) {
-    // Reset height to auto to get the correct scrollHeight
-    textarea.style.height = 'auto';
-    // Set height to scrollHeight to fit content
-    textarea.style.height = Math.max(48, textarea.scrollHeight) + 'px';
+    textarea.style.height = "auto";
+    textarea.style.height = Math.max(48, textarea.scrollHeight) + "px";
   }
 
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Enter' && !event.shiftKey) {
+    if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      dispatch('ask', { value: inputValue });
+      onAsk?.({ value: inputValue });
     }
   }
 
   function handleAsk() {
-    dispatch('ask', { value: inputValue });
+    onAsk?.({ value: inputValue });
   }
 
   function handleVoiceInput() {
-    dispatch('voiceInput');
+    onVoiceInput?.();
   }
 
   function handleAttachment() {
-    dispatch('attachment');
+    onAttachment?.();
   }
 
   function handleClose() {
-    if (state === 'summary') {
-      dispatch('stateChange', { state: 'empty' });
+    if (state === "summary") {
+      onStateChange?.({ state: "empty" });
     } else {
-      inputValue = '';
-      inputElement.value = '';
-      dispatch('clear');
+      inputValue = "";
+      inputElement.value = "";
+      onClear?.();
     }
+    onClose?.();
   }
 
   function handleSuggestedQuestion(question: string) {
     inputValue = question;
     inputElement.value = question;
-    dispatch('suggestedQuestion', { question });
+    onSuggestedQuestion?.({ question });
   }
 
-  function handleSearchNavigation(direction: 'up' | 'down') {
-    dispatch('searchNavigation', { direction, currentIndex: searchIndex });
+  function handleSearchNavigation(direction: "up" | "down") {
+    onSearchNavigation?.({ direction, currentIndex: searchIndex });
   }
 
   // Effect to auto-resize on mount and when inputValue changes
@@ -106,20 +129,11 @@
 </script>
 
 <div class="telescope-container" class:expanded={isExpanded}>
-  <!-- Main Input Bar -->
   <div class="input-bar" class:disabled class:input-expanded={isInputExpanded}>
-    <!-- Search Icon -->
     <div class="icon search-icon">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="11" cy="11" r="8"></circle>
-        <path d="m21 21-4.35-4.35"></path>
-        <circle cx="11" cy="11" r="3" fill="currentColor" opacity="0.3"></circle>
-        <path d="m8 8 2 2" stroke-width="1"></path>
-        <path d="m14 8 2 2" stroke-width="1"></path>
-      </svg>
+      <SearchIcon />
     </div>
 
-    <!-- Input Field -->
     <textarea
       bind:this={inputElement}
       bind:value={inputValue}
@@ -132,68 +146,95 @@
       style="resize: none; overflow: hidden;"
     ></textarea>
 
-    <!-- Search Navigation (for search state) -->
-    {#if state === 'search'}
+    {#if state === "search" && inputValue.length > 0}
       <div class="search-navigation">
         <span class="search-counter">{searchIndex}/{totalResults}</span>
-        <button class="nav-button" onclick={() => handleSearchNavigation('up')} disabled={searchIndex <= 1} aria-label="Previous result">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="18,15 12,9 6,15"></polyline>
-          </svg>
+        <button
+          class="nav-button"
+          onclick={() => handleSearchNavigation("up")}
+          disabled={searchIndex <= 1}
+          aria-label="Previous result"
+        >
+          <UpIcon />
         </button>
-        <button class="nav-button" onclick={() => handleSearchNavigation('down')} disabled={searchIndex >= totalResults} aria-label="Next result">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="6,9 12,15 18,9"></polyline>
-          </svg>
+        <button
+          class="nav-button"
+          onclick={() => handleSearchNavigation("down")}
+          disabled={searchIndex >= totalResults}
+          aria-label="Next result"
+        >
+          <DownIcon />
         </button>
       </div>
     {/if}
 
-    <!-- Separator -->
     <div class="separator"></div>
 
-    <!-- Action Icons -->
     <div class="action-icons">
-      <button class="icon-button" onclick={handleVoiceInput} title="Voice input" aria-label="Voice input">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-          <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-          <line x1="12" y1="19" x2="12" y2="23"></line>
-          <line x1="8" y1="23" x2="16" y2="23"></line>
-        </svg>
+      <button
+        class="icon-button"
+        onclick={handleVoiceInput}
+        title="Voice input"
+        aria-label="Voice input"
+      >
+        <MicIcon />
       </button>
 
-      <button class="icon-button" onclick={handleAttachment} title="Attach file" aria-label="Attach file">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.64 16.2a2 2 0 0 1-2.83-2.83l8.49-8.49"></path>
-        </svg>
+      <button
+        class="icon-button"
+        onclick={handleAttachment}
+        title="Attach file"
+        aria-label="Attach file"
+      >
+        <AttachmentIcon />
       </button>
     </div>
 
-    <!-- Ask Button (for filled state) -->
-    {#if state === 'filled' && inputValue.length > 0}
-      <button class="ask-button" onclick={handleAsk}>
-        Ask
-      </button>
+    {#if state === "filled" && inputValue.length > 0}
+      <button class="ask-button" onclick={handleAsk}> Ask </button>
     {/if}
 
-    <!-- Close Button -->
-    <button class="close-button" onclick={handleClose} title="Close" aria-label="Close">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <button
+      class="close-button"
+      onclick={handleClose}
+      title="Close"
+      aria-label="Close"
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
         <line x1="18" y1="6" x2="6" y2="18"></line>
         <line x1="6" y1="6" x2="18" y2="18"></line>
       </svg>
     </button>
   </div>
 
-  <!-- Summary Panel (for summary state) -->
-  {#if state === 'summary'}
-    <div class="summary-panel" transition:fly={{ y: 20, duration: 300, easing: quintOut }}>
+  {#if state === "summary"}
+    <div
+      class="summary-panel"
+      transition:fly={{ y: 20, duration: 300, easing: quintOut }}
+    >
       <div class="summary-header">
         <span class="time">05:13 PM</span>
         <div class="drag-handle"></div>
-        <button class="close-summary" onclick={handleClose} aria-label="Close summary">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <button
+          class="close-summary"
+          onclick={handleClose}
+          aria-label="Close summary"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
@@ -201,13 +242,20 @@
       </div>
 
       <div class="summary-content">
-        <h3 class="summary-title">{summaryTitle || 'Website Summary'}</h3>
+        <h3 class="summary-title">{summaryTitle || "Website Summary"}</h3>
         <div class="summary-text">
           {#if summaryContent}
             {@html summaryContent}
           {:else}
-            <p>Here's a breakdown based on what I found + observations & suggestions:</p>
-            <p>This is a placeholder for the actual summary content. The component is ready to display rich HTML content including lists, formatting, and more.</p>
+            <p>
+              Here's a breakdown based on what I found + observations &
+              suggestions:
+            </p>
+            <p>
+              This is a placeholder for the actual summary content. The
+              component is ready to display rich HTML content including lists,
+              formatting, and more.
+            </p>
           {/if}
         </div>
       </div>
@@ -216,8 +264,8 @@
       {#if suggestedQuestions.length > 0}
         <div class="suggested-questions">
           {#each suggestedQuestions as question}
-            <button 
-              class="suggested-question" 
+            <button
+              class="suggested-question"
               onclick={() => handleSuggestedQuestion(question)}
             >
               {question}
@@ -226,13 +274,9 @@
         </div>
       {/if}
 
-      <!-- Follow-up Input -->
       <div class="follow-up-input">
         <div class="icon search-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"></circle>
-            <path d="m21 21-4.35-4.35"></path>
-          </svg>
+          <SearchIcon />
         </div>
         <input
           type="text"
@@ -240,18 +284,19 @@
           class="follow-up-field"
         />
         <div class="action-icons">
-          <button class="icon-button" onclick={handleVoiceInput} aria-label="Voice input">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-              <line x1="12" y1="19" x2="12" y2="23"></line>
-              <line x1="8" y1="23" x2="16" y2="23"></line>
-            </svg>
+          <button
+            class="icon-button"
+            onclick={handleVoiceInput}
+            aria-label="Voice input"
+          >
+            <MicIcon />
           </button>
-          <button class="icon-button" onclick={handleAttachment} aria-label="Attach file">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.64 16.2a2 2 0 0 1-2.83-2.83l8.49-8.49"></path>
-            </svg>
+          <button
+            class="icon-button"
+            onclick={handleAttachment}
+            aria-label="Attach file"
+          >
+            <AttachmentIcon />
           </button>
         </div>
         <div class="separator"></div>
@@ -262,7 +307,7 @@
 </div>
 
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
+  @import url("https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap");
 
   .telescope-container {
     position: relative;
@@ -270,7 +315,13 @@
     max-width: 600px;
     margin: 0 auto;
     transition: all 0.3s ease;
-    font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family:
+      "Sora",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
+      sans-serif;
   }
 
   .telescope-container.expanded {
@@ -338,7 +389,7 @@
     min-width: 0;
     min-height: 24px;
     line-height: 1.4;
-    font-family: 'Sora', inherit;
+    font-family: "Sora", inherit;
     resize: none;
     overflow: hidden;
     padding: 0;
@@ -537,13 +588,13 @@
     margin: 0 0 12px 0;
   }
 
-  /* These selectors are used in the HTML content via {@html} - svelte-ignore css_unused_selector */
-  .summary-text ul {
+  /* These selectors are used in the HTML content via {@html} */
+  .summary-text :global(ul) {
     margin: 12px 0;
     padding-left: 20px;
   }
 
-  .summary-text li {
+  .summary-text :global(li) {
     margin: 4px 0;
   }
 
@@ -594,8 +645,14 @@
 
   /* Animations */
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .ask-button {
