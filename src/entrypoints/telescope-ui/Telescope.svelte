@@ -86,7 +86,6 @@
     } else {
       inputBarElement.style.height = "auto";
     }
-    console.log("isInputExpanded", isInputExpanded);
   }
 
   function handleKeydown(event: KeyboardEvent) {
@@ -512,88 +511,21 @@
     background: #404040;
     color: #d1d5db;
   }
-
-  .summary-panel {
-    background: #1a1a1a;
-    border: 1px solid #404040;
-    border-radius: 12px;
-    margin-top: 8px;
-    overflow: hidden;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-  }
-
-  .summary-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 20px;
-    border-bottom: 1px solid #404040;
-  }
-
-  .time {
-    color: #9ca3af;
-    font-size: 14px;
-  }
-
-  .drag-handle {
-    width: 40px;
-    height: 4px;
-    background: #404040;
-    border-radius: 2px;
-    margin: 0 auto;
-  }
-
-  .close-summary {
-    background: none;
-    border: none;
-    color: #9ca3af;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
-    transition: all 0.2s ease;
-  }
-
-  .close-summary:hover {
-    background: #404040;
-    color: #d1d5db;
-  }
-
-  .summary-content {
-    padding: 20px;
-  }
-
-  .summary-title {
-    color: #ffffff;
-    font-size: 20px;
-    font-weight: 700;
-    margin: 0 0 16px 0;
-  }
-
-  .summary-text {
-    color: #d1d5db;
-    line-height: 1.6;
-    font-size: 14px;
-  }
-
-  .summary-text p {
-    margin: 0 0 12px 0;
-  }
-
-  /* These selectors are used in the HTML content via {@html} */
-  .summary-text :global(ul) {
-    margin: 12px 0;
-    padding-left: 20px;
-  }
-
-  .summary-text :global(li) {
-    margin: 4px 0;
-  }
-
   .suggested-questions {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
-    padding: 0 20px 20px;
+    padding: 0 0px 20px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overflow-x: auto;
+    scroll-padding-inline-start: 0px;
+    /* Hide scrollbar for Webkit browsers */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+  }
+  .suggested-questions::-webkit-scrollbar {
+    display: none; /* Safari and Chrome */
   }
 
   .suggested-question {
@@ -605,6 +537,8 @@
     font-size: 14px;
     cursor: pointer;
     transition: all 0.2s ease;
+    white-space: nowrap;
+    flex: 0 0 auto;
   }
 
   .suggested-question:hover {
