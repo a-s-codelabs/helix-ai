@@ -6,7 +6,7 @@
   import UpIcon from "./icons/Up.svelte";
   import DownIcon from "./icons/Down.svelte";
   import SearchIcon from "./icons/Search.svelte";
-  import { State } from "./type";
+  import type { State } from "./type";
 
   let {
     state = $bindable("empty" as State),
