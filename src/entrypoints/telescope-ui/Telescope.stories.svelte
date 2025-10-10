@@ -11,40 +11,40 @@
       state: {
         control: { type: "select" },
         options: ["empty", "filled", "search", "summary"],
-        description: "Current state of the telescope component"
+        description: "Current state of the telescope component",
       },
       inputValue: {
         control: "text",
-        description: "Current input value"
+        description: "Current input value",
       },
       placeholder: {
         control: "text",
-        description: "Placeholder text for the input"
+        description: "Placeholder text for the input",
       },
       searchIndex: {
         control: { type: "number", min: 1, max: 50 },
-        description: "Current search result index"
+        description: "Current search result index",
       },
       totalResults: {
         control: { type: "number", min: 1, max: 100 },
-        description: "Total number of search results"
+        description: "Total number of search results",
       },
       summaryTitle: {
         control: "text",
-        description: "Title for the summary panel"
+        description: "Title for the summary panel",
       },
       summaryContent: {
         control: "text",
-        description: "HTML content for the summary"
+        description: "HTML content for the summary",
       },
       suggestedQuestions: {
         control: "object",
-        description: "Array of suggested questions"
+        description: "Array of suggested questions",
       },
       disabled: {
         control: "boolean",
-        description: "Whether the component is disabled"
-      }
+        description: "Whether the component is disabled",
+      },
     },
     args: {
       onInput: fn(),
@@ -54,43 +54,55 @@
       onClear: fn(),
       onStateChange: fn(),
       onSuggestedQuestion: fn(),
-      onSearchNavigation: fn()
+      onSearchNavigation: fn(),
     },
   });
 </script>
 
-<Story 
-  name="Empty State" 
-  args={{ 
+<Story
+  name="Empty State"
+  args={{
     state: "empty",
     placeholder: "Find or ask...",
-    inputValue: ""
-  }} 
+    inputValue: "",
+  }}
 />
 
-<Story 
-  name="Filled State" 
-  args={{ 
+<Story
+  name="Filled State"
+  args={{
     state: "filled",
     placeholder: "Find or ask...",
-    inputValue: "summarize the website and tell me"
-  }} 
+    inputValue: "summarize the website and tell me",
+  }}
 />
 
-<Story 
-  name="Search State" 
-  args={{ 
+<Story
+  name="Search State"
+  args={{
     state: "search",
     placeholder: "Find or ask...",
     inputValue: "What",
     searchIndex: 1,
-    totalResults: 19
-  }} 
+    totalResults: 19,
+  }}
 />
 
-<Story 
-  name="Summary State" 
-  args={{ 
+<Story
+  name="Image "
+  args={{
+    state: "search",
+    placeholder: "Find or ask...",
+    inputValue: "",
+    inputImageAttached: ["", "", ""],
+    searchIndex: 1,
+    totalResults: 19,
+  }}
+/>
+
+<Story
+  name="Summary State"
+  args={{
     state: "summary",
     placeholder: "Find or ask...",
     inputValue: "summarize the website and tell me",
@@ -117,53 +129,56 @@
       "Who are their main clients / industries they serve?",
       "How do they price / package their services?",
       "What technologies do they specialize in?",
-      "Can you show me examples of their work?"
-    ]
-  }} 
+      "Can you show me examples of their work?",
+    ],
+  }}
 />
 
-<Story 
-  name="Disabled State" 
-  args={{ 
+<Story
+  name="Disabled State"
+  args={{
     state: "empty",
     placeholder: "Find or ask...",
     inputValue: "",
-    disabled: true
-  }} 
+    disabled: true,
+  }}
 />
 
-<Story 
-  name="Long Text State (Auto-Expanding)" 
-  args={{ 
+<Story
+  name="Long Text State (Auto-Expanding)"
+  args={{
     state: "filled",
     placeholder: "Find or ask...",
-    inputValue: "jfiphqdo [kvqodv[oiqbnv[oiqbvo[iqbeiov[bqoiefvboiqbefvoiqbovibq woibfvoqbovboiqbvoibqoibvoqbio[vboiqbvoibqoibvoqbvoqbvobq ovbo[qbvoqebo[vboqbvoqebvoqbvoiqbeivboqbvoqbvbqovboiqebv o[qebvobovbo[qbv[oiqbvoibvoibqobvoiqbvoqbvo[qbvoibqoivbqosi dvbqoiwberklmpfnvwfnvwkfnvfnvkwqfnvqnfvlnqfvknfqfhojkqdbvoq bdoivboqibvoijqboivboijqbvoubqioubvioubqiubeviubqiubevqbedv biuqbdviuqbdviubqiuvbiqubviuqbviubqiuvbiquubviuqubviuubqiuub viuuqidvbiuqsbdviuqbdviubiqubvqiubvqiubviasbviuqbdviuqbviqjvb iqbvjubqdub"
-  }} 
+    inputValue:
+      "jfiphqdo [kvqodv[oiqbnv[oiqbvo[iqbeiov[bqoiefvboiqbefvoiqbovibq woibfvoqbovboiqbvoibqoibvoqbio[vboiqbvoibqoibvoqbvoqbvobq ovbo[qbvoqebo[vboqbvoqebvoqbvoiqbeivboqbvoqbvbqovboiqebv o[qebvobovbo[qbv[oiqbvoibvoibqobvoiqbvoqbvo[qbvoibqoivbqosi dvbqoiwberklmpfnvwfnvwkfnvfnvkwqfnvqnfvlnqfvknfqfhojkqdbvoq bdoivboqibvoijqboivboijqbvoubqioubvioubqiubeviubqiubevqbedv biuqbdviuqbdviubqiuvbiqubviuqbviubqiuvbiquubviuqubviuubqiuub viuuqidvbiuqsbdviuqbdviubiqubvqiubvqiubviasbviuqbdviuqbviqjvb iqbvjubqdub",
+  }}
 />
 
-<Story 
-  name="Multi-line Text State (Sora Font)" 
-  args={{ 
+<Story
+  name="Multi-line Text State (Sora Font)"
+  args={{
     state: "filled",
     placeholder: "Find or ask...",
-    inputValue: "This is a multi-line text input that should expand automatically.\n\nIt should handle multiple lines and paragraphs.\n\nEach new line should increase the height of the input field."
-  }} 
+    inputValue:
+      "This is a multi-line text input that should expand automatically.\n\nIt should handle multiple lines and paragraphs.\n\nEach new line should increase the height of the input field.",
+  }}
 />
 
-<Story 
-  name="Very Long Single Line (Sora Font)" 
-  args={{ 
+<Story
+  name="Very Long Single Line (Sora Font)"
+  args={{
     state: "filled",
     placeholder: "Find or ask...",
-    inputValue: "This is a very long single line of text that should trigger the expanding behavior when it exceeds the normal width and requires the input field to grow vertically to accommodate all the content without horizontal scrolling."
-  }} 
+    inputValue:
+      "This is a very long single line of text that should trigger the expanding behavior when it exceeds the normal width and requires the input field to grow vertically to accommodate all the content without horizontal scrolling.",
+  }}
 />
 
-<Story 
-  name="Interactive Demo" 
-  args={{ 
+<Story
+  name="Interactive Demo"
+  args={{
     state: "empty",
     placeholder: "Find or ask...",
-    inputValue: ""
-  }} 
+    inputValue: "",
+  }}
 />

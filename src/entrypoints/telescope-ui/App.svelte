@@ -142,7 +142,7 @@
   >
     <div class="telescope-container draggable" bind:this={telescopeContainer}>
       <Telescope
-        state={currentState}
+        inputState={currentState}
         bind:inputValue
         {searchIndex}
         {totalResults}
@@ -166,107 +166,6 @@
         onSearchNavigation={handleSearchNavigation}
         onClose={handleClose}
       />
-      <!-- on:stateChange={handleStateChange}
-        on:input={handleInput}
-        on:ask={handleAsk}
-        on:voiceInput={handleVoiceInput}
-        on:attachment={handleAttachment}
-        on:clear={handleClear}
-        on:suggestedQuestion={handleSuggestedQuestion}
-        on:searchNavigation={handleSearchNavigation}
-        on:close={handleClose} -->
-    </div>
-  </div>
-{:else}
-  <div class="demo-container">
-    <h1>Telescope Component Demo</h1>
-    <p>
-      Press <kbd>Cmd+F</kbd> (Mac) or <kbd>Ctrl+F</kbd> (Windows/Linux) to open the
-      search interface
-    </p>
-
-    <div class="state-controls">
-      <h3>State Controls:</h3>
-      <div class="button-group">
-        <button
-          class="state-button"
-          class:active={currentState === "empty"}
-          onclick={() => (currentState = "empty")}
-        >
-          Empty
-        </button>
-        <button
-          class="state-button"
-          class:active={currentState === "filled"}
-          onclick={() => (currentState = "filled")}
-        >
-          Filled
-        </button>
-        <button
-          class="state-button"
-          class:active={currentState === "search"}
-          onclick={() => (currentState = "search")}
-        >
-          Search
-        </button>
-        <button
-          class="state-button"
-          class:active={currentState === "summary"}
-          onclick={() => (currentState = "summary")}
-        >
-          Summary
-        </button>
-      </div>
-    </div>
-
-    <div class="telescope-demo">
-      <Telescope
-        state={currentState}
-        bind:inputValue
-        {searchIndex}
-        {totalResults}
-        summaryTitle="summarize the website and tell me"
-        summaryContent="
-          <p>Here's a breakdown of Ascodelabs (ascodelabs.com) based on what I found + observations & suggestions:</p>
-          
-          <h4>Ascodelabs (AS CodeLabs)</h4>
-          <p>A modern software development agency specializing in:</p>
-          <ul>
-            <li>Custom web & mobile apps (React, Next.js, Tailwind)</li>
-            <li>Dashboards & analytics solutions (real-time insights)</li>
-            <li>Automation workflows (e.g., n8n integration)</li>
-            <li>Dedicated developer teams / outsourcing</li>
-          </ul>
-          
-          <h4>Portfolio & Work</h4>
-          <p>They showcase projects like OKTRIA Dashboard and ThreeYem Stamp, highlighting their use of modern tech stacks.</p>
-          
-          <h4>Blog & Content</h4>
-          <p>Regular insights on development practices and industry trends.</p>
-        "
-        suggestedQuestions={[
-          "Who are their main clients / industries they serve?",
-          "How do they price / package their services?",
-          "What technologies do they specialize in?",
-          "Can you show me examples of their work?",
-        ]}
-        onStateChange={handleStateChange}
-        onInput={handleInput}
-        onAsk={handleAsk}
-        onVoiceInput={handleVoiceInput}
-        onAttachment={handleAttachment}
-        onClear={handleClear}
-        onSuggestedQuestion={handleSuggestedQuestion}
-        onSearchNavigation={handleSearchNavigation}
-        onClose={handleClose}
-      />
-    </div>
-
-    <div class="debug-info">
-      <h3>Debug Info:</h3>
-      <p><strong>Current State:</strong> {currentState}</p>
-      <p><strong>Input Value:</strong> "{inputValue}"</p>
-      <p><strong>Search Index:</strong> {searchIndex}/{totalResults}</p>
     </div>
   </div>
 {/if}

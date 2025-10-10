@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { fly } from "svelte/transition";
-  import { quintOut } from "svelte/easing";
   import MicIcon from "./icons/Mic.svelte";
   import AttachmentIcon from "./icons/Attachment.svelte";
   import UpIcon from "./icons/Up.svelte";
@@ -10,7 +8,7 @@
   import type { State } from "./type";
 
   let {
-    state = $bindable("empty" as State),
+    inputState = $bindable("empty" as State),
     inputValue = $bindable(""),
     placeholder = "Find or ask...",
     searchIndex = 1,
@@ -19,6 +17,7 @@
     summaryContent = "",
     suggestedQuestions = [] as string[],
     disabled = false,
+    inputImageAttached = $bindable([] as string[]),
     onInput,
     onStateChange,
     onAsk,
@@ -29,7 +28,7 @@
     onSearchNavigation,
     onClose,
   }: {
-    state?: State;
+    inputState?: State;
     inputValue?: string;
     placeholder?: string;
     searchIndex?: number;
@@ -38,6 +37,7 @@
     summaryContent?: string;
     suggestedQuestions?: string[];
     disabled?: boolean;
+    inputImageAttached?: string[];
     onInput?: ({ value }: { value: string }) => void;
     onStateChange?: ({ state }: { state: State }) => void;
     onAsk?: ({ value }: { value: string }) => void;
@@ -57,10 +57,13 @@
 
   let inputElement: HTMLTextAreaElement;
   let inputBarElement: HTMLDivElement;
+  // let inputImageAttached = $state<string[]>(["", "", ""]);
   const CHAR_EXPAND_LIMIT = 40;
-  let isExpanded = $derived(state === "summary");
+  let isExpanded = $derived(inputState === "summary");
   let isInputExpanded = $derived(
-    inputValue.length > CHAR_EXPAND_LIMIT || inputValue.includes("\n")
+    inputValue.length > CHAR_EXPAND_LIMIT ||
+      inputValue.includes("\n") ||
+      inputImageAttached.length > 1
   );
 
   function handleInput(event: Event) {
@@ -70,9 +73,9 @@
 
     autoResize(target);
 
-    if (inputValue.length > 0 && state === "empty") {
+    if (inputValue.length > 0 && inputState === "empty") {
       onStateChange?.({ state: "filled" });
-    } else if (inputValue.length === 0 && state === "filled") {
+    } else if (inputValue.length === 0 && inputState === "filled") {
       onStateChange?.({ state: "empty" });
     }
   }
@@ -108,7 +111,7 @@
   }
 
   function handleClose() {
-    if (state === "summary") {
+    if (inputState === "summary") {
       onStateChange?.({ state: "empty" });
     } else {
       inputValue = "";
@@ -151,130 +154,144 @@
   {/if}
 
   <div
-    class="input-bar"
-    bind:this={inputBarElement}
-    class:disabled
+    class="input-bar-container"
+    class:is-expanded={isExpanded}
     class:input-expanded={isInputExpanded}
   >
-    {#if !isInputExpanded}
-      <div class="icon search-icon">
-        <SearchIcon />
+    {#if inputImageAttached.length > 0}
+      <div class="image-inputs-container">
+        {#each inputImageAttached as image}
+          <div class="image-placeholder"></div>
+        {/each}
       </div>
     {/if}
-    <textarea
-      bind:this={inputElement}
-      bind:value={inputValue}
-      oninput={handleInput}
-      onkeydown={handleKeydown}
-      {placeholder}
-      {disabled}
-      class="input-field"
+
+    <div
+      class="input-bar"
+      bind:this={inputBarElement}
+      class:disabled
       class:input-expanded={isInputExpanded}
-      rows="1"
-      style="resize: none; overflow: hidden;"
-    ></textarea>
-
-    {#if state === "search" && inputValue.length > 0}
-      <div class="search-navigation">
-        <span class="search-counter">{searchIndex}/{totalResults}</span>
-        <button
-          class="nav-button"
-          onclick={() => handleSearchNavigation("up")}
-          disabled={searchIndex <= 1}
-          aria-label="Previous result"
-        >
-          <UpIcon />
-        </button>
-        <button
-          class="nav-button"
-          onclick={() => handleSearchNavigation("down")}
-          disabled={searchIndex >= totalResults}
-          aria-label="Next result"
-        >
-          <DownIcon />
-        </button>
-      </div>
-    {/if}
-
-    {#if !isInputExpanded}
-      <div class="separator"></div>
-
-      <div class="action-icons">
-        <button
-          class="icon-button"
-          onclick={handleVoiceInput}
-          title="Voice input"
-          aria-label="Voice input"
-        >
-          <MicIcon />
-        </button>
-
-        <button
-          class="icon-button"
-          onclick={handleAttachment}
-          title="Attach file"
-          aria-label="Attach file"
-        >
-          <AttachmentIcon />
-        </button>
-      </div>
-
-      {#if state === "filled" && inputValue.length > 0}
-        <button class="ask-button" onclick={handleAsk}> Ask </button>
-      {/if}
-
-      <button
-        class="close-button"
-        onclick={handleClose}
-        title="Close"
-        aria-label="Close"
-      >
-        <CloseIcon />
-      </button>
-    {/if}
-
-    {#if isInputExpanded}
-      <div class="expand-bar">
+    >
+      {#if !isInputExpanded}
         <div class="icon search-icon">
           <SearchIcon />
         </div>
-        <div class="expand-bar-content">
-          <div class="action-icons">
-            <button
-              class="icon-button"
-              onclick={handleVoiceInput}
-              title="Voice input"
-              aria-label="Voice input"
-            >
-              <MicIcon />
-            </button>
+      {/if}
+      <textarea
+        bind:this={inputElement}
+        bind:value={inputValue}
+        oninput={handleInput}
+        onkeydown={handleKeydown}
+        {placeholder}
+        {disabled}
+        class="input-field"
+        class:input-expanded={isInputExpanded}
+        rows="1"
+        style="resize: none; overflow: hidden;"
+      ></textarea>
 
-            <button
-              class="icon-button"
-              onclick={handleAttachment}
-              title="Attach file"
-              aria-label="Attach file"
-            >
-              <AttachmentIcon />
-            </button>
-          </div>
-          <div class="separator"></div>
-
-          {#if state === "filled" && inputValue.length > 0}
-            <button class="ask-button" onclick={handleAsk}> Ask </button>
-          {/if}
-
+      {#if inputState === "search" && inputValue.length > 0}
+        <div class="search-navigation">
+          <span class="search-counter">{searchIndex}/{totalResults}</span>
           <button
-            class="close-button"
-            onclick={handleClose}
-            title="Close"
-            aria-label="Close"
+            class="nav-button"
+            onclick={() => handleSearchNavigation("up")}
+            disabled={searchIndex <= 1}
+            aria-label="Previous result"
           >
-            <CloseIcon />
+            <UpIcon />
+          </button>
+          <button
+            class="nav-button"
+            onclick={() => handleSearchNavigation("down")}
+            disabled={searchIndex >= totalResults}
+            aria-label="Next result"
+          >
+            <DownIcon />
           </button>
         </div>
-      </div>
-    {/if}
+      {/if}
+
+      {#if !isInputExpanded}
+        <div class="separator"></div>
+
+        <div class="action-icons">
+          <button
+            class="icon-button"
+            onclick={handleVoiceInput}
+            title="Voice input"
+            aria-label="Voice input"
+          >
+            <MicIcon />
+          </button>
+
+          <button
+            class="icon-button"
+            onclick={handleAttachment}
+            title="Attach file"
+            aria-label="Attach file"
+          >
+            <AttachmentIcon />
+          </button>
+        </div>
+
+        {#if inputState === "filled" && inputValue.length > 0}
+          <button class="ask-button" onclick={handleAsk}> Ask </button>
+        {/if}
+
+        <button
+          class="close-button"
+          onclick={handleClose}
+          title="Close"
+          aria-label="Close"
+        >
+          <CloseIcon />
+        </button>
+      {/if}
+
+      {#if isInputExpanded}
+        <div class="expand-bar">
+          <div class="icon search-icon">
+            <SearchIcon />
+          </div>
+          <div class="expand-bar-content">
+            <div class="action-icons">
+              <button
+                class="icon-button"
+                onclick={handleVoiceInput}
+                title="Voice input"
+                aria-label="Voice input"
+              >
+                <MicIcon />
+              </button>
+
+              <button
+                class="icon-button"
+                onclick={handleAttachment}
+                title="Attach file"
+                aria-label="Attach file"
+              >
+                <AttachmentIcon />
+              </button>
+            </div>
+            <div class="separator"></div>
+
+            {#if inputState === "filled" && inputValue.length > 0}
+              <button class="ask-button" onclick={handleAsk}> Ask </button>
+            {/if}
+
+            <button
+              class="close-button"
+              onclick={handleClose}
+              title="Close"
+              aria-label="Close"
+            >
+              <CloseIcon />
+            </button>
+          </div>
+        </div>
+      {/if}
+    </div>
   </div>
 </div>
 
@@ -300,17 +317,41 @@
     max-width: 800px;
   } */
 
+  .input-bar-container {
+    display: flex;
+    align-items: start;
+    flex-direction: column;
+    background: #262832;
+    /* border: 1px solid #404040; */
+    border-radius: 48px;
+    padding: 12px 16px;
+  }
+
+  .input-bar-container.input-expanded {
+    border-radius: 28px;
+  }
+
   .input-bar {
     display: flex;
     align-items: center;
-    background: #262832;
-    border: 1px solid #404040;
-    border-radius: 48px;
-    padding: 12px 16px;
     gap: 12px;
     transition: all 0.3s ease;
     position: relative;
+    width: 100%;
     /* min-height: 48px; */
+  }
+
+  .image-inputs-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .image-placeholder {
+    width: 110px;
+    height: 110px;
+    background: #131723;
+    border-radius: 15px;
   }
 
   .expand-bar {
@@ -335,11 +376,6 @@
 
   .input-bar:hover {
     border-color: #555;
-  }
-
-  .input-bar:focus-within {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }
 
   .input-bar.disabled {
