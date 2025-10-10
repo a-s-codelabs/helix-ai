@@ -348,7 +348,7 @@
   }
 
   .state-button {
-    background: #2a2a2a;
+    background: #262832;
     color: #d1d5db;
     border: 1px solid #404040;
     padding: 8px 16px;
@@ -392,7 +392,7 @@
   }
 
   kbd {
-    background: #2a2a2a;
+    background: #262832;
     border: 1px solid #404040;
     border-radius: 4px;
     padding: 2px 6px;

@@ -1,20 +1,27 @@
 <script lang="ts">
-  import svelteLogo from '../../assets/svelte.svg'
-  import Counter from '../../lib/Counter.svelte'
+  import svelteLogo from "../../assets/svelte.svg";
+  import Counter from "../../lib/Counter.svelte";
 
   function openTelescopeSearch() {
     // Send message to content script to open telescope
-    console.log('Sending openTelescope message');
-    if (typeof chrome !== 'undefined' && chrome.tabs) {
+    console.log("Sending openTelescope message");
+    if (typeof chrome !== "undefined" && chrome.tabs) {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs[0]?.id) {
-          chrome.tabs.sendMessage(tabs[0].id, { action: 'openTelescope' }, (response: any) => {
-            if (chrome.runtime.lastError) {
-              console.error('Error sending message:', chrome.runtime.lastError);
-            } else {
-              console.log('Message sent successfully');
+          chrome.tabs.sendMessage(
+            tabs[0].id,
+            { action: "openTelescope" },
+            (response: any) => {
+              if (chrome.runtime.lastError) {
+                console.error(
+                  "Error sending message:",
+                  chrome.runtime.lastError
+                );
+              } else {
+                console.log("Message sent successfully");
+              }
             }
-          });
+          );
           // Close the popup after opening telescope
           window.close();
         }
@@ -24,8 +31,8 @@
 
   function openTelescopeDemo() {
     // Open the telescope UI demo page
-    if (typeof chrome !== 'undefined' && chrome.tabs) {
-      chrome.tabs.create({ url: chrome.runtime.getURL('telescope-ui.html') });
+    if (typeof chrome !== "undefined" && chrome.tabs) {
+      chrome.tabs.create({ url: chrome.runtime.getURL("telescope-ui.html") });
     }
   }
 </script>
@@ -38,15 +45,29 @@
 
   <div class="actions">
     <button class="primary-button" onclick={openTelescopeSearch}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
         <circle cx="11" cy="11" r="8"></circle>
         <path d="m21 21-4.35-4.35"></path>
       </svg>
       Open Search
     </button>
-    
+
     <button class="secondary-button" onclick={openTelescopeDemo}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
         <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
         <path d="M9 9h6v6H9z"></path>
       </svg>
@@ -72,12 +93,18 @@
 </main>
 
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
+  @import url("https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap");
 
   main {
     width: 320px;
     padding: 20px;
-    font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family:
+      "Sora",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
+      sans-serif;
     background: #0a0a0a;
     color: #ffffff;
     min-height: 400px;
@@ -108,7 +135,8 @@
     margin-bottom: 24px;
   }
 
-  .primary-button, .secondary-button {
+  .primary-button,
+  .secondary-button {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -134,7 +162,7 @@
   }
 
   .secondary-button {
-    background: #2a2a2a;
+    background: #262832;
     color: #d1d5db;
     border: 1px solid #404040;
   }
@@ -176,7 +204,7 @@
   }
 
   kbd {
-    background: #2a2a2a;
+    background: #262832;
     border: 1px solid #404040;
     border-radius: 4px;
     padding: 4px 8px;

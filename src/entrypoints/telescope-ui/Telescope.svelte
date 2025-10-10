@@ -6,6 +6,7 @@
   import UpIcon from "./icons/Up.svelte";
   import DownIcon from "./icons/Down.svelte";
   import SearchIcon from "./icons/Search.svelte";
+  import CloseIcon from "./icons/Close.svelte";
   import type { State } from "./type";
 
   let {
@@ -55,10 +56,11 @@
   } = $props();
 
   let inputElement: HTMLTextAreaElement;
-
+  let inputBarElement: HTMLDivElement;
+  const CHAR_EXPAND_LIMIT = 40;
   let isExpanded = $derived(state === "summary");
   let isInputExpanded = $derived(
-    inputValue.length > 50 || inputValue.includes("\n")
+    inputValue.length > CHAR_EXPAND_LIMIT || inputValue.includes("\n")
   );
 
   function handleInput(event: Event) {
@@ -77,7 +79,14 @@
 
   function autoResize(textarea: HTMLTextAreaElement) {
     textarea.style.height = "auto";
-    textarea.style.height = Math.max(48, textarea.scrollHeight) + "px";
+    textarea.style.height = Math.max(12, textarea.scrollHeight) + "px";
+    if (isInputExpanded) {
+      inputBarElement.style.height =
+        Math.max(12, textarea.scrollHeight + 45) + "px";
+    } else {
+      inputBarElement.style.height = "auto";
+    }
+    console.log("isInputExpanded", isInputExpanded);
   }
 
   function handleKeydown(event: KeyboardEvent) {
@@ -122,18 +131,37 @@
 
   // Effect to auto-resize on mount and when inputValue changes
   $effect(() => {
-    if (inputElement) {
+    if (inputElement && inputBarElement && isInputExpanded) {
       autoResize(inputElement);
     }
   });
 </script>
 
 <div class="telescope-container" class:expanded={isExpanded}>
-  <div class="input-bar" class:disabled class:input-expanded={isInputExpanded}>
-    <div class="icon search-icon">
-      <SearchIcon />
+  {#if suggestedQuestions.length > 0}
+    <div class="suggested-questions">
+      {#each suggestedQuestions as question}
+        <button
+          class="suggested-question"
+          onclick={() => handleSuggestedQuestion(question)}
+        >
+          {question}
+        </button>
+      {/each}
     </div>
+  {/if}
 
+  <div
+    class="input-bar"
+    bind:this={inputBarElement}
+    class:disabled
+    class:input-expanded={isInputExpanded}
+  >
+    {#if !isInputExpanded}
+      <div class="icon search-icon">
+        <SearchIcon />
+      </div>
+    {/if}
     <textarea
       bind:this={inputElement}
       bind:value={inputValue}
@@ -142,6 +170,7 @@
       {placeholder}
       {disabled}
       class="input-field"
+      class:input-expanded={isInputExpanded}
       rows="1"
       style="resize: none; overflow: hidden;"
     ></textarea>
@@ -168,142 +197,86 @@
       </div>
     {/if}
 
-    <div class="separator"></div>
+    {#if !isInputExpanded}
+      <div class="separator"></div>
 
-    <div class="action-icons">
-      <button
-        class="icon-button"
-        onclick={handleVoiceInput}
-        title="Voice input"
-        aria-label="Voice input"
-      >
-        <MicIcon />
-      </button>
-
-      <button
-        class="icon-button"
-        onclick={handleAttachment}
-        title="Attach file"
-        aria-label="Attach file"
-      >
-        <AttachmentIcon />
-      </button>
-    </div>
-
-    {#if state === "filled" && inputValue.length > 0}
-      <button class="ask-button" onclick={handleAsk}> Ask </button>
-    {/if}
-
-    <button
-      class="close-button"
-      onclick={handleClose}
-      title="Close"
-      aria-label="Close"
-    >
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <line x1="18" y1="6" x2="6" y2="18"></line>
-        <line x1="6" y1="6" x2="18" y2="18"></line>
-      </svg>
-    </button>
-  </div>
-
-  {#if state === "summary"}
-    <div
-      class="summary-panel"
-      transition:fly={{ y: 20, duration: 300, easing: quintOut }}
-    >
-      <div class="summary-header">
-        <span class="time">05:13 PM</span>
-        <div class="drag-handle"></div>
+      <div class="action-icons">
         <button
-          class="close-summary"
-          onclick={handleClose}
-          aria-label="Close summary"
+          class="icon-button"
+          onclick={handleVoiceInput}
+          title="Voice input"
+          aria-label="Voice input"
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
+          <MicIcon />
+        </button>
+
+        <button
+          class="icon-button"
+          onclick={handleAttachment}
+          title="Attach file"
+          aria-label="Attach file"
+        >
+          <AttachmentIcon />
         </button>
       </div>
 
-      <div class="summary-content">
-        <h3 class="summary-title">{summaryTitle || "Website Summary"}</h3>
-        <div class="summary-text">
-          {#if summaryContent}
-            {@html summaryContent}
-          {:else}
-            <p>
-              Here's a breakdown based on what I found + observations &
-              suggestions:
-            </p>
-            <p>
-              This is a placeholder for the actual summary content. The
-              component is ready to display rich HTML content including lists,
-              formatting, and more.
-            </p>
-          {/if}
-        </div>
-      </div>
-
-      <!-- Suggested Questions -->
-      {#if suggestedQuestions.length > 0}
-        <div class="suggested-questions">
-          {#each suggestedQuestions as question}
-            <button
-              class="suggested-question"
-              onclick={() => handleSuggestedQuestion(question)}
-            >
-              {question}
-            </button>
-          {/each}
-        </div>
+      {#if state === "filled" && inputValue.length > 0}
+        <button class="ask-button" onclick={handleAsk}> Ask </button>
       {/if}
 
-      <div class="follow-up-input">
+      <button
+        class="close-button"
+        onclick={handleClose}
+        title="Close"
+        aria-label="Close"
+      >
+        <CloseIcon />
+      </button>
+    {/if}
+
+    {#if isInputExpanded}
+      <div class="expand-bar">
         <div class="icon search-icon">
           <SearchIcon />
         </div>
-        <input
-          type="text"
-          placeholder="Ask a question..."
-          class="follow-up-field"
-        />
-        <div class="action-icons">
+        <div class="expand-bar-content">
+          <div class="action-icons">
+            <button
+              class="icon-button"
+              onclick={handleVoiceInput}
+              title="Voice input"
+              aria-label="Voice input"
+            >
+              <MicIcon />
+            </button>
+
+            <button
+              class="icon-button"
+              onclick={handleAttachment}
+              title="Attach file"
+              aria-label="Attach file"
+            >
+              <AttachmentIcon />
+            </button>
+          </div>
+          <div class="separator"></div>
+
+          {#if state === "filled" && inputValue.length > 0}
+            <button class="ask-button" onclick={handleAsk}> Ask </button>
+          {/if}
+
           <button
-            class="icon-button"
-            onclick={handleVoiceInput}
-            aria-label="Voice input"
+            class="close-button"
+            onclick={handleClose}
+            title="Close"
+            aria-label="Close"
           >
-            <MicIcon />
-          </button>
-          <button
-            class="icon-button"
-            onclick={handleAttachment}
-            aria-label="Attach file"
-          >
-            <AttachmentIcon />
+            <CloseIcon />
           </button>
         </div>
-        <div class="separator"></div>
-        <button class="ask-button">Ask</button>
       </div>
-    </div>
-  {/if}
+    {/if}
+  </div>
 </div>
 
 <style>
@@ -324,27 +297,41 @@
       sans-serif;
   }
 
-  .telescope-container.expanded {
+  /* .telescope-container.expanded {
     max-width: 800px;
-  }
+  } */
 
   .input-bar {
     display: flex;
     align-items: center;
-    background: #2a2a2a;
+    background: #262832;
     border: 1px solid #404040;
-    border-radius: 12px;
+    border-radius: 48px;
     padding: 12px 16px;
     gap: 12px;
     transition: all 0.3s ease;
     position: relative;
-    min-height: 48px;
+    /* min-height: 48px; */
+  }
+
+  .expand-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .expand-bar-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .input-bar.input-expanded {
     align-items: flex-start;
     padding: 16px;
     min-height: auto;
+    flex-direction: column;
   }
 
   .input-bar:hover {
@@ -394,6 +381,10 @@
     overflow: hidden;
     padding: 0;
     margin: 0;
+    height: 24px;
+  }
+  .input-field.input-expanded {
+    width: 100%;
   }
 
   .input-field::placeholder {
@@ -606,7 +597,7 @@
   }
 
   .suggested-question {
-    background: #2a2a2a;
+    background: #262832;
     color: #d1d5db;
     border: 1px solid #404040;
     padding: 8px 12px;
@@ -624,7 +615,7 @@
   .follow-up-input {
     display: flex;
     align-items: center;
-    background: #2a2a2a;
+    background: #262832;
     border-top: 1px solid #404040;
     padding: 16px 20px;
     gap: 12px;
