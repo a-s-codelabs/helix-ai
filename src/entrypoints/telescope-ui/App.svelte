@@ -161,6 +161,9 @@
 {/if}
 
 <style>
+  html {
+    position: unset;
+  }
   .telescope-overlay {
     position: fixed;
     top: 0;

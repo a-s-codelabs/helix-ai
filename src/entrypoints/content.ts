@@ -17,7 +17,7 @@ export default defineContentScript({
       
       try {
         ui = await createShadowRootUi(ctx, {
-          position: 'fixed',
+          position: 'inline',
           name: 'telescope-ui',
           anchor: 'body',
           onMount: (container) => {
