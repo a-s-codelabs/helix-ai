@@ -28,7 +28,7 @@ export default defineContentScript({
             container.style.right = '0';
             container.style.bottom = '0';
             container.style.zIndex = '99999';
-            container.style.pointerEvents = 'none';
+            // container.style.pointerEvents = 'none';
             
             // Create the Svelte app inside the UI container
             const app = mount(App, { target: container });
