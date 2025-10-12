@@ -4,6 +4,7 @@
   import UpIcon from "./icons/Up.svelte";
   import DownIcon from "./icons/Down.svelte";
   import SearchIcon from "./icons/Search.svelte";
+  import SearchAiIcon from "./icons/SearchAi.svelte";
   import CloseIcon from "./icons/Close.svelte";
   import type { State } from "./type";
 
@@ -14,9 +15,9 @@
     searchIndex = 0,
     totalResults = 0,
     isExpanded = false,
-    suggestedQuestions = [] as string[],
     disabled = false,
     inputImageAttached = $bindable([] as string[]),
+    suggestedQuestions = [] as string[],
     onInput,
     onStateChange,
     onAsk,
@@ -55,7 +56,7 @@
 
   let inputElement: HTMLTextAreaElement;
   let inputBarElement: HTMLDivElement;
-  const CHAR_EXPAND_LIMIT = 40;
+  const CHAR_EXPAND_LIMIT = 28;
   let isInputExpanded = $derived(
     inputValue.length > CHAR_EXPAND_LIMIT ||
       inputValue.includes("\n") ||
@@ -90,6 +91,34 @@
   }
 
   function handleAttachment() {
+    // Create a file input element
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "image/*";
+    fileInput.multiple = true;
+
+    fileInput.onchange = (event) => {
+      const files = (event.target as HTMLInputElement).files;
+      if (files && files.length > 0) {
+        Array.from(files).forEach((file) => {
+          // Check if file is an image
+          if (file.type.startsWith("image/")) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const result = e.target?.result as string;
+              if (result) {
+                // Add the image to the array
+                inputImageAttached = [...inputImageAttached, result];
+              }
+            };
+            reader.readAsDataURL(file);
+          }
+        });
+      }
+    };
+
+    fileInput.click();
+
     onAttachment?.();
   }
 
@@ -151,6 +180,9 @@
       <div class="image-inputs-container">
         {#each inputImageAttached as image, idx}
           <div class="image-placeholder">
+            {#if image}
+              <img src={image} alt="" class="attached-image" />
+            {/if}
             <button
               class="image-close-icon"
               onclick={() => handleImageClose(image, idx)}
@@ -170,7 +202,11 @@
     >
       {#if !isInputExpanded}
         <div class="icon search-icon">
-          <SearchIcon />
+          {#if inputState === "ask"}
+            <SearchAiIcon />
+          {:else}
+            <SearchIcon />
+          {/if}
         </div>
       {/if}
       <textarea
@@ -248,7 +284,11 @@
       {#if isInputExpanded}
         <div class="expand-bar">
           <div class="icon search-icon">
-            <SearchIcon />
+            {#if inputState === "ask"}
+              <SearchAiIcon />
+            {:else}
+              <SearchIcon />
+            {/if}
           </div>
           <div class="expand-bar-content">
             <div class="action-icons">
@@ -272,7 +312,7 @@
             </div>
             <div class="separator"></div>
 
-            {#if inputState === "ask"}
+            {#if inputState === "ask" || isInputExpanded}
               <button class="ask-button" onclick={handleAsk}> Ask </button>
             {/if}
 
@@ -346,12 +386,23 @@
     gap: 12px;
   }
 
+  .image-placeholder:hover .attached-image {
+    filter: brightness(0.85);
+  }
   .image-placeholder {
     width: 110px;
     height: 110px;
     background: #131723;
     border-radius: 15px;
     position: relative;
+    overflow: hidden;
+  }
+
+  .attached-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 15px;
   }
   .image-placeholder:hover .image-close-icon {
     display: block;
@@ -430,16 +481,19 @@
     font-weight: 500;
     min-width: 0;
     min-height: 24px;
+    max-height: 240px;
     line-height: 1.4;
     font-family: "Sora", inherit;
     resize: none;
-    overflow: hidden;
+    overflow: auto;
+    overscroll-behavior: none;
     padding: 0;
     margin: 0;
     height: 24px;
   }
   .input-field.input-expanded {
-    width: 100%;
+    /* width: 100%; */
+    width: calc(100% - 24px);
   }
 
   .input-field::placeholder {
