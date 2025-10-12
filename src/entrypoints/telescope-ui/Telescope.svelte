@@ -121,6 +121,11 @@
     onClose?.();
   }
 
+  function handleImageClose(image: string, idx: number) {
+    inputImageAttached = inputImageAttached.filter((_, i) => i !== idx);
+    // onImageClose?.({ image, idx });
+  }
+
   function handleSuggestedQuestion(question: string) {
     inputValue = question;
     inputElement.value = question;
@@ -160,8 +165,15 @@
   >
     {#if inputImageAttached.length > 0}
       <div class="image-inputs-container">
-        {#each inputImageAttached as image}
-          <div class="image-placeholder"></div>
+        {#each inputImageAttached as image, idx}
+          <div class="image-placeholder">
+            <button
+              class="image-close-icon"
+              onclick={() => handleImageClose(image, idx)}
+            >
+              <CloseIcon />
+            </button>
+          </div>
         {/each}
       </div>
     {/if}
@@ -352,6 +364,27 @@
     height: 110px;
     background: #131723;
     border-radius: 15px;
+    position: relative;
+  }
+  .image-placeholder:hover .image-close-icon {
+    display: block;
+  }
+
+  .image-close-icon {
+    background: none;
+    border: none;
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 20px;
+    height: 20px;
+    display: none;
+    color: #d1d5db;
+    cursor: pointer;
+  }
+
+  .image-close-icon:hover {
+    color: white;
   }
 
   .expand-bar {
