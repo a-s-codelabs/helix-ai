@@ -71,23 +71,10 @@
     inputValue = target.value;
     onInput?.({ value: inputValue });
 
-    autoResize(target);
-
     if (inputValue.length > 0 && inputState === "empty") {
       onStateChange?.({ state: "filled" });
     } else if (inputValue.length === 0 && inputState === "filled") {
       onStateChange?.({ state: "empty" });
-    }
-  }
-
-  function autoResize(textarea: HTMLTextAreaElement) {
-    textarea.style.height = "auto";
-    textarea.style.height = Math.max(12, textarea.scrollHeight) + "px";
-    if (isInputExpanded) {
-      inputBarElement.style.height =
-        Math.max(12, textarea.scrollHeight + 45) + "px";
-    } else {
-      inputBarElement.style.height = "auto";
     }
   }
 
@@ -135,13 +122,6 @@
   function handleSearchNavigation(direction: "up" | "down") {
     onSearchNavigation?.({ direction, currentIndex: searchIndex });
   }
-
-  // Effect to auto-resize on mount and when inputValue changes
-  $effect(() => {
-    if (inputElement && inputBarElement && isInputExpanded) {
-      autoResize(inputElement);
-    }
-  });
 </script>
 
 <div class="telescope-container" class:expanded={isExpanded}>
@@ -310,6 +290,9 @@
 <style>
   @import url("https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap");
 
+  textarea {
+    field-sizing: content;
+  }
   .telescope-container {
     position: relative;
     width: 100%;
