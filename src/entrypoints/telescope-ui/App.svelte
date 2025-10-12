@@ -3,7 +3,7 @@
   import { searchStore } from "../../lib/searchStore";
   import { Direction, State } from "./type";
 
-  let currentState: State = $state("empty");
+  let currentState: State = $state("ask");
   let inputValue = $state("");
   let searchIndex = $state(1);
   let totalResults = $state(19);
@@ -35,9 +35,9 @@
 
   function handleAsk({ value }: { value: string }) {
     console.log("Ask clicked:", value);
-    setTimeout(() => {
-      currentState = "summary";
-    }, 1000);
+    // setTimeout(() => {
+    //   currentState = "summary";
+    // }, 1000);
   }
 
   function handleSearchNavigation({ direction }: { direction: Direction }) {
@@ -50,7 +50,7 @@
 
   function handleSuggestedQuestion({ question }: { question: string }) {
     inputValue = question;
-    currentState = "filled";
+    // currentState = "filled";
   }
 
   function handleVoiceInput() {
@@ -63,7 +63,7 @@
 
   function handleClear() {
     inputValue = "";
-    currentState = "empty";
+    // currentState = "empty";
     searchStore.clearHighlights();
   }
 
@@ -138,7 +138,7 @@
 {#if isVisible}
   <div
     class="telescope-overlay"
-    class:search-mode={currentState === "search" || currentState === "filled"}
+    class:search-mode={currentState === "search" || currentState === "ask"}
   >
     <div class="telescope-container draggable" bind:this={telescopeContainer}>
       <Telescope
@@ -146,16 +146,6 @@
         bind:inputValue
         {searchIndex}
         {totalResults}
-        summaryTitle="summarize the website and tell me"
-        summaryContent="
-          <p>Hello</p>
-        "
-        suggestedQuestions={[
-          "Who are their main clients / industries they serve?",
-          "How do they price / package their services?",
-          "What technologies do they specialize in?",
-          "Can you show me examples of their work?",
-        ]}
         onStateChange={handleStateChange}
         onInput={handleInput}
         onAsk={handleAsk}
