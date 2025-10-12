@@ -8,13 +8,12 @@
   import type { State } from "./type";
 
   let {
-    inputState = $bindable("empty" as State),
+    inputState = $bindable("search" as State),
     inputValue = $bindable(""),
     placeholder = "Find or ask...",
-    searchIndex = 1,
-    totalResults = 19,
-    summaryTitle = "",
-    summaryContent = "",
+    searchIndex = 0,
+    totalResults = 0,
+    isExpanded = false,
     suggestedQuestions = [] as string[],
     disabled = false,
     inputImageAttached = $bindable([] as string[]),
@@ -33,8 +32,7 @@
     placeholder?: string;
     searchIndex?: number;
     totalResults?: number;
-    summaryTitle?: string;
-    summaryContent?: string;
+    isExpanded?: boolean;
     suggestedQuestions?: string[];
     disabled?: boolean;
     inputImageAttached?: string[];
@@ -57,13 +55,11 @@
 
   let inputElement: HTMLTextAreaElement;
   let inputBarElement: HTMLDivElement;
-  // let inputImageAttached = $state<string[]>(["", "", ""]);
   const CHAR_EXPAND_LIMIT = 40;
-  let isExpanded = $derived(inputState === "summary");
   let isInputExpanded = $derived(
     inputValue.length > CHAR_EXPAND_LIMIT ||
       inputValue.includes("\n") ||
-      inputImageAttached.length > 1
+      inputImageAttached.length > 0
   );
 
   function handleInput(event: Event) {
@@ -71,10 +67,10 @@
     inputValue = target.value;
     onInput?.({ value: inputValue });
 
-    if (inputValue.length > 0 && inputState === "empty") {
-      onStateChange?.({ state: "filled" });
-    } else if (inputValue.length === 0 && inputState === "filled") {
-      onStateChange?.({ state: "empty" });
+    if (inputValue.includes("\n") || inputImageAttached.length > 0) {
+      onStateChange?.({ state: "ask" });
+    } else {
+      onStateChange?.({ state: "search" });
     }
   }
 
@@ -98,19 +94,15 @@
   }
 
   function handleClose() {
-    if (inputState === "summary") {
-      onStateChange?.({ state: "empty" });
-    } else {
-      inputValue = "";
-      inputElement.value = "";
-      onClear?.();
-    }
+    onStateChange?.({ state: "search" });
+    inputValue = "";
+    inputElement.value = "";
+    onClear?.();
     onClose?.();
   }
 
   function handleImageClose(image: string, idx: number) {
     inputImageAttached = inputImageAttached.filter((_, i) => i !== idx);
-    // onImageClose?.({ image, idx });
   }
 
   function handleSuggestedQuestion(question: string) {
@@ -122,6 +114,18 @@
   function handleSearchNavigation(direction: "up" | "down") {
     onSearchNavigation?.({ direction, currentIndex: searchIndex });
   }
+
+  $effect(() => {
+    if (
+      inputValue.includes("\n") ||
+      inputImageAttached.length > 0 ||
+      totalResults === 0
+    ) {
+      inputState = "ask";
+    } else {
+      inputState = "search";
+    }
+  });
 </script>
 
 <div class="telescope-container" class:expanded={isExpanded}>
@@ -182,7 +186,7 @@
         style="resize: none; overflow: hidden;"
       ></textarea>
 
-      {#if inputState === "search" && inputValue.length > 0}
+      {#if inputState === "search" && !isInputExpanded}
         <div class="search-navigation">
           <span class="search-counter">{searchIndex}/{totalResults}</span>
           <button
@@ -227,7 +231,7 @@
           </button>
         </div>
 
-        {#if inputState === "filled" && inputValue.length > 0}
+        {#if inputState === "ask"}
           <button class="ask-button" onclick={handleAsk}> Ask </button>
         {/if}
 
@@ -268,7 +272,7 @@
             </div>
             <div class="separator"></div>
 
-            {#if inputState === "filled" && inputValue.length > 0}
+            {#if inputState === "ask"}
               <button class="ask-button" onclick={handleAsk}> Ask </button>
             {/if}
 
