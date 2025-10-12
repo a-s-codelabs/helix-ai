@@ -412,7 +412,7 @@
 
   .input-bar.input-expanded {
     align-items: flex-start;
-    padding: 16px;
+    padding: 8px 0px;
     min-height: auto;
     flex-direction: column;
   }
