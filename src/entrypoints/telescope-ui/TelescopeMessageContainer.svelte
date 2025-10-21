@@ -8,8 +8,8 @@
   {#each messages as message}
     <div
       class="message"
-      class:user-message={message.role === "user"}
-      class:assistant-message={message.role === "assistant"}
+      class:user-message={message.type === "user"}
+      class:assistant-message={message.type === "assistant"}
     >
       {@html message.content}
     </div>

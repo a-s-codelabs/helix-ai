@@ -1,23 +1,47 @@
 <script lang="ts">
   import Telescope from "./Telescope.svelte";
   import { searchStore } from "../../lib/searchStore";
-  import { Direction, State } from "./type";
+  import { Direction, State, Message } from "./type";
 
   let currentState: State = $state("ask");
   let inputValue = $state("");
   let searchIndex = $state(1);
   let totalResults = $state(19);
   let isVisible = $state(false);
+  let aiResponse = $state("");
+  let messages = $state<Message[]>([]);
 
   // Subscribe to search store
   $effect(() => {
     const unsubscribe = searchStore.subscribe((state) => {
       isVisible = state.isVisible;
       if (state.isVisible) {
-        currentState = "search";
+        // Determine state based on ask mode
+        currentState = state.isAskMode ? "ask" : "search";
         searchIndex = state.currentIndex + 1;
         totalResults = state.totalResults;
         inputValue = state.query;
+        aiResponse = state.aiResponse;
+        
+        // Update messages when AI response is available
+        if (state.aiResponse && state.isAskMode) {
+          messages = [
+            {
+              id: 1,
+              type: "user",
+              content: state.query,
+              timestamp: new Date()
+            },
+            {
+              id: 2,
+              type: "assistant",
+              content: state.aiResponse,
+              timestamp: new Date()
+            }
+          ];
+        } else if (!state.isAskMode) {
+          messages = [];
+        }
       }
     });
     return unsubscribe;
@@ -29,15 +53,26 @@
 
   function handleInput({ value }: { value: string }) {
     inputValue = value;
-    // Perform search as user types
-    searchStore.search(inputValue);
+    // Determine if this is a search or ask based on content
+    const isQuestion = value.includes('?') || value.toLowerCase().startsWith('what') || 
+                      value.toLowerCase().startsWith('how') || value.toLowerCase().startsWith('why') ||
+                      value.toLowerCase().startsWith('when') || value.toLowerCase().startsWith('where') ||
+                      value.toLowerCase().startsWith('who') || value.toLowerCase().startsWith('explain') ||
+                      value.toLowerCase().startsWith('tell me') || value.toLowerCase().startsWith('can you');
+    
+    if (isQuestion) {
+      currentState = "ask";
+    } else {
+      currentState = "search";
+      // Perform search as user types
+      searchStore.search(inputValue);
+    }
   }
 
   function handleAsk({ value }: { value: string }) {
     console.log("Ask clicked:", value);
-    // setTimeout(() => {
-    //   currentState = "summary";
-    // }, 1000);
+    // Use Chrome's AI capabilities
+    searchStore.ask(value);
   }
 
   function handleSearchNavigation({ direction }: { direction: Direction }) {
@@ -138,6 +173,7 @@
       bind:inputValue
       {searchIndex}
       {totalResults}
+      {messages}
       onStateChange={handleStateChange}
       onInput={handleInput}
       onAsk={handleAsk}

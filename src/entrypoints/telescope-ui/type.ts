@@ -14,6 +14,7 @@ export type InputProps = {
   suggestedQuestions?: string[];
   disabled?: boolean;
   inputImageAttached?: string[];
+  messages?: Message[];
   onInput?: ({ value }: { value: string }) => void;
   onStateChange?: ({ state }: { state: State }) => void;
   onAsk?: ({ value }: { value: string }) => void;
@@ -32,7 +33,8 @@ export type InputProps = {
 }
 
 export type Message = {
-  role: "user" | "assistant";
+  id: number;
+  type: "user" | "assistant";
   content: string;
-  timeStamp: string;
+  timestamp: Date;
 };

@@ -21,4 +21,54 @@ declare namespace chrome {
       removeListener(callback: (message: any) => void): void;
     };
   }
+
+  namespace find {
+    interface FindOptions {
+      text: string;
+      caseSensitive?: boolean;
+      entireWord?: boolean;
+      includeMatches?: boolean;
+      matchDiacritics?: boolean;
+    }
+
+    interface FindResult {
+      numberOfMatches: number;
+      activeMatchOrdinal: number;
+    }
+
+    function find(query: FindOptions, callback?: (result: FindResult) => void): void;
+    function highlightResults(): void;
+    function removeHighlighting(): void;
+  }
+
+  namespace omnibox {
+    interface SuggestResult {
+      content: string;
+      description: string;
+    }
+
+    function setDefaultSuggestion(suggestion: { description: string }): void;
+    const onInputChanged: {
+      addListener(callback: (text: string, suggest: (results: SuggestResult[]) => void) => void): void;
+    };
+    const onInputEntered: {
+      addListener(callback: (text: string, disposition: string) => void): void;
+    };
+  }
+
+  // Chrome AI/ML APIs (experimental)
+  namespace ml {
+    interface TextGenerationOptions {
+      text: string;
+      maxTokens?: number;
+      temperature?: number;
+    }
+
+    interface TextGenerationResult {
+      text: string;
+      confidence: number;
+    }
+
+    function generateText(options: TextGenerationOptions, callback: (result: TextGenerationResult) => void): void;
+  }
 }
