@@ -1,5 +1,5 @@
 <script lang="ts">
-  import TelescopeChatBox from "./TelescopeChatBox.svelte";
+  import TelescopeChatBox from "./TelescopeChatbox.svelte";
   import TelescopeInput from "./TelescopeInput.svelte";
   import type { InputProps } from "./type";
 
@@ -32,7 +32,7 @@
       return;
     }
     if (
-      inputValue.includes("\n") ||
+      (inputValue ?? "").includes("\n") ||
       (inputImageAttached ?? []).length > 0 ||
       totalResults === 0
     ) {
@@ -56,10 +56,10 @@
 </script>
 
 <TelescopeChatBox
-  {onClose}
-  {onSuggestedQuestion}
-  {suggestedQuestions}
   {messages}
+  {suggestedQuestions}
+  {onSuggestedQuestion}
+  {onClose}
 >
   {#snippet input()}
     <TelescopeInput

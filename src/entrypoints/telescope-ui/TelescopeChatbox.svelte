@@ -1,33 +1,27 @@
 <script lang="ts">
   import Close from "./icons/Close.svelte";
-  import type { Message } from "./type";
+  import type { Message, ChatboxProps } from "./type";
   import MessageContainer from "./TelescopeMessageContainer.svelte";
 
   let {
     input,
     messages = [],
     suggestedQuestions = [],
-    handleSuggestedQuestion,
-    handleClose,
-  }: {
-    input: () => any;
-    messages: Message[];
-    suggestedQuestions: string[];
-    handleSuggestedQuestion: (question: string) => void;
-    handleClose: () => void;
-  } = $props();
+    onSuggestedQuestion,
+    onClose,
+  }: ChatboxProps = $props();
 </script>
 
 <div class:chat-box={messages.length > 0} class="default-chat-box">
   {#if messages.length > 0}
-    <button class="close-icon" onclick={handleClose}><Close /></button>
+    <button class="close-icon" onclick={onClose}><Close /></button>
     <MessageContainer {messages} />
     {#if suggestedQuestions.length > 0}
       <div class="suggested-questions">
         {#each suggestedQuestions as question}
           <button
             class="suggested-question"
-            onclick={() => handleSuggestedQuestion?.(question)}
+            onclick={() => onSuggestedQuestion?.({ question })}
           >
             {question}
           </button>

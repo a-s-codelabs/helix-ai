@@ -1,50 +1,47 @@
 <script lang="ts">
-  import Telescope from "./Telescope.svelte";
-  import { searchStore } from "../../lib/searchStore";
-  import { Direction, State, Message } from "./type";
+  import Telescope from './Telescope.svelte';
+  import { searchStore } from '../../lib/searchStore';
+  import { chatStore } from '../../lib/chatStore';
+  import type { Direction, State, Message } from './type';
 
-  let currentState: State = $state("ask");
-  let inputValue = $state("");
+  let currentState: State = $state('ask');
+  let inputValue = $state('');
   let searchIndex = $state(1);
   let totalResults = $state(19);
   let isVisible = $state(false);
-  let aiResponse = $state("");
-  let messages = $state<Message[]>([]);
+  let aiResponse = $state('');
+  let messages: Message[] = $state([]);
 
   // Subscribe to search store
   $effect(() => {
     const unsubscribe = searchStore.subscribe((state) => {
       isVisible = state.isVisible;
       if (state.isVisible) {
-        // Determine state based on ask mode
-        currentState = state.isAskMode ? "ask" : "search";
         searchIndex = state.currentIndex + 1;
         totalResults = state.totalResults;
         inputValue = state.query;
-        aiResponse = state.aiResponse;
-        
-        // Update messages when AI response is available
-        if (state.aiResponse && state.isAskMode) {
-          messages = [
-            {
-              id: 1,
-              type: "user",
-              content: state.query,
-              timestamp: new Date()
-            },
-            {
-              id: 2,
-              type: "assistant",
-              content: state.aiResponse,
-              timestamp: new Date()
-            }
-          ];
-        } else if (!state.isAskMode) {
-          messages = [];
-        }
       }
     });
     return unsubscribe;
+  });
+
+  // Subscribe to chat store
+  $effect(() => {
+    const unsubscribe = chatStore.subscribe((state) => {
+      messages = state.messages;
+      // Update search store when we have messages
+      if (state.messages.length > 0) {
+        searchStore.setAskMode(true);
+      }
+    });
+    return unsubscribe;
+  });
+
+  // Initialize chat store when visible
+  $effect(() => {
+    if (isVisible) {
+      chatStore.init();
+    }
   });
 
   function handleStateChange({ state }: { state: State }) {
@@ -54,56 +51,72 @@
   function handleInput({ value }: { value: string }) {
     inputValue = value;
     // Determine if this is a search or ask based on content
-    const isQuestion = value.includes('?') || value.toLowerCase().startsWith('what') || 
-                      value.toLowerCase().startsWith('how') || value.toLowerCase().startsWith('why') ||
-                      value.toLowerCase().startsWith('when') || value.toLowerCase().startsWith('where') ||
-                      value.toLowerCase().startsWith('who') || value.toLowerCase().startsWith('explain') ||
-                      value.toLowerCase().startsWith('tell me') || value.toLowerCase().startsWith('can you');
-    
+    const isQuestion =
+      value.includes('?') ||
+      value.toLowerCase().startsWith('what') ||
+      value.toLowerCase().startsWith('how') ||
+      value.toLowerCase().startsWith('why') ||
+      value.toLowerCase().startsWith('when') ||
+      value.toLowerCase().startsWith('where') ||
+      value.toLowerCase().startsWith('who') ||
+      value.toLowerCase().startsWith('explain') ||
+      value.toLowerCase().startsWith('tell me') ||
+      value.toLowerCase().startsWith('can you');
+
     if (isQuestion) {
-      currentState = "ask";
+      currentState = 'ask';
     } else {
-      currentState = "search";
+      currentState = 'search';
       // Perform search as user types
       searchStore.search(inputValue);
     }
   }
 
   function handleAsk({ value }: { value: string }) {
-    console.log("Ask clicked:", value);
-    // Use Chrome's AI capabilities
-    searchStore.ask(value);
+    console.log('Ask clicked:', value);
+    if (value.trim()) {
+      // Switch to ask mode
+      searchStore.setAskMode(true);
+      // Use Chrome's AI capabilities via chatStore
+      chatStore.sendMessage(value);
+      inputValue = '';
+    }
   }
 
   function handleSearchNavigation({ direction }: { direction: Direction }) {
-    if (direction === "up") {
+    if (direction === 'up') {
       searchStore.previous();
-    } else if (direction === "down") {
+    } else if (direction === 'down') {
       searchStore.next();
     }
   }
 
   function handleSuggestedQuestion({ question }: { question: string }) {
     inputValue = question;
-    // currentState = "filled";
+    handleAsk({ value: question });
   }
 
   function handleVoiceInput() {
-    console.log("Voice input clicked");
+    console.log('Voice input clicked');
   }
 
   function handleAttachment() {
-    console.log("Attachment clicked");
+    console.log('Attachment clicked');
   }
 
   function handleClear() {
-    inputValue = "";
-    // currentState = "empty";
+    inputValue = '';
     searchStore.clearHighlights();
+  }
+
+  function handleClearChat() {
+    chatStore.clear();
   }
 
   function handleClose() {
     searchStore.hide();
+    searchStore.setAskMode(false);
+    chatStore.clear();
   }
 
   // Drag functionality
@@ -114,25 +127,39 @@
   function handleMouseDown(event: MouseEvent) {
     if (telescopeContainer) {
       const target = event.target as HTMLElement;
-      const isClickableElement = target.closest('button, input, textarea, [role="button"]');
+      const isClickableElement = target.closest(
+        'button, input, textarea, [role="button"]'
+      );
       if (!isClickableElement) {
         isDragging = true;
         const rect = telescopeContainer.getBoundingClientRect();
         dragOffset.x = event.clientX - rect.left;
         dragOffset.y = event.clientY - rect.top;
-        telescopeContainer.style.cursor = "grabbing";
+        telescopeContainer.style.cursor = 'grabbing';
       }
     }
   }
 
   function handleMouseMove(event: MouseEvent) {
     if (isDragging && telescopeContainer) {
-      const newLeft = Math.max(0, Math.min(window.innerWidth - telescopeContainer.offsetWidth, event.clientX - dragOffset.x));
-      const newTop = Math.max(0, Math.min(window.innerHeight - telescopeContainer.offsetHeight, event.clientY - dragOffset.y));
+      const newLeft = Math.max(
+        0,
+        Math.min(
+          window.innerWidth - telescopeContainer.offsetWidth,
+          event.clientX - dragOffset.x
+        )
+      );
+      const newTop = Math.max(
+        0,
+        Math.min(
+          window.innerHeight - telescopeContainer.offsetHeight,
+          event.clientY - dragOffset.y
+        )
+      );
 
-      telescopeContainer.style.left = newLeft + "px";
-      telescopeContainer.style.top = newTop + "px";
-      telescopeContainer.style.transform = "none"; // Remove centering transform when dragging
+      telescopeContainer.style.left = newLeft + 'px';
+      telescopeContainer.style.top = newTop + 'px';
+      telescopeContainer.style.transform = 'none'; // Remove centering transform when dragging
     }
   }
 
@@ -140,7 +167,7 @@
     if (isDragging) {
       isDragging = false;
       if (telescopeContainer) {
-        telescopeContainer.style.cursor = "grab";
+        telescopeContainer.style.cursor = 'grab';
       }
     }
   }
@@ -148,19 +175,19 @@
   $effect(() => {
     if (isVisible) {
       if (telescopeContainer) {
-        telescopeContainer.style.left = "50%";
-        telescopeContainer.style.top = "20px";
-        telescopeContainer.style.transform = "translateX(-50%)";
+        telescopeContainer.style.left = '50%';
+        telescopeContainer.style.top = '20px';
+        telescopeContainer.style.transform = 'translateX(-50%)';
       }
 
-      document.addEventListener("mousedown", handleMouseDown);
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
+      document.addEventListener('mousedown', handleMouseDown);
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
 
       return () => {
-        document.removeEventListener("mousedown", handleMouseDown);
-        document.removeEventListener("mousemove", handleMouseMove);
-        document.removeEventListener("mouseup", handleMouseUp);
+        document.removeEventListener('mousedown', handleMouseDown);
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
       };
     }
   });

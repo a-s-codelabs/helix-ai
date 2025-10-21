@@ -1,13 +1,7 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
 node_modules
+.env
+.temp
+
 .output
 stats.html
 stats-*.json
@@ -24,6 +18,15 @@ web-ext.config.ts
 *.njsproj
 *.sln
 *.sw?
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
 *storybook.log
 storybook-static

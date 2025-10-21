@@ -33,7 +33,7 @@ function createSearchStore() {
     isVisible: false,
     isSearching: false,
     isAskMode: false,
-    aiResponse: ''
+    aiResponse: '',
   });
 
   let highlightElements: HTMLElement[] = [];
@@ -42,18 +42,18 @@ function createSearchStore() {
     subscribe,
 
     // Show the search UI
-    show: () => update(state => ({ ...state, isVisible: true })),
+    show: () => update((state) => ({ ...state, isVisible: true })),
 
     // Hide the search UI
     hide: () => {
       clearHighlights();
-      update(state => ({
+      update((state) => ({
         ...state,
         isVisible: false,
         query: '',
         results: [],
         currentIndex: 0,
-        totalResults: 0
+        totalResults: 0,
       }));
     },
 
@@ -64,102 +64,76 @@ function createSearchStore() {
         if (chrome?.find) {
           chrome.find.removeHighlighting();
         }
-        update(state => ({
+        update((state) => ({
           ...state,
           query: '',
           results: [],
           currentIndex: 0,
           totalResults: 0,
           isSearching: false,
-          isAskMode: false
+          isAskMode: false,
         }));
         return;
       }
 
-      update(state => ({ ...state, isSearching: true, query, isAskMode: false }));
+      update((state) => ({
+        ...state,
+        isSearching: true,
+        query,
+        isAskMode: false,
+      }));
 
       // Use Chrome's built-in find API
       if (chrome?.find) {
-        chrome.find.find({
-          text: query,
-          caseSensitive: false,
-          entireWord: false,
-          includeMatches: true
-        }, (result: ChromeFindResult) => {
-          update(state => ({
-            ...state,
-            totalResults: result.numberOfMatches,
-            currentIndex: result.activeMatchOrdinal - 1, // Chrome uses 1-based indexing
-            isSearching: false
-          }));
-        });
+        chrome.find.find(
+          {
+            text: query,
+            caseSensitive: false,
+            entireWord: false,
+            includeMatches: true,
+          },
+          (result: ChromeFindResult) => {
+            update((state) => ({
+              ...state,
+              totalResults: result.numberOfMatches,
+              currentIndex: result.activeMatchOrdinal - 1, // Chrome uses 1-based indexing
+              isSearching: false,
+            }));
+          }
+        );
       } else {
         // Fallback to custom search if Chrome API is not available
         performCustomSearch(query);
       }
     },
 
-    // Ask mode using Chrome's AI capabilities
-    ask: (query: string) => {
-      if (!query.trim()) {
-        update(state => ({
-          ...state,
-          query: '',
-          aiResponse: '',
-          isAskMode: false,
-          isSearching: false
-        }));
-        return;
-      }
-
-      update(state => ({ 
-        ...state, 
-        isSearching: true, 
-        query, 
-        isAskMode: true,
-        aiResponse: ''
+    // Set ask mode (AI will be handled by chatStore)
+    setAskMode: (isAskMode: boolean) => {
+      update((state) => ({
+        ...state,
+        isAskMode,
+        aiResponse: isAskMode ? '' : state.aiResponse,
       }));
-
-      // Use Chrome's built-in AI capabilities if available
-      if (chrome?.ml?.generateText) {
-        chrome.ml.generateText({
-          text: query,
-          maxTokens: 500,
-          temperature: 0.7
-        }, (result) => {
-          update(state => ({
-            ...state,
-            aiResponse: result.text,
-            isSearching: false
-          }));
-        });
-      } else {
-        // Fallback: Use a simple response or integrate with external AI
-        setTimeout(() => {
-          update(state => ({
-            ...state,
-            aiResponse: `I understand you're asking: "${query}". This is a placeholder response. Chrome's AI capabilities are not available in this context.`,
-            isSearching: false
-          }));
-        }, 1000);
-      }
     },
 
     // Navigate to next result using Chrome's find API
     next: () => {
       if (chrome?.find) {
-        chrome.find.find({
-          text: '', // Empty text to navigate to next
-          caseSensitive: false,
-          entireWord: false,
-          includeMatches: true
-        }, (result: ChromeFindResult) => {
-          update(state => ({
-            ...state,
-            currentIndex: result.activeMatchOrdinal - 1,
-            totalResults: result.numberOfMatches
-          }));
-        });
+        chrome.find.find(
+          {
+            text: '', // Empty text to navigate to next
+            caseSensitive: false,
+            entireWord: false,
+            includeMatches: true,
+          },
+          (result: ChromeFindResult) => {
+            update((state) => ({
+              ...state,
+              currentIndex: result.activeMatchOrdinal - 1,
+              totalResults: result.numberOfMatches,
+            }));
+          }
+        );
       }
     },
 
@@ -168,18 +142,21 @@ function createSearchStore() {
       if (chrome?.find) {
         // Chrome doesn't have a direct "previous" method, so we'll use a workaround
         // by searching again and cycling through results
-        chrome.find.find({
-          text: '', // Empty text to navigate to previous
-          caseSensitive: false,
-          entireWord: false,
-          includeMatches: true
-        }, (result: ChromeFindResult) => {
-          update(state => ({
-            ...state,
-            currentIndex: result.activeMatchOrdinal - 1,
-            totalResults: result.numberOfMatches
-          }));
-        });
+        chrome.find.find(
+          {
+            text: '', // Empty text to navigate to previous
+            caseSensitive: false,
+            entireWord: false,
+            includeMatches: true,
+          },
+          (result: ChromeFindResult) => {
+            update((state) => ({
+              ...state,
+              currentIndex: result.activeMatchOrdinal - 1,
+              totalResults: result.numberOfMatches,
+            }));
+          }
+        );
       }
     },
 
@@ -190,7 +167,7 @@ function createSearchStore() {
       } else {
         clearHighlights();
       }
-    }
+    },
   };
 
   // Fallback custom search function
@@ -209,14 +186,14 @@ function createSearchStore() {
           return text.toLowerCase().includes(query.toLowerCase())
             ? NodeFilter.FILTER_ACCEPT
             : NodeFilter.FILTER_REJECT;
-        }
+        },
       }
     );
 
     let index = 0;
     let node: Text | null;
 
-    while (node = walker.nextNode() as Text | null) {
+    while ((node = walker.nextNode() as Text | null)) {
       const text = node.textContent || '';
       const regex = new RegExp(`(${query})`, 'gi');
       const matches = [...text.matchAll(regex)];
@@ -230,7 +207,10 @@ function createSearchStore() {
 
           // Split the text and wrap the match
           const beforeText = text.substring(0, match.index);
-          const matchText = text.substring(match.index, match.index + match[0].length);
+          const matchText = text.substring(
+            match.index,
+            match.index + match[0].length
+          );
           const afterText = text.substring(match.index + match[0].length);
 
           wrapper.innerHTML = `${beforeText}<mark class="telescope-search-match">${matchText}</mark>${afterText}`;
@@ -242,7 +222,7 @@ function createSearchStore() {
             element: wrapper,
             text: matchText,
             index,
-            highlighted: false
+            highlighted: false,
           });
 
           highlightElements.push(wrapper);
@@ -251,12 +231,12 @@ function createSearchStore() {
       }
     }
 
-    update(state => ({
+    update((state) => ({
       ...state,
       results,
       totalResults: results.length,
       currentIndex: 0,
-      isSearching: false
+      isSearching: false,
     }));
 
     // Highlight the first result
@@ -266,7 +246,7 @@ function createSearchStore() {
   }
 
   function clearHighlights() {
-    highlightElements.forEach(element => {
+    highlightElements.forEach((element) => {
       const parent = element.parentNode;
       if (parent) {
         // Replace the wrapper with just the text content
@@ -279,12 +259,14 @@ function createSearchStore() {
 
   function highlightResult(index: number) {
     // Remove previous highlights
-    document.querySelectorAll('.telescope-search-current').forEach(el => {
+    document.querySelectorAll('.telescope-search-current').forEach((el) => {
       el.classList.remove('telescope-search-current');
     });
 
     // Add highlight to current result
-    const currentResult = document.querySelector(`[data-search-index="${index}"]`);
+    const currentResult = document.querySelector(
+      `[data-search-index="${index}"]`
+    );
     if (currentResult) {
       currentResult.classList.add('telescope-search-current');
     }
@@ -296,7 +278,7 @@ function createSearchStore() {
       result.scrollIntoView({
         behavior: 'smooth',
         block: 'center',
-        inline: 'nearest'
+        inline: 'nearest',
       });
     }
   }
@@ -310,7 +292,7 @@ style.textContent = `
   .telescope-search-highlight {
     position: relative;
   }
-  
+
   .telescope-search-highlight .telescope-search-match {
     background-color: #fbbf24;
     color: #000;
@@ -318,7 +300,7 @@ style.textContent = `
     border-radius: 2px;
     font-weight: 500;
   }
-  
+
   .telescope-search-current .telescope-search-match {
     background-color: #3b82f6;
     color: white;
