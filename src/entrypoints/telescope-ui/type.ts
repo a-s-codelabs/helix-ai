@@ -1,5 +1,5 @@
-export const StateValues = ["ask", "search", "chat"] as const;
-export const DirectionValues = ["up", "down"] as const;
+export const StateValues = ['ask', 'search', 'chat'] as const;
+export const DirectionValues = ['up', 'down'] as const;
 
 export type State = (typeof StateValues)[number];
 export type Direction = (typeof DirectionValues)[number];
@@ -26,15 +26,24 @@ export type InputProps = {
     direction,
     currentIndex,
   }: {
-    direction: "up" | "down";
+    direction: 'up' | 'down';
     currentIndex: number;
   }) => void;
   onClose?: () => void;
-}
+  handleSuggestedQuestion?: (question: string) => void;
+};
 
 export type Message = {
   id: number;
-  type: "user" | "assistant";
+  type: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+};
+
+export type ChatboxProps = {
+  input: () => any;
+  messages?: Message[];
+  suggestedQuestions?: string[];
+  onSuggestedQuestion?: ({ question }: { question: string }) => void;
+  onClose?: () => void;
 };
