@@ -3,7 +3,7 @@
  * Uses WXT's storage API instead of localStorage
  */
 
-import { storage } from 'wxt/storage';
+import { storage } from 'wxt/utils/storage';
 import type { Collection, Site } from '@/types/formatter';
 import { generateId } from './formatterUtils';
 
@@ -14,7 +14,7 @@ const STORAGE_KEY = 'formatter:collections';
  */
 export const getCollections = async (): Promise<Collection[]> => {
   try {
-    const collections = await storage.getItem<Collection[]>(`local:${STORAGE_KEY}`);
+    const collections = await storage.getItem<Collection[]>(STORAGE_KEY);
     return collections || [];
   } catch (error) {
     console.error('Error reading collections from storage:', error);
@@ -25,9 +25,11 @@ export const getCollections = async (): Promise<Collection[]> => {
 /**
  * Save collections to storage
  */
-export const saveCollections = async (collections: Collection[]): Promise<void> => {
+export const saveCollections = async (
+  collections: Collection[]
+): Promise<void> => {
   try {
-    await storage.setItem(`local:${STORAGE_KEY}`, collections);
+    await storage.setItem(STORAGE_KEY, collections);
   } catch (error) {
     console.error('Error saving collections to storage:', error);
   }

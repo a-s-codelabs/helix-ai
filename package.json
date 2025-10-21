@@ -17,9 +17,9 @@
     "build-storybook": "storybook build"
   },
   "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "^5.0.0",
     "@storybook/addon-svelte-csf": "^5.0.9",
     "@storybook/svelte-vite": "^9.1.10",
+    "@sveltejs/vite-plugin-svelte": "^5.0.0",
     "@tsconfig/svelte": "^5.0.5",
     "@wxt-dev/module-svelte": "^2.0.3",
     "storybook": "^9.1.10",
