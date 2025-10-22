@@ -6,9 +6,74 @@
     isStreaming?: boolean,
     streamingMessageId?: number | null
   } = $props();
+
+  let messageContainer = $state<HTMLElement | undefined>(undefined);
+  let autoScroll = $state(true);
+
+  // Listen to user scrolls to toggle autoScroll on or off
+  function handleUserScroll() {
+    if (!messageContainer) return;
+    const { scrollTop, scrollHeight, clientHeight } = messageContainer;
+    // Allow a 4px buffer at bottom due to possible fractional pixels
+    const atBottom = Math.abs(scrollTop + clientHeight - scrollHeight) < 4;
+    if (atBottom) {
+      autoScroll = true;
+    } else {
+      autoScroll = false;
+    }
+  }
+
+  $effect(() => {
+    if (!messageContainer) return;
+    // Use a passive event (safe, no preventDefault)
+    messageContainer.addEventListener('scroll', handleUserScroll, { passive: true });
+    return () => {
+      messageContainer?.removeEventListener('scroll', handleUserScroll);
+    };
+  });
+
+  $effect(() => {
+    // Watch isStreaming, messages, autoScroll, and container reference
+    if (!messageContainer) return;
+
+    let previousScrollHeight = messageContainer.scrollHeight;
+    let observer: MutationObserver | null = null;
+
+    const handleContentChange = () => {
+      if (!messageContainer) return;
+      // Only auto-scroll if enabled and isStreaming
+      if (isStreaming && autoScroll) {
+        const currentScrollHeight = messageContainer.scrollHeight;
+        // Only scroll if the content grew (e.g., new streamed chunk)
+        if (currentScrollHeight > previousScrollHeight || previousScrollHeight === 0) {
+          messageContainer.scrollTo({
+            top: currentScrollHeight,
+            behavior: 'smooth'
+          });
+          previousScrollHeight = currentScrollHeight;
+        }
+      }
+    };
+
+    if (isStreaming) {
+      observer = new MutationObserver(handleContentChange);
+      observer.observe(messageContainer, { childList: true, subtree: true });
+
+      // Initial scroll if at bottom or first streaming
+      if (autoScroll) {
+        messageContainer.scrollTo({
+          top: messageContainer.scrollHeight,
+          behavior: 'smooth'
+        });
+        previousScrollHeight = messageContainer.scrollHeight;
+      }
+    }
+
+    return () => observer?.disconnect();
+  });
 </script>
 
-<div class="message-container">
+<div class="message-container" bind:this={messageContainer}>
   {#each messages as message}
     <div
       class="message"
@@ -58,7 +123,6 @@
     padding: 0;
     display: inline;
   }
-
 
   .streaming-cursor {
     animation: blink 1s infinite;
