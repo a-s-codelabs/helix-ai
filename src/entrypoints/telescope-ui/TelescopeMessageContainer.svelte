@@ -29,9 +29,10 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-    height: 450px;
+    max-height: 400px;
     overflow-y: auto;
-    padding: 0 20px;
+    padding: 20px 20px 0px 20px;
+    margin-bottom: 20px;
   }
   .message {
     background: #131723;
