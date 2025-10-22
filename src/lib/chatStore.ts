@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { convertPageToMarkdown } from './markdownConverter';
 
 export interface ChatMessage {
   id: number;
@@ -102,37 +103,54 @@ export interface ChatState {
 }
 
 /**
- * Extract page content for AI context
+ * Extract page content for AI context using markdown conversion
  */
 function extractPageContent(): string {
   try {
-    // Get main content
-    const mainContent = document.querySelector('main, article, [role="main"]');
-    const contentElement = mainContent || document.body;
+    // Use the markdown converter to get clean, structured content
+    const markdownContent = convertPageToMarkdown();
 
-    // Extract text from various elements
-    const textElements = contentElement.querySelectorAll(
-      'h1, h2, h3, h4, h5, h6, p, li, td, th'
-    );
-    const texts: string[] = [];
-
-    textElements.forEach((el) => {
-      const text = el.textContent?.trim();
-      if (text) {
-        texts.push(text);
+    // Truncate to reasonable length for AI context (keeping metadata)
+    const maxContentLength = 8000; // Increased from 3000 to accommodate markdown structure
+    if (markdownContent.length > maxContentLength) {
+      // Find the end of metadata section (after the ---)
+      const metadataEnd = markdownContent.indexOf('---\n\n') + 5;
+      if (metadataEnd > 0) {
+        const metadata = markdownContent.substring(0, metadataEnd);
+        const content = markdownContent.substring(metadataEnd);
+        const truncatedContent = content.substring(
+          0,
+          maxContentLength - metadata.length - 100
+        );
+        return (
+          metadata +
+          truncatedContent +
+          '\n\n... [Content truncated for AI processing]'
+        );
       }
-    });
+    }
 
-    // Get page title
-    const pageTitle = document.title;
-    const pageUrl = window.location.href;
-
-    return `Page: ${pageTitle}\nURL: ${pageUrl}\n\nContent:\n${texts.join(
-      '\n'
-    )}`.substring(0, 3000);
+    return markdownContent;
   } catch (err) {
     console.error('Error extracting page content:', err);
-    return `Page: ${document.title}`;
+    // Fallback to simple extraction
+    try {
+      const pageTitle = document.title;
+      const pageUrl = window.location.href;
+      const bodyText = document.body.textContent || '';
+
+      return `# ${pageTitle}
+
+**URL:** ${pageUrl}
+**Error:** Markdown conversion failed, using fallback
+
+---
+
+${bodyText.substring(0, 3000)}`;
+    } catch (fallbackErr) {
+      console.error('Fallback extraction also failed:', fallbackErr);
+      return `Page: ${document.title || 'Unknown'}`;
+    }
   }
 }
 
@@ -140,26 +158,30 @@ function extractPageContent(): string {
  * Create AI session using whichever API is available
  */
 async function createAISession(pageContext: string): Promise<AILanguageModel> {
-  const systemPrompt = `You are a helpful AI assistant embedded in a browser extension called "Helix". You have access to the current page's content and can answer questions about it.
+  console.log('pageContext', pageContext);
+  const systemPrompt = `You are a helpful AI assistant embedded in a browser extension called "Helix". You have access to the current page's content in markdown format and can answer questions about it.
 
 Your capabilities:
 • Answer questions about the page content
 • Summarize information from the page
 • Explain concepts mentioned on the page
 • Help users understand the content better
+• Extract key information from structured content (tables, lists, etc.)
 
 Guidelines:
 • Be concise and helpful
 • Reference specific content from the page when relevant
+• Use the markdown structure to understand content hierarchy
 • If the question isn't related to the page, provide a brief general answer
 • Keep responses clear and easy to read
+• Pay attention to headers, links, and structured data in the markdown
 
-Current Page Content:
+Current Page Content (in Markdown format):
 ---
-${pageContext.substring(0, 2000)}
+${pageContext.substring(0, 4000)}
 ---
 
-When answering, prioritize information from the page content above.`;
+When answering, prioritize information from the page content above. The content is provided in markdown format for better structure understanding.`;
 
   const temperature = 0.7;
   const topK = 40;
@@ -170,7 +192,14 @@ When answering, prioritize information from the page content above.`;
       const availability = await LanguageModel.availability();
       if (availability === 'readily' || availability === 'available') {
         console.log('Using Global LanguageModel API');
+        // Log system prompt length and preview for debugging (privacy-safe)
+        console.log('[Helix] Creating AI session with markdown context', {
+          systemPromptLength: systemPrompt.length,
+          systemPromptPreview: systemPrompt,
+        });
         return await LanguageModel.create({
+          // Pass systemPrompt as well to ensure context is included
+          systemPrompt,
           language: 'en',
           outputLanguage: 'en',
           output: { language: 'en' },
@@ -199,6 +228,11 @@ When answering, prioritize information from the page content above.`;
           capabilities.defaultTopK ?? topK,
           capabilities.maxTopK ?? topK
         );
+        // Log system prompt length and preview for debugging (privacy-safe)
+        console.log('[Helix] Creating AI session with markdown context', {
+          systemPromptLength: systemPrompt.length,
+          systemPromptPreview: systemPrompt.slice(0, 300),
+        });
         return await window.ai.languageModel.create({
           systemPrompt,
           temperature: optimalTemp,
@@ -410,11 +444,25 @@ function createChatStore() {
         // Create or reuse session
         if (!session) {
           session = await createAISession(pageContext);
+          // alert('Session created!');
         }
 
+        // Build prompt with explicit page context to ensure it's always included
+        const contextHeader = '---\nContext (markdown):\n';
+        const contextBody = pageContext ? pageContext.substring(0, 6000) : '';
+        const contextFooter = '\n---\n';
+        const promptWithContext = `${contextHeader}${contextBody}${contextFooter}User Question:\n${userMessage}`;
+
         // Send prompt to AI
-        console.log('Sending prompt to Chrome AI...');
-        const aiResponse = await session.prompt(userMessage);
+        console.log('Sending prompt to Chrome AI...', {
+          userMessageLength: userMessage.length,
+          userMessagePreview: userMessage.slice(0, 200),
+          contextIncluded: Boolean(contextBody),
+          contextLength: contextBody.length,
+          contextPreview: contextBody.slice(0, 200),
+        });
+        // alert('session created and sending prompt');
+        const aiResponse = await session.prompt(promptWithContext);
 
         // Validate response
         if (!aiResponse || typeof aiResponse !== 'string') {

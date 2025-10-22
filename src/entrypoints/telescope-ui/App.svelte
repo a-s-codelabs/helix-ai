@@ -74,6 +74,7 @@
 
   function handleAsk({ value }: { value: string }) {
     console.log('Ask clicked:', value);
+    // alert('Ask clicked!: ' + value);
     if (value.trim()) {
       // Switch to ask mode
       searchStore.setAskMode(true);

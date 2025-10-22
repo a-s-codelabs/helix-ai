@@ -14,7 +14,7 @@ export default defineContentScript({
     // Create the UI
     const createUI = async () => {
       if (ui) return ui;
-      
+
       try {
         ui = await createShadowRootUi(ctx, {
           position: 'inline',
@@ -29,7 +29,7 @@ export default defineContentScript({
             container.style.bottom = '0';
             container.style.zIndex = '99999';
             // container.style.pointerEvents = 'none';
-            
+
             // Create the Svelte app inside the UI container
             const app = mount(App, { target: container });
             return app;
@@ -39,7 +39,7 @@ export default defineContentScript({
             ui = undefined; // Reset ui after unmounting
           },
         });
-        
+
         return ui;
       } catch (error) {
         console.error('Failed to create UI:', error);
@@ -52,7 +52,7 @@ export default defineContentScript({
       // Check for Cmd+F (Mac) or Ctrl+F (Windows/Linux)
       if ((event.metaKey || event.ctrlKey) && event.key === 'f') {
         event.preventDefault();
-        
+
         if (!isVisible) {
           await createUI();
           ui.mount();
@@ -65,7 +65,7 @@ export default defineContentScript({
           isVisible = false;
         }
       }
-      
+
       // Handle Escape key
       if (event.key === 'Escape' && isVisible) {
         searchStore.hide();
@@ -85,11 +85,13 @@ export default defineContentScript({
           try {
             // Wait for the page to be ready
             if (document.readyState === 'loading') {
-              await new Promise(resolve => {
-                document.addEventListener('DOMContentLoaded', resolve, { once: true });
+              await new Promise((resolve) => {
+                document.addEventListener('DOMContentLoaded', resolve, {
+                  once: true,
+                });
               });
             }
-            
+
             await createUI();
             ui.mount();
             searchStore.show();
