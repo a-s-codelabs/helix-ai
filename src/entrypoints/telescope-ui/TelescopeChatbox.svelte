@@ -59,6 +59,10 @@
   .close-icon:hover {
     color: #fff;
   }
+  .input {
+    margin-top: 0;
+    padding-top: 0;
+  }
 
   .suggested-questions {
     display: flex;
