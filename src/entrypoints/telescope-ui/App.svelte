@@ -77,12 +77,13 @@
   }
 
   function handleAsk({ value }: { value: string }) {
-    console.log('Ask clicked:', value);
+    console.log('Ask clicked:', value);``
+    // alert('Ask clicked!: ' + value);
     if (value.trim()) {
       // Switch to ask mode
       searchStore.setAskMode(true);
-      // Use Chrome's AI capabilities via chatStore with streaming
-      chatStore.sendMessageStreaming(value);
+       // Use Chrome's AI capabilities via chatStore with streaming
+       chatStore.sendMessageStreaming(value);
       inputValue = '';
     }
   }

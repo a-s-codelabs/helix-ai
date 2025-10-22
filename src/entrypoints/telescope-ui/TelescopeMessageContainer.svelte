@@ -58,6 +58,7 @@
     display: inline;
   }
 
+
   .streaming-cursor {
     animation: blink 1s infinite;
     color: #4177f1;
