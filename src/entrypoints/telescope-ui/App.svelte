@@ -11,6 +11,8 @@
   let isVisible = $state(false);
   let aiResponse = $state('');
   let messages: Message[] = $state([]);
+  let isStreaming = $state(false);
+  let streamingMessageId = $state<number | null>(null);
 
   // Subscribe to search store
   $effect(() => {
@@ -29,6 +31,8 @@
   $effect(() => {
     const unsubscribe = chatStore.subscribe((state) => {
       messages = state.messages;
+      isStreaming = state.isStreaming;
+      streamingMessageId = state.streamingMessageId;
       // Update search store when we have messages
       if (state.messages.length > 0) {
         searchStore.setAskMode(true);
@@ -73,13 +77,13 @@
   }
 
   function handleAsk({ value }: { value: string }) {
-    console.log('Ask clicked:', value);
+    console.log('Ask clicked:', value);``
     // alert('Ask clicked!: ' + value);
     if (value.trim()) {
       // Switch to ask mode
       searchStore.setAskMode(true);
-      // Use Chrome's AI capabilities via chatStore
-      chatStore.sendMessage(value);
+       // Use Chrome's AI capabilities via chatStore with streaming
+       chatStore.sendMessageStreaming(value);
       inputValue = '';
     }
   }
@@ -202,6 +206,8 @@
       {searchIndex}
       {totalResults}
       {messages}
+      {isStreaming}
+      {streamingMessageId}
       onStateChange={handleStateChange}
       onInput={handleInput}
       onAsk={handleAsk}

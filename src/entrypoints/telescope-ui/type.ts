@@ -31,6 +31,8 @@ export type InputProps = {
   }) => void;
   onClose?: () => void;
   handleSuggestedQuestion?: (question: string) => void;
+  isStreaming?: boolean;
+  streamingMessageId?: number | null;
 };
 
 export type Message = {
@@ -46,4 +48,6 @@ export type ChatboxProps = {
   suggestedQuestions?: string[];
   onSuggestedQuestion?: ({ question }: { question: string }) => void;
   onClose?: () => void;
+  isStreaming?: boolean;
+  streamingMessageId?: number | null;
 };
