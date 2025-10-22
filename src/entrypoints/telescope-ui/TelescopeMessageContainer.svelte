@@ -1,7 +1,11 @@
 <script lang="ts">
   import type { Message } from "./type";
 
-  let { messages = [] }: { messages: Message[] } = $props();
+  let { messages = [], isStreaming = false, streamingMessageId = null }: {
+    messages: Message[],
+    isStreaming?: boolean,
+    streamingMessageId?: number | null
+  } = $props();
 </script>
 
 <div class="message-container">
@@ -10,8 +14,12 @@
       class="message"
       class:user-message={message.type === "user"}
       class:assistant-message={message.type === "assistant"}
+      class:streaming={isStreaming && message.id === streamingMessageId}
     >
       {@html message.content}
+      {#if isStreaming && message.id === streamingMessageId}
+        <span class="streaming-cursor">|</span>
+      {/if}
     </div>
   {/each}
 </div>
@@ -48,5 +56,16 @@
     margin: 0;
     padding: 0;
     display: inline;
+  }
+
+  .streaming-cursor {
+    animation: blink 1s infinite;
+    color: #4177f1;
+    font-weight: bold;
+  }
+
+  @keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
   }
 </style>

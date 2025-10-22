@@ -24,6 +24,8 @@
     onClose,
     messages,
     handleSuggestedQuestion,
+    isStreaming = false,
+    streamingMessageId = null,
   }: InputProps = $props();
 
   $effect(() => {
@@ -42,7 +44,7 @@
     }
 
     console.log("inputState", inputState);
-    console.log("messages", messages);
+    console.log("messages", $state.snapshot(messages));
     console.log("inputImageAttached", inputImageAttached);
     console.log("totalResults", totalResults);
     console.log("inputValue", inputValue);
@@ -60,6 +62,8 @@
   {suggestedQuestions}
   {onSuggestedQuestion}
   {onClose}
+  {isStreaming}
+  {streamingMessageId}
 >
   {#snippet input()}
     <TelescopeInput

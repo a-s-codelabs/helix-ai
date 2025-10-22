@@ -99,6 +99,51 @@ export interface ChatState {
   error: string | null;
   aiAvailable: boolean;
   aiStatus: string;
+  isStreaming: boolean;
+  streamingMessageId: number | null;
+}
+
+/**
+ * Helper function to safely extract error message
+ */
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Unknown error occurred';
+}
+
+/**
+ * Helper function to safely extract error details for logging
+ */
+function getErrorDetails(error: unknown) {
+  return {
+    name: error instanceof Error ? error.name : 'Unknown',
+    message: error instanceof Error ? error.message : 'Unknown error',
+    stack: error instanceof Error ? error.stack : undefined,
+  };
+}
+
+/**
+ * Helper function to safely destroy session
+ */
+function safeDestroySession(session: AILanguageModel | null): void {
+  if (session) {
+    try {
+      session.destroy();
+    } catch (err) {
+      console.warn('Error destroying session:', err);
+    }
+  }
+}
+
+/**
+ * Helper function to create error message for chat
+ */
+function createErrorMessage(error: unknown): ChatMessage {
+  return {
+    id: Date.now() + 1,
+    type: 'assistant',
+    content: `❌ Error: ${getErrorMessage(error)}`,
+    timestamp: new Date(),
+  };
 }
 
 /**
@@ -171,6 +216,7 @@ When answering, prioritize information from the page content above.`;
       if (availability === 'readily' || availability === 'available') {
         console.log('Using Global LanguageModel API');
         return await LanguageModel.create({
+          systemPrompt,
           language: 'en',
           outputLanguage: 'en',
           output: { language: 'en' },
@@ -362,6 +408,8 @@ function createChatStore() {
     error: null,
     aiAvailable: false,
     aiStatus: 'Checking...',
+    isStreaming: false,
+    streamingMessageId: null,
   });
 
   let session: AILanguageModel | null = null;
@@ -383,6 +431,12 @@ function createChatStore() {
 
       // Extract page content
       pageContext = extractPageContent();
+
+      // Debug: Log available APIs
+      console.log('Available APIs:');
+      console.log('LanguageModel:', typeof LanguageModel);
+      console.log('window.ai:', typeof window.ai);
+      console.log('Summarizer:', typeof Summarizer);
     },
 
     /**
@@ -435,16 +489,10 @@ function createChatStore() {
           isLoading: false,
         }));
       } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : 'Unknown error occurred';
+        const errorMessage = getErrorMessage(err);
 
         // Add error message to chat
-        const errorMsg: ChatMessage = {
-          id: Date.now() + 1,
-          type: 'assistant',
-          content: `❌ Error: ${errorMessage}`,
-          timestamp: new Date(),
-        };
+        const errorMsg = createErrorMessage(err);
 
         update((state) => ({
           ...state,
@@ -454,14 +502,259 @@ function createChatStore() {
         }));
 
         // Reset session on error
-        if (session) {
+        safeDestroySession(session);
+        session = null;
+      }
+    },
+
+    /**
+     * Send a message to the AI with streaming response
+     */
+    async sendMessageStreaming(userMessage: string) {
+      if (!userMessage.trim()) return;
+
+      // Add user message
+      const userMsg: ChatMessage = {
+        id: Date.now(),
+        type: 'user',
+        content: userMessage,
+        timestamp: new Date(),
+      };
+
+      // Create assistant message placeholder for streaming
+      const assistantMsgId = Date.now() + 1;
+      const assistantMsg: ChatMessage = {
+        id: assistantMsgId,
+        type: 'assistant',
+        content: '',
+        timestamp: new Date(),
+      };
+
+      update((state) => ({
+        ...state,
+        messages: [...state.messages, userMsg, assistantMsg],
+        isLoading: false,
+        isStreaming: true,
+        streamingMessageId: assistantMsgId,
+        error: null,
+      }));
+
+      try {
+        // Create or reuse session with retry mechanism
+        if (!session) {
           try {
-            session.destroy();
-          } catch (e) {
-            console.warn('Error destroying session:', e);
+            session = await createAISession(pageContext);
+          } catch (sessionError) {
+            console.error('Failed to create AI session:', sessionError);
+            throw new Error(
+              `Failed to create AI session: ${getErrorMessage(sessionError)}`
+            );
           }
-          session = null;
         }
+
+        // Start streaming
+        console.log('Starting streaming prompt to Chrome AI...');
+        console.log('Session:', session);
+        console.log('User message:', userMessage);
+        console.log(
+          'Session has promptStreaming:',
+          typeof session.promptStreaming
+        );
+
+        if (typeof session.promptStreaming !== 'function') {
+          console.warn(
+            'Session does not support streaming. Falling back to regular prompt.'
+          );
+          // Fallback to regular prompt
+          const aiResponse = await session.prompt(userMessage);
+
+          // Update the streaming message with the complete response
+          update((state) => {
+            const updatedMessages = state.messages.map((msg) => {
+              if (msg.id === assistantMsgId) {
+                return {
+                  ...msg,
+                  content: aiResponse.trim(),
+                };
+              }
+              return msg;
+            });
+
+            return {
+              ...state,
+              messages: updatedMessages,
+              isStreaming: false,
+              streamingMessageId: null,
+            };
+          });
+          return;
+        }
+
+        // Create stream with error handling
+        let stream;
+        try {
+          stream = session.promptStreaming(userMessage);
+          console.log('Stream created:', stream);
+        } catch (streamCreationError) {
+          console.error('Failed to create stream:', streamCreationError);
+          throw new Error(
+            `Failed to create stream: ${getErrorMessage(streamCreationError)}`
+          );
+        }
+
+        // Validate stream
+        if (!stream || typeof stream[Symbol.asyncIterator] !== 'function') {
+          throw new Error('Invalid stream object received from AI model');
+        }
+
+        // Process stream chunks with timeout and better error handling
+        try {
+          const streamTimeout = setTimeout(() => {
+            console.warn('Stream timeout - falling back to regular prompt');
+            throw new Error('Stream timeout');
+          }, 30000); // 30 second timeout
+
+          let hasReceivedChunks = false;
+          let chunkCount = 0;
+
+          // Wrap the stream iteration in a try-catch to handle Chrome AI specific errors
+          try {
+            for await (const chunk of stream) {
+              clearTimeout(streamTimeout);
+              hasReceivedChunks = true;
+              chunkCount++;
+              console.log(`Received chunk ${chunkCount}:`, chunk);
+
+              if (chunk && typeof chunk === 'string' && chunk.trim()) {
+                update((state) => {
+                  const updatedMessages = state.messages.map((msg) => {
+                    if (msg.id === assistantMsgId) {
+                      return {
+                        ...msg,
+                        content: msg.content + chunk,
+                      };
+                    }
+                    return msg;
+                  });
+
+                  return {
+                    ...state,
+                    messages: updatedMessages,
+                  };
+                });
+              }
+            }
+          } catch (iterationError) {
+            console.error('Error during stream iteration:', iterationError);
+            // If we got some chunks before the error, continue with what we have
+            if (hasReceivedChunks) {
+              console.log(
+                `Stream failed after ${chunkCount} chunks, but we have content`
+              );
+            } else {
+              throw iterationError;
+            }
+          }
+
+          clearTimeout(streamTimeout);
+
+          // If no chunks were received, this might indicate an issue
+          if (!hasReceivedChunks) {
+            console.warn(
+              'No chunks received from stream - falling back to regular prompt'
+            );
+            throw new Error('No chunks received from stream');
+          }
+
+          console.log(
+            `Stream completed successfully with ${chunkCount} chunks`
+          );
+        } catch (streamError) {
+          console.error('Error processing stream chunks:', streamError);
+          console.error('Stream error details:', getErrorDetails(streamError));
+          throw streamError;
+        }
+
+        // Mark streaming as complete
+        update((state) => ({
+          ...state,
+          isStreaming: false,
+          streamingMessageId: null,
+        }));
+      } catch (err) {
+        console.error('Streaming error:', err);
+        const errorMessage = getErrorMessage(err);
+
+        // Try fallback to regular prompt if streaming fails
+        console.log('Attempting fallback to regular prompt...');
+        try {
+          // Try with existing session first
+          let aiResponse;
+          try {
+            if (!session) throw new Error('No session available');
+            aiResponse = await session.prompt(userMessage);
+          } catch (sessionError) {
+            console.warn('Existing session failed, creating new session...');
+            // Destroy old session and create new one
+            safeDestroySession(session);
+            session = null;
+
+            // Create new session
+            session = await createAISession(pageContext);
+            aiResponse = await session.prompt(userMessage);
+          }
+
+          // Update the streaming message with the complete response
+          update((state) => {
+            const updatedMessages = state.messages.map((msg) => {
+              if (msg.id === assistantMsgId) {
+                return {
+                  ...msg,
+                  content: aiResponse.trim(),
+                };
+              }
+              return msg;
+            });
+
+            return {
+              ...state,
+              messages: updatedMessages,
+              isStreaming: false,
+              streamingMessageId: null,
+              error: null,
+            };
+          });
+
+          console.log('Fallback to regular prompt successful');
+          return;
+        } catch (fallbackError) {
+          console.error('Fallback also failed:', fallbackError);
+        }
+
+        // If fallback also fails, show error
+        update((state) => {
+          const updatedMessages = state.messages.map((msg) => {
+            if (msg.id === assistantMsgId) {
+              return {
+                ...msg,
+                content: createErrorMessage(err).content,
+              };
+            }
+            return msg;
+          });
+
+          return {
+            ...state,
+            messages: updatedMessages,
+            isStreaming: false,
+            streamingMessageId: null,
+            error: errorMessage,
+          };
+        });
+
+        // Reset session on error
+        safeDestroySession(session);
+        session = null;
       }
     },
 
@@ -469,20 +762,16 @@ function createChatStore() {
      * Clear all messages
      */
     clear() {
-      if (session) {
-        try {
-          session.destroy();
-        } catch (err) {
-          console.warn('Error destroying session:', err);
-        }
-        session = null;
-      }
+      safeDestroySession(session);
+      session = null;
 
       update((state) => ({
         ...state,
         messages: [],
         error: null,
         isLoading: false,
+        isStreaming: false,
+        streamingMessageId: null,
       }));
     },
 
@@ -490,16 +779,16 @@ function createChatStore() {
      * Destroy session and cleanup
      */
     destroy() {
-      if (session) {
-        try {
-          session.destroy();
-        } catch (err) {
-          console.warn('Error destroying session:', err);
-        }
-        session = null;
-      }
+      safeDestroySession(session);
+      session = null;
     },
   };
 }
 
 export const chatStore = createChatStore();
+
+// Debug function to test streaming
+export function testStreaming() {
+  console.log('Testing streaming functionality...');
+  chatStore.sendMessageStreaming('write a eight line para poem');
+}

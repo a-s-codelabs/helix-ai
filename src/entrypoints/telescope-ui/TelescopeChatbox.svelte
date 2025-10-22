@@ -9,13 +9,15 @@
     suggestedQuestions = [],
     onSuggestedQuestion,
     onClose,
+    isStreaming = false,
+    streamingMessageId = null,
   }: ChatboxProps = $props();
 </script>
 
 <div class:chat-box={messages.length > 0} class="default-chat-box">
   {#if messages.length > 0}
     <button class="close-icon" onclick={onClose}><Close /></button>
-    <MessageContainer {messages} />
+    <MessageContainer {messages} {isStreaming} {streamingMessageId} />
     {#if suggestedQuestions.length > 0}
       <div class="suggested-questions">
         {#each suggestedQuestions as question}
