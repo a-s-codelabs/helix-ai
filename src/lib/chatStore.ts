@@ -791,6 +791,21 @@ function createChatStore() {
     clear() {
       safeDestroySession(session);
       session = null;
+      // Send a message to the background script to clear the telescope state in Chrome storage (side panel integration)
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+        try {
+          chrome.runtime.sendMessage({ type: 'CLEAR_TELESCOPE_STATE' }, (response) => {
+            if (chrome.runtime.lastError) {
+              console.warn('CLEAR_TELESCOPE_STATE: chrome error', chrome.runtime.lastError.message);
+            } else if (!response?.success) {
+              console.warn('CLEAR_TELESCOPE_STATE: failed to clear state', response?.error);
+            }
+            // No action needed on UI, this is just cleanup
+          });
+        } catch (error) {
+          console.warn('Exception during CLEAR_TELESCOPE_STATE:', error);
+        }
+      }
 
       update((state) => ({
         ...state,
