@@ -1,7 +1,8 @@
 <script lang="ts">
-  import Close from "./icons/Close.svelte";
-  import type { Message, ChatboxProps } from "./type";
-  import MessageContainer from "./TelescopeMessageContainer.svelte";
+  import Close from './icons/Close.svelte';
+  import RightSidePanel from './icons/RightSidePanel.svelte';
+  import type { Message, ChatboxProps } from './type';
+  import MessageContainer from './TelescopeMessageContainer.svelte';
 
   let {
     input,
@@ -16,6 +17,9 @@
 
 <div class:chat-box={messages.length > 0} class="default-chat-box">
   {#if messages.length > 0}
+    <button class="right-panel-icon" onclick={() => {}}
+      ><RightSidePanel /></button
+    >
     <button class="close-icon" onclick={onClose}><Close /></button>
     <MessageContainer {messages} {isStreaming} {streamingMessageId} />
     {#if suggestedQuestions.length > 0}
@@ -60,6 +64,21 @@
   .close-icon:hover {
     color: #fff;
   }
+
+  .right-panel-icon {
+    position: absolute;
+    top: 12px;
+    right: 50px;
+    cursor: pointer;
+    background-color: transparent;
+    color: #ccc;
+    outline: none;
+    border: none;
+  }
+  .right-panel-icon:hover {
+    color: #fff;
+  }
+
   .input {
     margin-top: 0;
     padding-top: 0;
