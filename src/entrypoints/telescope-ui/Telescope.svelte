@@ -44,11 +44,7 @@
       inputState = "search";
     }
 
-    console.log("inputState", inputState);
-    console.log("messages", $state.snapshot(messages));
-    console.log("inputImageAttached", inputImageAttached);
-    console.log("totalResults", totalResults);
-    console.log("inputValue", inputValue);
+
   });
 
   // function onInput({ value }: { value: string }) {

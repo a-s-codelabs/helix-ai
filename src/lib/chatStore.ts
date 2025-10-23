@@ -5,7 +5,7 @@ export type ChatMessage = {
   type: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-}
+};
 
 /**
  * Chrome Built-in AI Type Definitions
@@ -20,19 +20,19 @@ declare global {
 
   type AINamespace = {
     languageModel: AILanguageModelFactory;
-  }
+  };
 
   type AILanguageModelFactory = {
     capabilities(): Promise<AICapabilities>;
     create(options?: AILanguageModelCreateOptions): Promise<AILanguageModel>;
-  }
+  };
 
   type AICapabilities = {
     available: 'readily' | 'after-download' | 'no';
     defaultTemperature?: number;
     defaultTopK?: number;
     maxTopK?: number;
-  }
+  };
 
   type AILanguageModelCreateOptions = {
     systemPrompt?: string;
@@ -41,14 +41,14 @@ declare global {
     language?: string;
     outputLanguage?: string;
     output?: { language: string };
-  }
+  };
 
   type AILanguageModel = {
     prompt(input: string): Promise<string>;
     promptStreaming(input: string): ReadableStream<string>;
     destroy(): void;
     clone?(): Promise<AILanguageModel>;
-  }
+  };
 
   var LanguageModel:
     | {
@@ -90,7 +90,7 @@ declare global {
       options?: { context?: string; signal?: AbortSignal }
     ): ReadableStream<string>;
     destroy(): void;
-  }
+  };
 }
 
 export type ChatState = {
@@ -215,7 +215,6 @@ When answering, prioritize information from the page content above.`;
     try {
       const availability = await LanguageModel.availability();
       if (availability === 'readily' || availability === 'available') {
-        console.log('Using Global LanguageModel API');
         return await LanguageModel.create({
           systemPrompt,
           language: 'en',
@@ -231,7 +230,7 @@ When answering, prioritize information from the page content above.`;
         );
       }
     } catch (err) {
-      console.log('Global LanguageModel failed, trying window.ai...', err);
+      console.error('Global LanguageModel failed, trying window.ai...', err);
     }
   }
 
@@ -240,7 +239,6 @@ When answering, prioritize information from the page content above.`;
     try {
       const capabilities = await window.ai.languageModel.capabilities();
       if (capabilities.available === 'readily') {
-        console.log('Using window.ai.languageModel API');
         const optimalTemp = capabilities.defaultTemperature ?? temperature;
         const optimalTopK = Math.min(
           capabilities.defaultTopK ?? topK,
@@ -258,7 +256,10 @@ When answering, prioritize information from the page content above.`;
         );
       }
     } catch (err) {
-      console.log('window.ai.languageModel failed, trying Summarizer...', err);
+      console.error(
+        'window.ai.languageModel failed, trying Summarizer...',
+        err
+      );
     }
   }
 
@@ -299,7 +300,7 @@ When answering, prioritize information from the page content above.`;
         };
       }
     } catch (err) {
-      console.log('Summarizer failed:', err);
+      console.error('Summarizer failed:', err);
     }
   }
 
@@ -345,7 +346,7 @@ async function checkAPIStatus(): Promise<{
           };
         }
       } catch (err) {
-        console.log('Global LanguageModel check failed', err);
+        console.error('Global LanguageModel check failed', err);
       }
     }
 
@@ -366,7 +367,7 @@ async function checkAPIStatus(): Promise<{
           };
         }
       } catch (err) {
-        console.log('window.ai check failed', err);
+        console.error('window.ai check failed', err);
       }
     }
 
@@ -381,7 +382,7 @@ async function checkAPIStatus(): Promise<{
           };
         }
       } catch (err) {
-        console.log('Summarizer check failed', err);
+        console.error('Summarizer check failed', err);
       }
     }
 
@@ -433,12 +434,6 @@ function createChatStore() {
 
       // Extract page content
       pageContext = extractPageContent();
-
-      // Debug: Log available APIs
-      console.log('Available APIs:');
-      console.log('LanguageModel:', typeof LanguageModel);
-      console.log('window.ai:', typeof window.ai);
-      console.log('Summarizer:', typeof Summarizer);
     },
 
     /**
@@ -469,7 +464,7 @@ function createChatStore() {
         }
 
         // Send prompt to AI
-        console.log('Sending prompt to Chrome AI...');
+
         const aiResponse = await session.prompt(userMessage);
 
         // Validate response
@@ -558,15 +553,6 @@ function createChatStore() {
           }
         }
 
-        // Start streaming
-        console.log('Starting streaming prompt to Chrome AI...');
-        console.log('Session:', session);
-        console.log('User message:', userMessage);
-        console.log(
-          'Session has promptStreaming:',
-          typeof session.promptStreaming
-        );
-
         if (typeof session.promptStreaming !== 'function') {
           console.warn(
             'Session does not support streaming. Falling back to regular prompt.'
@@ -600,7 +586,6 @@ function createChatStore() {
         let stream;
         try {
           stream = session.promptStreaming(userMessage);
-          console.log('Stream created:', stream);
         } catch (streamCreationError) {
           console.error('Failed to create stream:', streamCreationError);
           throw new Error(
@@ -623,14 +608,12 @@ function createChatStore() {
             for await (const chunk of stream) {
               // Check if streaming was aborted
               if (abortController.signal.aborted) {
-                console.log('Streaming aborted by user');
                 break;
               }
 
               clearTimeout(streamTimeout);
               hasReceivedChunks = true;
               chunkCount++;
-              console.log(`Received chunk ${chunkCount}:`, chunk);
 
               if (chunk && typeof chunk === 'string') {
                 update((state) => {
@@ -672,10 +655,6 @@ function createChatStore() {
             );
             throw new Error('No chunks received from stream');
           }
-
-          console.log(
-            `Stream completed successfully with ${chunkCount} chunks`
-          );
         } catch (streamError) {
           console.error('Error processing stream chunks:', streamError);
           console.error('Stream error details:', getErrorDetails(streamError));
@@ -814,8 +793,4 @@ function createChatStore() {
 
 export const chatStore = createChatStore();
 
-// Debug function to test streaming
-export function testStreaming() {
-  console.log('Testing streaming functionality...');
-  chatStore.sendMessageStreaming('write a eight line para poem');
-}
+

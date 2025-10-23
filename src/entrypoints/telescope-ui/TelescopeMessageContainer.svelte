@@ -102,21 +102,14 @@
       class:streaming={isStreaming && message.id === streamingMessageId}
       role="button"
       tabindex="0"
-      onclick={(e)=>{
-        console.log(message.content)
-      }}
+
       onkeydown={(e)=>{
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          console.log(message.content)
+      
         }
       }}
-      onmouseenter={(e)=>{
-        console.log(message.content)
-      }}
-      onmouseleave={(e)=>{
-        console.log(message.content)
-      }}
+
     >
       {@html renderMarkdownContent(message.content)}
       {#if isStreaming && message.id === streamingMessageId}

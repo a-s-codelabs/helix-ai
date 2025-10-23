@@ -1,7 +1,7 @@
 import type { CollectionType, ImageItem, Recipe } from '@/types/formatter';
 
 export default defineBackground(() => {
-  console.log('Hello background!', { id: browser.runtime.id });
+  
 
   // Handle messages from content scripts and pages
   browser.runtime.onMessage.addListener((message, sender, sendResponse) => {

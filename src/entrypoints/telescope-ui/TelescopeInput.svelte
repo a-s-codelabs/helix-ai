@@ -58,11 +58,15 @@
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       onAsk?.({ value: inputValue });
+      // Reset input after submission
+      resetInput();
     }
   }
 
   function handleAsk() {
     onAsk?.({ value: inputValue });
+    // Reset input after submission
+    resetInput();
   }
 
   function handleVoiceInput() {
@@ -100,8 +104,7 @@
 
   function handleClose() {
     onStateChange?.({ state: "search" });
-    inputValue = "";
-    inputElement.value = "";
+    resetInput();
     onClear?.();
     onClose?.();
   }
@@ -116,6 +119,13 @@
 
   function handleStop() {
     onStop?.();
+  }
+
+  // Reusable function to reset input state - following DRY principles
+  function resetInput() {
+    inputValue = "";
+    inputElement.value = "";
+    inputImageAttached = [];
   }
 </script>
 
