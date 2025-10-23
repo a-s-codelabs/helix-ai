@@ -334,6 +334,7 @@
     width: 100%;
     max-width: 600px;
     margin: 0 auto;
+    margin-bottom: 20px;
     transition: all 0.3s ease;
     font-family:
       "Sora",
