@@ -172,6 +172,7 @@
           {/if}
         </div>
       {/if}
+      <!-- svelte-ignore a11y_autofocus -->
       <textarea
         bind:this={inputElement}
         bind:value={inputValue}
@@ -183,6 +184,7 @@
         class:input-expanded={isInputExpanded}
         rows="1"
         style="resize: none;"
+        autofocus
       ></textarea>
 
       {#if inputState === "search" && !isInputExpanded}
