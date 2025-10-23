@@ -57,14 +57,14 @@
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      onAsk?.({ value: inputValue });
+      onAsk?.({ value: inputValue, images: inputImageAttached });
       // Reset input after submission
       resetInput();
     }
   }
 
   function handleAsk() {
-    onAsk?.({ value: inputValue });
+    onAsk?.({ value: inputValue, images: inputImageAttached });
     // Reset input after submission
     resetInput();
   }

@@ -101,8 +101,15 @@
       class:assistant-message={message.type === "assistant"}
       class:streaming={isStreaming && message.id === streamingMessageId}
 
-    
+
     >
+      {#if message.images && message.images.length > 0}
+        <div class="message-images">
+          {#each message.images as image}
+            <img src={image} alt="" class="message-image" />
+          {/each}
+        </div>
+      {/if}
       {@html renderMarkdownContent(message.content)}
       {#if isStreaming && message.id === streamingMessageId}
         <span class="streaming-cursor">|</span>
@@ -183,5 +190,20 @@
   @keyframes blink {
     0%, 50% { opacity: 1; }
     51%, 100% { opacity: 0; }
+  }
+
+  .message-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .message-image {
+    max-width: 150px;
+    max-height: 150px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 1px solid #404040;
   }
 </style>

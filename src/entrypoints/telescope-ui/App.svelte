@@ -6,6 +6,7 @@
 
   let currentState: State = $state('ask');
   let inputValue = $state('');
+  let inputImageAttached = $state<string[]>([]);
   let searchIndex = $state(1);
   let totalResults = $state(19);
   let isVisible = $state(false);
@@ -76,13 +77,12 @@
     }
   }
 
-  function handleAsk({ value }: { value: string }) {
-    // alert('Ask clicked!: ' + value);
+  function handleAsk({ value, images }: { value: string; images?: string[] }) {
     if (value.trim()) {
       // Switch to ask mode
       searchStore.setAskMode(true);
        // Use Chrome's AI capabilities via chatStore with streaming
-       chatStore.sendMessageStreaming(value);
+       chatStore.sendMessageStreaming(value, images);
       // Note: inputValue reset is handled by TelescopeInput.svelte resetInput() function
     }
   }
@@ -97,7 +97,7 @@
 
   function handleSuggestedQuestion({ question }: { question: string }) {
     inputValue = question;
-    handleAsk({ value: question });
+    handleAsk({ value: question, images: [] });
   }
 
   function handleVoiceInput() {
@@ -206,6 +206,7 @@
     <Telescope
       inputState={currentState}
       bind:inputValue
+      bind:inputImageAttached
       {searchIndex}
       {totalResults}
       {messages}

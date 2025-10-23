@@ -4,6 +4,7 @@ export type ChatMessage = {
   id: number;
   type: 'user' | 'assistant';
   content: string;
+  images?: string[];
   timestamp: Date;
 };
 
@@ -418,6 +419,10 @@ function createChatStore() {
   let session: AILanguageModel | null = null;
   let pageContext = '';
 
+  subscribe((state) => {
+    window.sessionStorage.setItem('debug_chat_store', JSON.stringify(state));
+  });
+
   return {
     subscribe,
 
@@ -439,7 +444,7 @@ function createChatStore() {
     /**
      * Send a message to the AI
      */
-    async sendMessage(userMessage: string) {
+    async sendMessage(userMessage: string, images?: string[]) {
       if (!userMessage.trim()) return;
 
       // Add user message
@@ -447,6 +452,7 @@ function createChatStore() {
         id: Date.now(),
         type: 'user',
         content: userMessage,
+        images: images,
         timestamp: new Date(),
       };
 
@@ -507,7 +513,7 @@ function createChatStore() {
     /**
      * Send a message to the AI with streaming response
      */
-    async sendMessageStreaming(userMessage: string) {
+    async sendMessageStreaming(userMessage: string, images?: string[]) {
       if (!userMessage.trim()) return;
 
       // Create abort controller for this streaming session
@@ -518,6 +524,7 @@ function createChatStore() {
         id: Date.now(),
         type: 'user',
         content: userMessage,
+        images: images,
         timestamp: new Date(),
       };
 

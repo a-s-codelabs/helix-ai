@@ -72,7 +72,7 @@
       {isExpanded}
       {suggestedQuestions}
       {disabled}
-      {inputImageAttached}
+      bind:inputImageAttached
       {isStreaming}
       {onInput}
       {onStateChange}
