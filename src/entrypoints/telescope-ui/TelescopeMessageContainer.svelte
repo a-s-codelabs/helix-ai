@@ -100,16 +100,8 @@
       class:user-message={message.type === "user"}
       class:assistant-message={message.type === "assistant"}
       class:streaming={isStreaming && message.id === streamingMessageId}
-      role="button"
-      tabindex="0"
 
-      onkeydown={(e)=>{
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-      
-        }
-      }}
-
+    
     >
       {@html renderMarkdownContent(message.content)}
       {#if isStreaming && message.id === streamingMessageId}
@@ -128,6 +120,7 @@
     overflow-y: auto;
     padding: 20px 20px 0px 0px;
     margin-bottom: 20px;
+    overscroll-behavior: none;
   }
   .message {
     background: #131723;
