@@ -33,6 +33,19 @@
     onStop,
   }: InputProps = $props();
 
+  // Check if we're in side panel mode
+  let isInSidePanel = $state(false);
+
+  $effect(() => {
+    // Check if we're in a side panel context
+    isInSidePanel = window.location.pathname.includes('sidepanel') ||
+                   window.location.href.includes('sidepanel') ||
+                   document.title.includes('Side Panel');
+  });
+
+  // Dynamic placeholder based on side panel mode
+  let dynamicPlaceholder = $derived(isInSidePanel ? "Ask..." : placeholder);
+
   let inputElement: HTMLTextAreaElement;
   let inputBarElement: HTMLDivElement;
   const CHAR_EXPAND_LIMIT = 28;
@@ -133,6 +146,7 @@
   class="telescope-container"
   class:expanded={isExpanded}
   class:reached-min-chars={inputValue.length >= 15 || isInputExpanded}
+  class:sidepanel-mode={isInSidePanel}
 >
   <div
     class="input-bar-container"
@@ -178,7 +192,7 @@
         bind:value={inputValue}
         oninput={handleInput}
         onkeydown={handleKeydown}
-        {placeholder}
+        placeholder={dynamicPlaceholder}
         {disabled}
         class="input-field"
         class:input-expanded={isInputExpanded}
@@ -393,6 +407,21 @@
     .icon-button {
       padding: 6px;
     }
+  }
+
+  /* Side panel specific: Ensure all icons are always visible and input field adjusts */
+  .telescope-container.sidepanel-mode .action-icons {
+    display: flex;
+    flex-shrink: 0; /* Prevent icons from shrinking */
+  }
+
+  .telescope-container.sidepanel-mode .icon-button {
+    flex-shrink: 0; /* Prevent individual icon buttons from shrinking */
+  }
+
+  .telescope-container.sidepanel-mode .input-field {
+    flex: 1;
+    min-width: 100px; /* Allow input to shrink more in side panel */
   }
 
   .send-button {
