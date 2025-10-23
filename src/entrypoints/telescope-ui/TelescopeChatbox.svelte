@@ -160,7 +160,7 @@ $effect(() => {
     outline: none;
     border: none;
     transition: all 0.2s ease;
-    padding: 4px;
+    padding-left: 4px;
     border-radius: 4px;
   }
   .right-panel-icon:hover {

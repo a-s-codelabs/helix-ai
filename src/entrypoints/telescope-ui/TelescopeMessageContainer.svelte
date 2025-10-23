@@ -125,7 +125,7 @@
     gap: 12px;
     max-height: 400px;
     overflow-y: auto;
-    padding: 20px 20px 0px 0px;
+    padding: 30px 10px 0px 0px;
     margin-bottom: 20px;
     overscroll-behavior: none;
     /* Thin scrollbar styling */
