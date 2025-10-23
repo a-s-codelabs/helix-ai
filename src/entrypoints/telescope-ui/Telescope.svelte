@@ -61,6 +61,11 @@
   {onClose}
   {isStreaming}
   {streamingMessageId}
+  {inputValue}
+  {inputImageAttached}
+  {searchIndex}
+  {totalResults}
+  currentState={inputState}
 >
   {#snippet input()}
     <TelescopeInput
@@ -72,7 +77,7 @@
       {isExpanded}
       {suggestedQuestions}
       {disabled}
-      {inputImageAttached}
+      bind:inputImageAttached
       {isStreaming}
       {onInput}
       {onStateChange}

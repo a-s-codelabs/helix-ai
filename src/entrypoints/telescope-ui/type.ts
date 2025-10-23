@@ -17,7 +17,7 @@ export type InputProps = {
   messages?: Message[];
   onInput?: ({ value }: { value: string }) => void;
   onStateChange?: ({ state }: { state: State }) => void;
-  onAsk?: ({ value }: { value: string }) => void;
+  onAsk?: ({ value, images }: { value: string; images?: string[] }) => void;
   onVoiceInput?: () => void;
   onAttachment?: () => void;
   onClear?: () => void;
@@ -40,6 +40,7 @@ export type Message = {
   id: number;
   type: 'user' | 'assistant';
   content: string;
+  images?: string[];
   timestamp: Date;
 };
 
@@ -51,4 +52,10 @@ export type ChatboxProps = {
   onClose?: () => void;
   isStreaming?: boolean;
   streamingMessageId?: number | null;
+  // Additional props for side panel functionality
+  inputValue?: string;
+  inputImageAttached?: string[];
+  searchIndex?: number;
+  totalResults?: number;
+  currentState?: State;
 };

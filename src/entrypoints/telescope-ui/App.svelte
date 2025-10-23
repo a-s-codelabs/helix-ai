@@ -2,10 +2,12 @@
   import Telescope from './Telescope.svelte';
   import { searchStore } from '../../lib/searchStore';
   import { chatStore } from '../../lib/chatStore';
+  import { sidePanelUtils, sidePanelStore } from '../../lib/sidePanelStore';
   import type { Direction, State, Message } from './type';
 
   let currentState: State = $state('ask');
   let inputValue = $state('');
+  let inputImageAttached = $state<string[]>([]);
   let searchIndex = $state(1);
   let totalResults = $state(19);
   let isVisible = $state(false);
@@ -48,6 +50,49 @@
     }
   });
 
+  // Check if we're in side panel mode
+  let isInSidePanel = $state(false);
+
+  // Detect if we're in side panel by checking the URL or window context
+  $effect(() => {
+    // Check if we're in a side panel context
+    isInSidePanel = window.location.pathname.includes('sidepanel') ||
+                   window.location.href.includes('sidepanel') ||
+                   document.title.includes('Side Panel');
+
+    // If we're in side panel mode, automatically show the UI
+    if (isInSidePanel) {
+      isVisible = true;
+    }
+  });
+
+  // Check for side panel state restoration
+  $effect(() => {
+    // Check if we're in side panel mode and need to restore state
+    const checkSidePanelState = async () => {
+      const storedState = await sidePanelUtils.getTelescopeState();
+      if (storedState) {
+        // Restore the telescope state
+        messages = storedState.messages;
+        isStreaming = storedState.isStreaming;
+        streamingMessageId = storedState.streamingMessageId;
+        inputValue = storedState.inputValue;
+        inputImageAttached = storedState.inputImageAttached;
+        searchIndex = storedState.searchIndex;
+        totalResults = storedState.totalResults;
+        currentState = storedState.currentState;
+
+        // Update stores with restored state
+        chatStore.setMessages(messages);
+        if (messages.length > 0) {
+          searchStore.setAskMode(true);
+        }
+      }
+    };
+
+    checkSidePanelState();
+  });
+
   function handleStateChange({ state }: { state: State }) {
     currentState = state;
   }
@@ -76,13 +121,12 @@
     }
   }
 
-  function handleAsk({ value }: { value: string }) {
-    // alert('Ask clicked!: ' + value);
+  function handleAsk({ value, images }: { value: string; images?: string[] }) {
     if (value.trim()) {
       // Switch to ask mode
       searchStore.setAskMode(true);
        // Use Chrome's AI capabilities via chatStore with streaming
-       chatStore.sendMessageStreaming(value);
+       chatStore.sendMessageStreaming(value, images);
       // Note: inputValue reset is handled by TelescopeInput.svelte resetInput() function
     }
   }
@@ -97,7 +141,7 @@
 
   function handleSuggestedQuestion({ question }: { question: string }) {
     inputValue = question;
-    handleAsk({ value: question });
+    handleAsk({ value: question, images: [] });
   }
 
   function handleVoiceInput() {
@@ -201,11 +245,12 @@
   });
 </script>
 
-{#if isVisible}
-  <div class="telescope-container draggable" bind:this={telescopeContainer}>
+{#if isVisible || isInSidePanel}
+  <div class="telescope-container" class:draggable={!isInSidePanel} bind:this={telescopeContainer}>
     <Telescope
       inputState={currentState}
       bind:inputValue
+      bind:inputImageAttached
       {searchIndex}
       {totalResults}
       {messages}
@@ -231,8 +276,10 @@
     width: 100%;
     max-width: 600px;
     margin-top: 0;
+    width: min-content;
   }
 
+  /* Floating mode styling */
   .telescope-container.draggable {
     position: fixed;
     top: 20px;
@@ -246,5 +293,37 @@
 
   .telescope-container.draggable:active {
     cursor: grabbing;
+  }
+
+  /* Side panel mode styling */
+  .telescope-container:not(.draggable) {
+    position: relative;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: #0a0a0a;
+    min-width: 0; /* Allow container to shrink */
+    overflow: hidden; /* Prevent content from overflowing */
+    /* Enable flexible width handling */
+    min-width: 200px; /* Minimum usable width */
+    max-width: 100vw; /* Never exceed viewport width */
+  }
+
+  /* Responsive adjustments for side panel */
+  @media (max-width: 400px) {
+    .telescope-container:not(.draggable) {
+      font-size: 14px;
+    }
+  }
+
+  @media (max-width: 300px) {
+    .telescope-container:not(.draggable) {
+      font-size: 12px;
+    }
   }
 </style>

@@ -60,8 +60,7 @@ export default defineContentScript({
           isVisible = true;
         } else {
           searchStore.hide();
-          ui.unmount();
-          ui = undefined; // Reset ui after unmounting
+          ui.remove();
           isVisible = false;
         }
       }
@@ -69,8 +68,7 @@ export default defineContentScript({
       // Handle Escape key
       if (event.key === 'Escape' && isVisible) {
         searchStore.hide();
-        ui.unmount();
-        ui = undefined; // Reset ui after unmounting
+        ui.remove();
         isVisible = false;
       }
     };
@@ -112,7 +110,7 @@ export default defineContentScript({
       chrome.runtime.onMessage.removeListener(handleMessage);
       if (ui && isVisible) {
         searchStore.hide();
-        ui.unmount();
+        ui.remove();
       }
     });
   },

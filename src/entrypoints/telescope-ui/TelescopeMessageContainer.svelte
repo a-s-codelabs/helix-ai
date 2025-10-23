@@ -100,17 +100,16 @@
       class:user-message={message.type === "user"}
       class:assistant-message={message.type === "assistant"}
       class:streaming={isStreaming && message.id === streamingMessageId}
-      role="button"
-      tabindex="0"
 
-      onkeydown={(e)=>{
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-      
-        }
-      }}
 
     >
+      {#if message.images && message.images.length > 0}
+        <div class="message-images">
+          {#each message.images as image}
+            <img src={image} alt="" class="message-image" />
+          {/each}
+        </div>
+      {/if}
       {@html renderMarkdownContent(message.content)}
       {#if isStreaming && message.id === streamingMessageId}
         <span class="streaming-cursor">|</span>
@@ -126,8 +125,33 @@
     gap: 12px;
     max-height: 400px;
     overflow-y: auto;
-    padding: 20px 20px 0px 0px;
+    padding: 30px 10px 0px 0px;
     margin-bottom: 20px;
+    overscroll-behavior: none;
+    /* Thin scrollbar styling */
+    scrollbar-width: thin;
+    scrollbar-color: #555 #2a2a2a;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Webkit scrollbar styling for thin appearance */
+  .message-container::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .message-container::-webkit-scrollbar-track {
+    background: #2a2a2a;
+    border-radius: 3px;
+  }
+
+  .message-container::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 3px;
+  }
+
+  .message-container::-webkit-scrollbar-thumb:hover {
+    background: #666;
   }
   .message {
     background: #131723;
@@ -141,6 +165,10 @@
     width: max-content;
     cursor: pointer;
     transition: opacity 0.2s ease;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    min-width: 60px;
   }
 
   .message:hover {
@@ -154,10 +182,13 @@
 
   .assistant-message {
     background: #322631;
+    align-self: flex-start;
+    margin-right: auto;
   }
   .user-message {
     background: #4177f1;
     align-self: flex-end;
+    margin-left: auto;
   }
 
   :global(.message > p) {
@@ -190,5 +221,81 @@
   @keyframes blink {
     0%, 50% { opacity: 1; }
     51%, 100% { opacity: 0; }
+  }
+
+  .message-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .message-image {
+    max-width: 150px;
+    max-height: 150px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 1px solid #404040;
+  }
+
+  /* Side panel specific adjustments */
+  :global(.sidepanel-layout) .message {
+    max-width: 95%;
+    width: max-content;
+    box-sizing: border-box;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+
+  :global(.sidepanel-layout) .message-container {
+    overflow-x: hidden;
+    width: 100%;
+    box-sizing: border-box;
+    max-height: none;
+    height: 100%;
+    flex: 1;
+    overflow-y: auto;
+    padding: 0px 20px 0px 0px;
+    margin-bottom: 0;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 400px) {
+    .message-container {
+      padding: 12px 12px 0px 0px;
+      margin-bottom: 12px;
+      gap: 8px;
+    }
+
+    .message {
+      font-size: 13px;
+      padding: 10px;
+      max-width: 95%;
+    }
+
+    .message-image {
+      max-width: 120px;
+      max-height: 120px;
+    }
+  }
+
+  @media (max-width: 300px) {
+    .message-container {
+      padding: 8px 8px 0px 0px;
+      margin-bottom: 8px;
+      gap: 6px;
+    }
+
+    .message {
+      font-size: 12px;
+      padding: 8px;
+      max-width: 95%;
+    }
+
+    .message-image {
+      max-width: 100px;
+      max-height: 100px;
+    }
   }
 </style>

@@ -4,6 +4,7 @@ export type ChatMessage = {
   id: number;
   type: 'user' | 'assistant';
   content: string;
+  images?: string[];
   timestamp: Date;
 };
 
@@ -418,6 +419,10 @@ function createChatStore() {
   let session: AILanguageModel | null = null;
   let pageContext = '';
 
+  subscribe((state) => {
+    window.sessionStorage.setItem('debug_chat_store', JSON.stringify(state));
+  });
+
   return {
     subscribe,
 
@@ -439,7 +444,7 @@ function createChatStore() {
     /**
      * Send a message to the AI
      */
-    async sendMessage(userMessage: string) {
+    async sendMessage(userMessage: string, images?: string[]) {
       if (!userMessage.trim()) return;
 
       // Add user message
@@ -447,6 +452,7 @@ function createChatStore() {
         id: Date.now(),
         type: 'user',
         content: userMessage,
+        images: images,
         timestamp: new Date(),
       };
 
@@ -507,7 +513,7 @@ function createChatStore() {
     /**
      * Send a message to the AI with streaming response
      */
-    async sendMessageStreaming(userMessage: string) {
+    async sendMessageStreaming(userMessage: string, images?: string[]) {
       if (!userMessage.trim()) return;
 
       // Create abort controller for this streaming session
@@ -518,6 +524,7 @@ function createChatStore() {
         id: Date.now(),
         type: 'user',
         content: userMessage,
+        images: images,
         timestamp: new Date(),
       };
 
@@ -764,11 +771,41 @@ function createChatStore() {
     },
 
     /**
+     * Set messages directly (for state restoration)
+     */
+    setMessages(newMessages: ChatMessage[]) {
+      update((state) => ({
+        ...state,
+        messages: newMessages,
+        error: null,
+        isLoading: false,
+        isStreaming: false,
+        streamingMessageId: null,
+        abortController: null,
+      }));
+    },
+
+    /**
      * Clear all messages
      */
     clear() {
       safeDestroySession(session);
       session = null;
+      // Send a message to the background script to clear the telescope state in Chrome storage (side panel integration)
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+        try {
+          chrome.runtime.sendMessage({ type: 'CLEAR_TELESCOPE_STATE' }, (response) => {
+            if (chrome.runtime.lastError) {
+              console.warn('CLEAR_TELESCOPE_STATE: chrome error', chrome.runtime.lastError.message);
+            } else if (!response?.success) {
+              console.warn('CLEAR_TELESCOPE_STATE: failed to clear state', response?.error);
+            }
+            // No action needed on UI, this is just cleanup
+          });
+        } catch (error) {
+          console.warn('Exception during CLEAR_TELESCOPE_STATE:', error);
+        }
+      }
 
       update((state) => ({
         ...state,

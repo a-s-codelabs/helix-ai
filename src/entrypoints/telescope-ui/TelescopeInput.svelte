@@ -33,6 +33,19 @@
     onStop,
   }: InputProps = $props();
 
+  // Check if we're in side panel mode
+  let isInSidePanel = $state(false);
+
+  $effect(() => {
+    // Check if we're in a side panel context
+    isInSidePanel = window.location.pathname.includes('sidepanel') ||
+                   window.location.href.includes('sidepanel') ||
+                   document.title.includes('Side Panel');
+  });
+
+  // Dynamic placeholder based on side panel mode
+  let dynamicPlaceholder = $derived(isInSidePanel ? "Ask..." : placeholder);
+
   let inputElement: HTMLTextAreaElement;
   let inputBarElement: HTMLDivElement;
   const CHAR_EXPAND_LIMIT = 28;
@@ -57,14 +70,14 @@
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      onAsk?.({ value: inputValue });
+      onAsk?.({ value: inputValue, images: inputImageAttached });
       // Reset input after submission
       resetInput();
     }
   }
 
   function handleAsk() {
-    onAsk?.({ value: inputValue });
+    onAsk?.({ value: inputValue, images: inputImageAttached });
     // Reset input after submission
     resetInput();
   }
@@ -133,6 +146,7 @@
   class="telescope-container"
   class:expanded={isExpanded}
   class:reached-min-chars={inputValue.length >= 15 || isInputExpanded}
+  class:sidepanel-mode={isInSidePanel}
 >
   <div
     class="input-bar-container"
@@ -172,17 +186,19 @@
           {/if}
         </div>
       {/if}
+      <!-- svelte-ignore a11y_autofocus -->
       <textarea
         bind:this={inputElement}
         bind:value={inputValue}
         oninput={handleInput}
         onkeydown={handleKeydown}
-        {placeholder}
+        placeholder={dynamicPlaceholder}
         {disabled}
         class="input-field"
         class:input-expanded={isInputExpanded}
         rows="1"
         style="resize: none;"
+        autofocus
       ></textarea>
 
       {#if inputState === "search" && !isInputExpanded}
@@ -332,6 +348,7 @@
     width: 100%;
     max-width: 600px;
     margin: 0 auto;
+    margin-bottom: 20px;
     transition: all 0.3s ease;
     font-family:
       "Sora",
@@ -343,6 +360,68 @@
   }
   .reached-min-chars {
     min-width: 600px;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 400px) {
+    .telescope-container {
+      max-width: 100%;
+    }
+
+    .reached-min-chars {
+      min-width: 100%;
+    }
+
+    .input-bar-container {
+      padding: 8px 12px;
+    }
+
+    .input-field {
+      font-size: 14px;
+      min-width: 150px;
+    }
+  }
+
+  @media (max-width: 300px) {
+    .telescope-container {
+      max-width: 100%;
+    }
+
+    .reached-min-chars {
+      min-width: 100%;
+    }
+
+    .input-bar-container {
+      padding: 6px 10px;
+    }
+
+    .input-field {
+      font-size: 13px;
+      min-width: 120px;
+    }
+
+    .action-icons {
+      gap: 4px;
+    }
+
+    .icon-button {
+      padding: 6px;
+    }
+  }
+
+  /* Side panel specific: Ensure all icons are always visible and input field adjusts */
+  .telescope-container.sidepanel-mode .action-icons {
+    display: flex;
+    flex-shrink: 0; /* Prevent icons from shrinking */
+  }
+
+  .telescope-container.sidepanel-mode .icon-button {
+    flex-shrink: 0; /* Prevent individual icon buttons from shrinking */
+  }
+
+  .telescope-container.sidepanel-mode .input-field {
+    flex: 1;
+    min-width: 100px; /* Allow input to shrink more in side panel */
   }
 
   .send-button {
