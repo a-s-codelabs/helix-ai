@@ -5,7 +5,13 @@ export default defineConfig({
   srcDir: 'src',
   modules: ['@wxt-dev/module-svelte'],
   manifest: {
-    permissions: ['storage'],
+    permissions: ['storage', 'sidePanel'],
     host_permissions: ['<all_urls>'],
+    side_panel: {
+      default_path: 'sidepanel.html',
+    },
+    action: {
+      default_title: 'Open Helix AI Side Panel',
+    },
   },
 });

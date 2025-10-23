@@ -771,6 +771,21 @@ function createChatStore() {
     },
 
     /**
+     * Set messages directly (for state restoration)
+     */
+    setMessages(newMessages: ChatMessage[]) {
+      update((state) => ({
+        ...state,
+        messages: newMessages,
+        error: null,
+        isLoading: false,
+        isStreaming: false,
+        streamingMessageId: null,
+        abortController: null,
+      }));
+    },
+
+    /**
      * Clear all messages
      */
     clear() {

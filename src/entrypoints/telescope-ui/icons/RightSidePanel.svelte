@@ -1,4 +1,6 @@
 <script lang="ts">
+  // RightSidePanel icon component
+  // This icon represents moving content to the side panel
 </script>
 
 <svg
@@ -11,8 +13,17 @@
   stroke-width="2"
   stroke-linecap="round"
   stroke-linejoin="round"
-  class="lucide lucide-panel-right-close-icon lucide-panel-right-close"
-  ><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M15 3v18" /><path
-    d="m8 9 3 3-3 3"
-  /></svg
+  class="right-side-panel-icon"
 >
+  <rect width="18" height="18" x="3" y="3" rx="2" />
+  <path d="M15 3v18" />
+  <path d="m8 9 3 3-3 3" />
+</svg>
+
+<style>
+  .right-side-panel-icon {
+    display: block;
+    width: 16px;
+    height: 16px;
+  }
+</style>

@@ -3,6 +3,7 @@
   import RightSidePanel from './icons/RightSidePanel.svelte';
   import type { Message, ChatboxProps } from './type';
   import MessageContainer from './TelescopeMessageContainer.svelte';
+  import { sidePanelUtils } from '../../lib/sidePanelStore';
 
   let {
     input,
@@ -12,14 +13,96 @@
     onClose,
     isStreaming = false,
     streamingMessageId = null,
-  }: ChatboxProps = $props();
+  // Additional props for side panel functionality
+  inputValue = '',
+  inputImageAttached = [],
+  searchIndex = 1,
+  totalResults = 0,
+  currentState = 'ask',
+}: ChatboxProps = $props();
+
+// Check if we're in side panel mode
+let isInSidePanel = $state(false);
+
+$effect(() => {
+  // Check if we're in a side panel context
+  isInSidePanel = window.location.pathname.includes('sidepanel') ||
+                 window.location.href.includes('sidepanel') ||
+                 document.title.includes('Side Panel');
+});
+
+  // Handle move to side panel
+  async function handleMoveToSidePanel() {
+    console.log('RightSidePanel clicked - attempting to move to side panel');
+
+    const telescopeState = {
+      messages,
+      isStreaming,
+      streamingMessageId,
+      inputValue,
+      inputImageAttached,
+      searchIndex,
+      totalResults,
+      currentState,
+      timestamp: Date.now()
+    };
+
+    console.log('Telescope state to move:', telescopeState);
+
+    try {
+      const success = await sidePanelUtils.moveToSidePanel(telescopeState);
+      console.log('Move to side panel result:', success);
+
+      if (success) {
+        // Hide the floating telescope UI after successful move
+        onClose?.();
+      } else {
+        console.error('Failed to move to side panel');
+        // Try direct approach as fallback
+        try {
+          if (typeof chrome !== 'undefined' && chrome.sidePanel) {
+            await chrome.sidePanel.open({});
+            console.log('Side panel opened directly as fallback');
+            onClose?.();
+          } else {
+            alert('Failed to open side panel. Please try clicking the extension icon in the toolbar.');
+          }
+        } catch (directError) {
+          console.error('Direct side panel open also failed:', directError);
+          alert('Failed to open side panel. Please try clicking the extension icon in the toolbar.');
+        }
+      }
+    } catch (error) {
+      console.error('Error in handleMoveToSidePanel:', error);
+      // Try direct approach as fallback
+      try {
+        if (typeof chrome !== 'undefined' && chrome.sidePanel) {
+          await chrome.sidePanel.open({});
+          console.log('Side panel opened directly as fallback after error');
+          onClose?.();
+        } else {
+          alert('Error opening side panel: ' + (error as Error).message);
+        }
+      } catch (directError) {
+        console.error('Direct side panel open also failed:', directError);
+        alert('Error opening side panel: ' + (error as Error).message);
+      }
+    }
+  }
 </script>
 
 <div class:chat-box={messages.length > 0} class="default-chat-box">
   {#if messages.length > 0}
-    <button class="right-panel-icon" onclick={() => {}}
-      ><RightSidePanel /></button
-    >
+    {#if !isInSidePanel}
+      <button
+        class="right-panel-icon"
+        onclick={handleMoveToSidePanel}
+        title="Move to Side Panel"
+        aria-label="Move to Side Panel"
+      >
+        <RightSidePanel />
+      </button>
+    {/if}
     <button class="close-icon" onclick={onClose}><Close /></button>
     <MessageContainer {messages} {isStreaming} {streamingMessageId} />
     {#if suggestedQuestions.length > 0}
@@ -74,9 +157,17 @@
     color: #ccc;
     outline: none;
     border: none;
+    transition: all 0.2s ease;
+    padding: 4px;
+    border-radius: 4px;
   }
   .right-panel-icon:hover {
     color: #fff;
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  .right-panel-icon:active {
+    transform: scale(0.95);
+    background-color: rgba(255, 255, 255, 0.2);
   }
 
   .input {

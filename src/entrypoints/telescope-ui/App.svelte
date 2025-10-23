@@ -2,6 +2,7 @@
   import Telescope from './Telescope.svelte';
   import { searchStore } from '../../lib/searchStore';
   import { chatStore } from '../../lib/chatStore';
+  import { sidePanelUtils, sidePanelStore } from '../../lib/sidePanelStore';
   import type { Direction, State, Message } from './type';
 
   let currentState: State = $state('ask');
@@ -47,6 +48,49 @@
     if (isVisible) {
       chatStore.init();
     }
+  });
+
+  // Check if we're in side panel mode
+  let isInSidePanel = $state(false);
+
+  // Detect if we're in side panel by checking the URL or window context
+  $effect(() => {
+    // Check if we're in a side panel context
+    isInSidePanel = window.location.pathname.includes('sidepanel') ||
+                   window.location.href.includes('sidepanel') ||
+                   document.title.includes('Side Panel');
+
+    // If we're in side panel mode, automatically show the UI
+    if (isInSidePanel) {
+      isVisible = true;
+    }
+  });
+
+  // Check for side panel state restoration
+  $effect(() => {
+    // Check if we're in side panel mode and need to restore state
+    const checkSidePanelState = async () => {
+      const storedState = await sidePanelUtils.getTelescopeState();
+      if (storedState) {
+        // Restore the telescope state
+        messages = storedState.messages;
+        isStreaming = storedState.isStreaming;
+        streamingMessageId = storedState.streamingMessageId;
+        inputValue = storedState.inputValue;
+        inputImageAttached = storedState.inputImageAttached;
+        searchIndex = storedState.searchIndex;
+        totalResults = storedState.totalResults;
+        currentState = storedState.currentState;
+
+        // Update stores with restored state
+        chatStore.setMessages(messages);
+        if (messages.length > 0) {
+          searchStore.setAskMode(true);
+        }
+      }
+    };
+
+    checkSidePanelState();
   });
 
   function handleStateChange({ state }: { state: State }) {
@@ -201,8 +245,8 @@
   });
 </script>
 
-{#if isVisible}
-  <div class="telescope-container draggable" bind:this={telescopeContainer}>
+{#if isVisible || isInSidePanel}
+  <div class="telescope-container" class:draggable={!isInSidePanel} bind:this={telescopeContainer}>
     <Telescope
       inputState={currentState}
       bind:inputValue
@@ -235,6 +279,7 @@
     width: min-content;
   }
 
+  /* Floating mode styling */
   .telescope-container.draggable {
     position: fixed;
     top: 20px;
@@ -248,5 +293,18 @@
 
   .telescope-container.draggable:active {
     cursor: grabbing;
+  }
+
+  /* Side panel mode styling */
+  .telescope-container:not(.draggable) {
+    position: relative;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
   }
 </style>
