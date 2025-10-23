@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 
-export interface ChatMessage {
+export type ChatMessage = {
   id: number;
   type: 'user' | 'assistant';
   content: string;
@@ -18,23 +18,23 @@ declare global {
     ai?: AINamespace;
   }
 
-  interface AINamespace {
+  type AINamespace = {
     languageModel: AILanguageModelFactory;
   }
 
-  interface AILanguageModelFactory {
+  type AILanguageModelFactory = {
     capabilities(): Promise<AICapabilities>;
     create(options?: AILanguageModelCreateOptions): Promise<AILanguageModel>;
   }
 
-  interface AICapabilities {
+  type AICapabilities = {
     available: 'readily' | 'after-download' | 'no';
     defaultTemperature?: number;
     defaultTopK?: number;
     maxTopK?: number;
   }
 
-  interface AILanguageModelCreateOptions {
+  type AILanguageModelCreateOptions = {
     systemPrompt?: string;
     temperature?: number;
     topK?: number;
@@ -43,7 +43,7 @@ declare global {
     output?: { language: string };
   }
 
-  interface AILanguageModel {
+  type AILanguageModel = {
     prompt(input: string): Promise<string>;
     promptStreaming(input: string): ReadableStream<string>;
     destroy(): void;
@@ -80,7 +80,7 @@ declare global {
       }
     | undefined;
 
-  interface AISummarizer {
+  type AISummarizer = {
     summarize(
       text: string,
       options?: { context?: string; signal?: AbortSignal }
@@ -93,7 +93,7 @@ declare global {
   }
 }
 
-export interface ChatState {
+export type ChatState ={
   messages: ChatMessage[];
   isLoading: boolean;
   error: string | null;
@@ -102,6 +102,7 @@ export interface ChatState {
   isStreaming: boolean;
   streamingMessageId: number | null;
 }
+
 
 /**
  * Helper function to safely extract error message
@@ -602,11 +603,6 @@ function createChatStore() {
           );
         }
 
-        // Validate stream
-        if (!stream || typeof stream[Symbol.asyncIterator] !== 'function') {
-          throw new Error('Invalid stream object received from AI model');
-        }
-
         // Process stream chunks with timeout and better error handling
         try {
           const streamTimeout = setTimeout(() => {
@@ -625,7 +621,7 @@ function createChatStore() {
               chunkCount++;
               console.log(`Received chunk ${chunkCount}:`, chunk);
 
-              if (chunk && typeof chunk === 'string' && chunk.trim()) {
+              if (chunk && typeof chunk === 'string') {
                 update((state) => {
                   const updatedMessages = state.messages.map((msg) => {
                     if (msg.id === assistantMsgId) {
@@ -685,51 +681,51 @@ function createChatStore() {
         console.error('Streaming error:', err);
         const errorMessage = getErrorMessage(err);
 
-        // Try fallback to regular prompt if streaming fails
-        console.log('Attempting fallback to regular prompt...');
-        try {
-          // Try with existing session first
-          let aiResponse;
-          try {
-            if (!session) throw new Error('No session available');
-            aiResponse = await session.prompt(userMessage);
-          } catch (sessionError) {
-            console.warn('Existing session failed, creating new session...');
-            // Destroy old session and create new one
-            safeDestroySession(session);
-            session = null;
+        // // Try fallback to regular prompt if streaming fails
+        // console.log('Attempting fallback to regular prompt...');
+        // try {
+        //   // Try with existing session first
+        //   let aiResponse;
+        //   try {
+        //     if (!session) throw new Error('No session available');
+        //     aiResponse = await session.prompt(userMessage);
+        //   } catch (sessionError) {
+        //     console.warn('Existing session failed, creating new session...');
+        //     // Destroy old session and create new one
+        //     safeDestroySession(session);
+        //     session = null;
 
-            // Create new session
-            session = await createAISession(pageContext);
-            aiResponse = await session.prompt(userMessage);
-          }
+        //     // Create new session
+        //     session = await createAISession(pageContext);
+        //     aiResponse = await session.prompt(userMessage);
+        //   }
 
-          // Update the streaming message with the complete response
-          update((state) => {
-            const updatedMessages = state.messages.map((msg) => {
-              if (msg.id === assistantMsgId) {
-                return {
-                  ...msg,
-                  content: aiResponse.trim(),
-                };
-              }
-              return msg;
-            });
+        //   // Update the streaming message with the complete response
+        //   update((state) => {
+        //     const updatedMessages = state.messages.map((msg) => {
+        //       if (msg.id === assistantMsgId) {
+        //         return {
+        //           ...msg,
+        //           content: aiResponse.trim(),
+        //         };
+        //       }
+        //       return msg;
+        //     });
 
-            return {
-              ...state,
-              messages: updatedMessages,
-              isStreaming: false,
-              streamingMessageId: null,
-              error: null,
-            };
-          });
+        //     return {
+        //       ...state,
+        //       messages: updatedMessages,
+        //       isStreaming: false,
+        //       streamingMessageId: null,
+        //       error: null,
+        //     };
+        //   });
 
-          console.log('Fallback to regular prompt successful');
-          return;
-        } catch (fallbackError) {
-          console.error('Fallback also failed:', fallbackError);
-        }
+        //   console.log('Fallback to regular prompt successful');
+        //   return;
+        // } catch (fallbackError) {
+        //   console.error('Fallback also failed:', fallbackError);
+        // }
 
         // If fallback also fails, show error
         update((state) => {
