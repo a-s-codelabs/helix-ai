@@ -128,6 +128,28 @@
     padding: 20px 20px 0px 0px;
     margin-bottom: 20px;
     overscroll-behavior: none;
+    /* Thin scrollbar styling */
+    scrollbar-width: thin;
+    scrollbar-color: #555 #2a2a2a;
+  }
+
+  /* Webkit scrollbar styling for thin appearance */
+  .message-container::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .message-container::-webkit-scrollbar-track {
+    background: #2a2a2a;
+    border-radius: 3px;
+  }
+
+  .message-container::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 3px;
+  }
+
+  .message-container::-webkit-scrollbar-thumb:hover {
+    background: #666;
   }
   .message {
     background: #131723;

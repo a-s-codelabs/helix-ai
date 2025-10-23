@@ -232,6 +232,7 @@
     width: 100%;
     max-width: 600px;
     margin-top: 0;
+    width: min-content;
   }
 
   .telescope-container.draggable {

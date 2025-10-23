@@ -50,6 +50,7 @@
     position: absolute;
     top: 12px;
     right: 12px;
+    padding-right: 14px;
     cursor: pointer;
     background-color: transparent;
     color: #ccc;
@@ -74,12 +75,28 @@
     -webkit-overflow-scrolling: touch;
     overflow-x: auto;
     scroll-padding-inline-start: 0px;
-    /* Hide scrollbar for Webkit browsers */
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE and Edge */
+    /* Thin scrollbar styling */
+    scrollbar-width: thin;
+    scrollbar-color: #555 #2a2a2a;
   }
+
+  /* Webkit scrollbar styling for thin appearance */
   .suggested-questions::-webkit-scrollbar {
-    display: none; /* Safari and Chrome */
+    height: 6px;
+  }
+
+  .suggested-questions::-webkit-scrollbar-track {
+    background: #2a2a2a;
+    border-radius: 3px;
+  }
+
+  .suggested-questions::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 3px;
+  }
+
+  .suggested-questions::-webkit-scrollbar-thumb:hover {
+    background: #666;
   }
 
   .suggested-question {
