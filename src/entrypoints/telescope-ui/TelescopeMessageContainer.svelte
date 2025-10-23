@@ -131,6 +131,8 @@
     /* Thin scrollbar styling */
     scrollbar-width: thin;
     scrollbar-color: #555 #2a2a2a;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   /* Webkit scrollbar styling for thin appearance */
@@ -227,5 +229,44 @@
     border-radius: 8px;
     object-fit: cover;
     border: 1px solid #404040;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 400px) {
+    .message-container {
+      padding: 12px 12px 0px 0px;
+      margin-bottom: 12px;
+      gap: 8px;
+    }
+
+    .message {
+      font-size: 13px;
+      padding: 10px;
+      max-width: 100%;
+    }
+
+    .message-image {
+      max-width: 120px;
+      max-height: 120px;
+    }
+  }
+
+  @media (max-width: 300px) {
+    .message-container {
+      padding: 8px 8px 0px 0px;
+      margin-bottom: 8px;
+      gap: 6px;
+    }
+
+    .message {
+      font-size: 12px;
+      padding: 8px;
+      max-width: 100%;
+    }
+
+    .message-image {
+      max-width: 100px;
+      max-height: 100px;
+    }
   }
 </style>

@@ -306,5 +306,24 @@
     height: 100vh;
     display: flex;
     flex-direction: column;
+    background: #0a0a0a;
+    min-width: 0; /* Allow container to shrink */
+    overflow: hidden; /* Prevent content from overflowing */
+    /* Enable flexible width handling */
+    min-width: 200px; /* Minimum usable width */
+    max-width: 100vw; /* Never exceed viewport width */
+  }
+
+  /* Responsive adjustments for side panel */
+  @media (max-width: 400px) {
+    .telescope-container:not(.draggable) {
+      font-size: 14px;
+    }
+  }
+
+  @media (max-width: 300px) {
+    .telescope-container:not(.draggable) {
+      font-size: 12px;
+    }
   }
 </style>

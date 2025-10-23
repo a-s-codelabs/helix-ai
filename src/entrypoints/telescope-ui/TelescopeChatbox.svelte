@@ -91,7 +91,7 @@ $effect(() => {
   }
 </script>
 
-<div class:chat-box={messages.length > 0} class="default-chat-box">
+<div class:chat-box={messages.length > 0} class:sidepanel-layout={isInSidePanel} class="default-chat-box">
   {#if messages.length > 0}
     {#if !isInSidePanel}
       <button
@@ -104,19 +104,21 @@ $effect(() => {
       </button>
     {/if}
     <button class="close-icon" onclick={onClose}><Close /></button>
-    <MessageContainer {messages} {isStreaming} {streamingMessageId} />
-    {#if suggestedQuestions.length > 0}
-      <div class="suggested-questions">
-        {#each suggestedQuestions as question}
-          <button
-            class="suggested-question"
-            onclick={() => onSuggestedQuestion?.({ question })}
-          >
-            {question}
-          </button>
-        {/each}
-      </div>
-    {/if}
+    <div class="messages-container">
+      <MessageContainer {messages} {isStreaming} {streamingMessageId} />
+      {#if suggestedQuestions.length > 0}
+        <div class="suggested-questions">
+          {#each suggestedQuestions as question}
+            <button
+              class="suggested-question"
+              onclick={() => onSuggestedQuestion?.({ question })}
+            >
+              {question}
+            </button>
+          {/each}
+        </div>
+      {/if}
+    </div>
   {/if}
   <div class="input">{@render input()}</div>
 </div>
@@ -177,13 +179,13 @@ $effect(() => {
 
   .suggested-questions {
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 8px;
     padding: 20px 0px;
-    width: 600px;
+    width: 100%;
+    max-width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    overflow-x: auto;
     scroll-padding-inline-start: 0px;
     /* Thin scrollbar styling */
     scrollbar-width: thin;
@@ -220,10 +222,98 @@ $effect(() => {
     transition: all 0.2s ease;
     white-space: nowrap;
     flex: 0 0 auto;
+    min-width: fit-content;
+    max-width: 100%;
+    word-break: break-word;
+  }
+
+  /* Responsive suggested questions */
+  @media (max-width: 400px) {
+    .suggested-question {
+      font-size: 12px;
+      padding: 6px 10px;
+    }
+  }
+
+  @media (max-width: 300px) {
+    .suggested-question {
+      font-size: 11px;
+      padding: 5px 8px;
+      white-space: normal;
+      text-align: center;
+    }
   }
 
   .suggested-question:hover {
     background: #404040;
     border-color: #555;
+  }
+
+  /* Side panel layout styles */
+  .sidepanel-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100%;
+    min-width: 0; /* Allow flex items to shrink below content size */
+    position: relative;
+  }
+
+  .sidepanel-layout .messages-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    min-height: 0; /* Allow container to shrink */
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidepanel-layout .input {
+    flex-shrink: 0;
+    margin-top: auto;
+    padding: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .sidepanel-layout .suggested-questions {
+    padding: 20px 0px 0px 0px;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Responsive breakpoints */
+  @media (max-width: 400px) {
+    .sidepanel-layout .messages-container {
+      padding: 8px;
+    }
+
+    .sidepanel-layout .input {
+      padding: 8px;
+    }
+
+    .sidepanel-layout .suggested-questions {
+      padding: 16px 0px 0px 0px;
+      gap: 6px;
+    }
+  }
+
+  @media (max-width: 300px) {
+    .sidepanel-layout .messages-container {
+      padding: 6px;
+    }
+
+    .sidepanel-layout .input {
+      padding: 6px;
+    }
+
+    .sidepanel-layout .suggested-questions {
+      padding: 12px 0px 0px 0px;
+      gap: 4px;
+    }
   }
 </style>

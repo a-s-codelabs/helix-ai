@@ -347,6 +347,53 @@
     min-width: 600px;
   }
 
+  /* Responsive adjustments */
+  @media (max-width: 400px) {
+    .telescope-container {
+      max-width: 100%;
+    }
+
+    .reached-min-chars {
+      min-width: 100%;
+    }
+
+    .input-bar-container {
+      padding: 8px 12px;
+    }
+
+    .input-field {
+      font-size: 14px;
+      min-width: 150px;
+    }
+  }
+
+  @media (max-width: 300px) {
+    .telescope-container {
+      max-width: 100%;
+    }
+
+    .reached-min-chars {
+      min-width: 100%;
+    }
+
+    .input-bar-container {
+      padding: 6px 10px;
+    }
+
+    .input-field {
+      font-size: 13px;
+      min-width: 120px;
+    }
+
+    .action-icons {
+      gap: 4px;
+    }
+
+    .icon-button {
+      padding: 6px;
+    }
+  }
+
   .send-button {
     background: none;
     border: none;
