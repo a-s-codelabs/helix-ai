@@ -102,8 +102,15 @@ $effect(() => {
       >
         <RightSidePanel />
       </button>
+      <button
+        class="close-icon"
+        onclick={onClose}
+        title="Close"
+        aria-label="Close"
+      >
+        <Close />
+      </button>
     {/if}
-    <button class="close-icon" onclick={onClose}><Close /></button>
     <div class="messages-container">
       <MessageContainer {messages} {isStreaming} {streamingMessageId} />
       {#if suggestedQuestions.length > 0}
@@ -139,15 +146,22 @@ $effect(() => {
     position: absolute;
     top: 12px;
     right: 12px;
-    padding-right: 14px;
     cursor: pointer;
     background-color: transparent;
     color: #ccc;
     outline: none;
     border: none;
+    transition: all 0.2s ease;
+    padding: 4px;
+    border-radius: 4px;
   }
   .close-icon:hover {
     color: #fff;
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  .close-icon:active {
+    transform: scale(0.95);
+    background-color: rgba(255, 255, 255, 0.2);
   }
 
   .right-panel-icon {
@@ -225,6 +239,17 @@ $effect(() => {
     min-width: fit-content;
     max-width: 100%;
     word-break: break-word;
+    box-sizing: border-box;
+  }
+
+  /* Side panel specific suggested question styling */
+  .sidepanel-layout .suggested-question {
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   /* Responsive suggested questions */
@@ -262,7 +287,7 @@ $effect(() => {
   .sidepanel-layout .messages-container {
     flex: 1;
     overflow-y: auto;
-    padding: 12px;
+
     min-height: 0; /* Allow container to shrink */
     display: flex;
     flex-direction: column;
@@ -280,10 +305,11 @@ $effect(() => {
     padding: 20px 0px 0px 0px;
     width: 100%;
     max-width: 100%;
-    overflow-x: auto;
+    overflow-x: hidden;
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+    box-sizing: border-box;
   }
 
   /* Responsive breakpoints */

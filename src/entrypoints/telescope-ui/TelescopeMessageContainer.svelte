@@ -165,6 +165,10 @@
     width: max-content;
     cursor: pointer;
     transition: opacity 0.2s ease;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    min-width: 60px;
   }
 
   .message:hover {
@@ -178,10 +182,13 @@
 
   .assistant-message {
     background: #322631;
+    align-self: flex-start;
+    margin-right: auto;
   }
   .user-message {
     background: #4177f1;
     align-self: flex-end;
+    margin-left: auto;
   }
 
   :global(.message > p) {
@@ -231,6 +238,28 @@
     border: 1px solid #404040;
   }
 
+  /* Side panel specific adjustments */
+  :global(.sidepanel-layout) .message {
+    max-width: 95%;
+    width: max-content;
+    box-sizing: border-box;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+
+  :global(.sidepanel-layout) .message-container {
+    overflow-x: hidden;
+    width: 100%;
+    box-sizing: border-box;
+    max-height: none;
+    height: 100%;
+    flex: 1;
+    overflow-y: auto;
+    padding: 0px 20px 0px 0px;
+    margin-bottom: 0;
+  }
+
   /* Responsive adjustments */
   @media (max-width: 400px) {
     .message-container {
@@ -242,7 +271,7 @@
     .message {
       font-size: 13px;
       padding: 10px;
-      max-width: 100%;
+      max-width: 95%;
     }
 
     .message-image {
@@ -261,7 +290,7 @@
     .message {
       font-size: 12px;
       padding: 8px;
-      max-width: 100%;
+      max-width: 95%;
     }
 
     .message-image {
