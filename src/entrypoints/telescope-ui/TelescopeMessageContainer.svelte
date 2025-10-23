@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Message } from "./type";
+  import { formatBasicMarkdown, sanitizeHtml, isContentSafe } from "../../lib/streamingMarkdown";
 
   let { messages = [], isStreaming = false, streamingMessageId = null }: {
     messages: Message[],
@@ -9,6 +10,25 @@
 
   let messageContainer = $state<HTMLElement | undefined>(undefined);
   let autoScroll = $state(true);
+
+  /**
+   * Safely render markdown content with security sanitization
+   * @param content - The markdown content to render
+   * @returns Sanitized HTML content
+   */
+  function renderMarkdownContent(content: string): string {
+    // Check if content is safe before processing
+    if (!isContentSafe(content)) {
+      console.warn('Potentially unsafe content detected, using plain text');
+      return sanitizeHtml(content.replace(/\n/g, '<br>'));
+    }
+
+    // Format basic markdown (bold, italic, line breaks)
+    const formatted = formatBasicMarkdown(content);
+
+    // Sanitize the formatted HTML for security
+    return sanitizeHtml(formatted);
+  }
 
   // Listen to user scrolls to toggle autoScroll on or off
   function handleUserScroll() {
@@ -80,8 +100,18 @@
       class:user-message={message.type === "user"}
       class:assistant-message={message.type === "assistant"}
       class:streaming={isStreaming && message.id === streamingMessageId}
+      role="button"
+      tabindex="0"
+
+      onkeydown={(e)=>{
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+      
+        }
+      }}
+
     >
-      {@html message.content}
+      {@html renderMarkdownContent(message.content)}
       {#if isStreaming && message.id === streamingMessageId}
         <span class="streaming-cursor">|</span>
       {/if}
@@ -96,7 +126,7 @@
     gap: 12px;
     max-height: 400px;
     overflow-y: auto;
-    padding: 20px 20px 0px 20px;
+    padding: 20px 20px 0px 0px;
     margin-bottom: 20px;
   }
   .message {
@@ -104,10 +134,22 @@
     padding: 12px;
     border-radius: 20px;
     font-family: "Sora", sans-serif;
+    font-size: 14px;
     color: #fff;
     display: inline-block;
     max-width: 450px;
     width: max-content;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+  }
+
+  .message:hover {
+    opacity: 0.9;
+  }
+
+  .message:focus {
+    outline: 2px solid #4177f1;
+    outline-offset: 2px;
   }
 
   .assistant-message {
@@ -122,6 +164,21 @@
     margin: 0;
     padding: 0;
     display: inline;
+  }
+
+  /* Markdown formatting styles */
+  :global(.message strong) {
+    font-weight: bold;
+    color: #fff;
+  }
+
+  :global(.message em) {
+    font-style: italic;
+    color: #e0e0e0;
+  }
+
+  :global(.message br) {
+    line-height: 1.4;
   }
 
   .streaming-cursor {

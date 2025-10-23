@@ -26,6 +26,7 @@
     handleSuggestedQuestion,
     isStreaming = false,
     streamingMessageId = null,
+    onStop,
   }: InputProps = $props();
 
   $effect(() => {
@@ -43,11 +44,7 @@
       inputState = "search";
     }
 
-    console.log("inputState", inputState);
-    console.log("messages", $state.snapshot(messages));
-    console.log("inputImageAttached", inputImageAttached);
-    console.log("totalResults", totalResults);
-    console.log("inputValue", inputValue);
+
   });
 
   // function onInput({ value }: { value: string }) {
@@ -76,6 +73,7 @@
       {suggestedQuestions}
       {disabled}
       {inputImageAttached}
+      {isStreaming}
       {onInput}
       {onStateChange}
       {onAsk}
@@ -85,6 +83,7 @@
       {onSuggestedQuestion}
       {onSearchNavigation}
       {onClose}
+      {onStop}
     />
   {/snippet}
 </TelescopeChatBox>

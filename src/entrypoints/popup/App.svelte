@@ -4,7 +4,6 @@
 
   function openTelescopeSearch() {
     // Send message to content script to open telescope
-    console.log("Sending openTelescope message");
     if (typeof chrome !== "undefined" && chrome.tabs) {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs[0]?.id) {

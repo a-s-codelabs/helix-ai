@@ -308,16 +308,7 @@
     // Copy to clipboard
     navigator.clipboard
       .writeText(fullMarkdown)
-      .then(() => {
-        console.log('✅ Markdown copied to clipboard!');
-        console.log(`📊 Content length: ${fullMarkdown.length} characters`);
-        console.log('📋 Ready to paste into your LLM');
-      })
-      .catch((err) => {
-        console.error('❌ Failed to copy to clipboard:', err);
-        console.log('📄 Markdown content:');
-        console.log(fullMarkdown);
-      });
+      
 
     return fullMarkdown;
   }
