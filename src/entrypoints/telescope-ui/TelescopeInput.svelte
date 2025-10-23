@@ -8,6 +8,7 @@
   import CloseIcon from "./icons/Close.svelte";
   import type { InputProps, State } from "./type";
   import SendIcon from "./icons/Send.svelte";
+  import StopIcon from "./icons/Stop.svelte";
 
   let {
     inputState = $bindable("search" as State),
@@ -19,6 +20,7 @@
     disabled = false,
     inputImageAttached = $bindable([] as string[]),
     suggestedQuestions = [] as string[],
+    isStreaming = false,
     onInput,
     onStateChange,
     onAsk,
@@ -28,6 +30,7 @@
     onSuggestedQuestion,
     onSearchNavigation,
     onClose,
+    onStop,
   }: InputProps = $props();
 
   let inputElement: HTMLTextAreaElement;
@@ -109,6 +112,10 @@
 
   function handleSearchNavigation(direction: "up" | "down") {
     onSearchNavigation?.({ direction, currentIndex: searchIndex });
+  }
+
+  function handleStop() {
+    onStop?.();
   }
 </script>
 
@@ -218,8 +225,16 @@
         {/if}
 
         {#if inputState === "chat"}
-          <button class="send-button" aria-label="Send message" onclick={handleAsk}>
-            <SendIcon />
+          <button
+            class="send-button"
+            aria-label={isStreaming ? "Stop streaming" : "Send message"}
+            onclick={isStreaming ? handleStop : handleAsk}
+          >
+            {#if isStreaming}
+              <StopIcon />
+            {:else}
+              <SendIcon />
+            {/if}
           </button>
         {:else}
           <button
@@ -268,8 +283,16 @@
             {/if}
 
             {#if inputState === "chat"}
-              <button class="send-button" aria-label="Send message" onclick={handleAsk}>
-                <SendIcon />
+              <button
+                class="send-button"
+                aria-label={isStreaming ? "Stop streaming" : "Send message"}
+                onclick={isStreaming ? handleStop : handleAsk}
+              >
+                {#if isStreaming}
+                  <StopIcon />
+                {:else}
+                  <SendIcon />
+                {/if}
               </button>
             {:else}
               <button

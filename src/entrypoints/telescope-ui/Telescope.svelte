@@ -26,6 +26,7 @@
     handleSuggestedQuestion,
     isStreaming = false,
     streamingMessageId = null,
+    onStop,
   }: InputProps = $props();
 
   $effect(() => {
@@ -76,6 +77,7 @@
       {suggestedQuestions}
       {disabled}
       {inputImageAttached}
+      {isStreaming}
       {onInput}
       {onStateChange}
       {onAsk}
@@ -85,6 +87,7 @@
       {onSuggestedQuestion}
       {onSearchNavigation}
       {onClose}
+      {onStop}
     />
   {/snippet}
 </TelescopeChatBox>

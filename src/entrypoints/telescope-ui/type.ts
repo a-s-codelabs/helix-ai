@@ -33,6 +33,7 @@ export type InputProps = {
   handleSuggestedQuestion?: (question: string) => void;
   isStreaming?: boolean;
   streamingMessageId?: number | null;
+  onStop?: () => void;
 };
 
 export type Message = {

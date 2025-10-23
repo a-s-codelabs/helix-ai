@@ -93,7 +93,7 @@ declare global {
   }
 }
 
-export type ChatState ={
+export type ChatState = {
   messages: ChatMessage[];
   isLoading: boolean;
   error: string | null;
@@ -101,8 +101,8 @@ export type ChatState ={
   aiStatus: string;
   isStreaming: boolean;
   streamingMessageId: number | null;
-}
-
+  abortController: AbortController | null;
+};
 
 /**
  * Helper function to safely extract error message
@@ -411,6 +411,7 @@ function createChatStore() {
     aiStatus: 'Checking...',
     isStreaming: false,
     streamingMessageId: null,
+    abortController: null,
   });
 
   let session: AILanguageModel | null = null;
@@ -514,6 +515,9 @@ function createChatStore() {
     async sendMessageStreaming(userMessage: string) {
       if (!userMessage.trim()) return;
 
+      // Create abort controller for this streaming session
+      const abortController = new AbortController();
+
       // Add user message
       const userMsg: ChatMessage = {
         id: Date.now(),
@@ -537,6 +541,7 @@ function createChatStore() {
         isLoading: false,
         isStreaming: true,
         streamingMessageId: assistantMsgId,
+        abortController,
         error: null,
       }));
 
@@ -616,6 +621,12 @@ function createChatStore() {
           // Wrap the stream iteration in a try-catch to handle Chrome AI specific errors
           try {
             for await (const chunk of stream) {
+              // Check if streaming was aborted
+              if (abortController.signal.aborted) {
+                console.log('Streaming aborted by user');
+                break;
+              }
+
               clearTimeout(streamTimeout);
               hasReceivedChunks = true;
               chunkCount++;
@@ -676,6 +687,7 @@ function createChatStore() {
           ...state,
           isStreaming: false,
           streamingMessageId: null,
+          abortController: null,
         }));
       } catch (err) {
         console.error('Streaming error:', err);
@@ -744,6 +756,7 @@ function createChatStore() {
             messages: updatedMessages,
             isStreaming: false,
             streamingMessageId: null,
+            abortController: null,
             error: errorMessage,
           };
         });
@@ -752,6 +765,23 @@ function createChatStore() {
         safeDestroySession(session);
         session = null;
       }
+    },
+
+    /**
+     * Stop current streaming
+     */
+    stopStreaming() {
+      update((state) => {
+        if (state.abortController) {
+          state.abortController.abort();
+        }
+        return {
+          ...state,
+          isStreaming: false,
+          streamingMessageId: null,
+          abortController: null,
+        };
+      });
     },
 
     /**
@@ -768,6 +798,7 @@ function createChatStore() {
         isLoading: false,
         isStreaming: false,
         streamingMessageId: null,
+        abortController: null,
       }));
     },
 

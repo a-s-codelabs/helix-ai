@@ -124,6 +124,10 @@
     chatStore.clear();
   }
 
+  function handleStop() {
+    chatStore.stopStreaming();
+  }
+
   // Drag functionality
   let isDragging = $state(false);
   let dragOffset = $state({ x: 0, y: 0 });
@@ -217,6 +221,7 @@
       onSuggestedQuestion={handleSuggestedQuestion}
       onSearchNavigation={handleSearchNavigation}
       onClose={handleClose}
+      onStop={handleStop}
     />
   </div>
 {/if}
