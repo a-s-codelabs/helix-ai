@@ -96,7 +96,7 @@
     gap: 12px;
     max-height: 400px;
     overflow-y: auto;
-    padding: 20px 20px 0px 20px;
+    padding: 20px 20px 0px 0px;
     margin-bottom: 20px;
   }
   .message {

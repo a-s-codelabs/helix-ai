@@ -218,7 +218,7 @@
         {/if}
 
         {#if inputState === "chat"}
-          <button class="send-button" aria-label="Send message">
+          <button class="send-button" aria-label="Send message" onclick={handleAsk}>
             <SendIcon />
           </button>
         {:else}
@@ -268,7 +268,7 @@
             {/if}
 
             {#if inputState === "chat"}
-              <button class="send-button" aria-label="Send message">
+              <button class="send-button" aria-label="Send message" onclick={handleAsk}>
                 <SendIcon />
               </button>
             {:else}
