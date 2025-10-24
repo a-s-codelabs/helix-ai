@@ -90,12 +90,9 @@
       <h1>Helix</h1>
       <p class="subtitle">AI search assistant for smarter website queries.</p>
     </div>
-    <div class="toggle-container">
-      <label class="toggle">
-        <input type="checkbox" bind:checked={telescopeEnabled} />
-        <span class="slider"></span>
-      </label>
-    </div>
+    <button class="header-button" onclick={openTelescopeSearch}>
+      Open Telescope
+    </button>
   </div>
 
   <div class="settings-section">
@@ -235,12 +232,12 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding: 20px 20px 24px;
-    margin-bottom: 20px;
+    padding: 20px 20px 20px;
+    margin-bottom: 8px;
   }
 
   .header-content h1 {
-    font-size: 28px;
+    font-size: 24px;
     font-weight: 700;
     margin: 0 0 8px 0;
     color: #ffffff;
@@ -248,26 +245,49 @@
 
   .subtitle {
     color: #9ca3af;
-    font-size: 14px;
+    font-size: 12px;
     margin: 0;
     line-height: 1.4;
+    margin-left: 6px;
   }
 
-  .toggle-container {
-    margin-top: 4px;
+  .header-button {
+    width: 140px;
+    height: 36px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 0;
+    padding: 8px 12px;
+    text-wrap: nowrap;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+
+  }
+
+  .header-button:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+  }
+
+  .header-button:active {
+    transform: translateY(0);
   }
 
 
   .settings-section {
     padding: 0 20px;
-    margin-bottom: 16px;
+    margin-bottom: 6px;
     width: 100%;
     box-sizing: border-box;
     overflow: hidden;
   }
 
   .settings-section h3 {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 600;
     color: #ffffff;
     margin: 0 0 6px 0;
@@ -307,7 +327,7 @@
     width: 20px;
     height: 20px;
     background: #3b82f6;
-    border-radius: 4px;
+    border-radius: 0;
     position: relative;
     transition: all 0.2s ease;
   }
@@ -336,7 +356,7 @@
 
   .checkbox-text {
     color: #9ca3af;
-    font-size: 14px;
+    font-size: 13px;
     margin: 0;
     flex: 1;
   }
@@ -358,8 +378,8 @@
     overflow: hidden;
     background: #262832;
     border: 1px solid #404040;
-    border-radius: 6px;
-    padding: 10px 12px;
+    border-radius: 0;
+    padding: 6px 12px;
   }
 
   .search-input {
@@ -368,7 +388,7 @@
     background: transparent;
     border: none;
     color: #ffffff;
-    font-size: 14px;
+    font-size: 13px;
     cursor: pointer;
     transition: all 0.2s ease;
     box-sizing: border-box;
@@ -395,22 +415,22 @@
 
   .key-combination span {
     color: #d1d5db;
-    font-size: 14px;
+    font-size: 12px;
   }
 
   .plus {
     color: #d1d5db;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 500;
   }
 
   kbd {
     background: #3E424B;
     border: 1px solid #4b5563;
-    border-radius: 4px;
-    padding: 4px 6px;
+    border-radius: 0;
+    padding: 2px 6px;
     font-family: monospace;
-    font-size: 11px;
+    font-size: 10px;
     color: #ffffff;
     min-width: 32px;
     text-align: center;
@@ -424,7 +444,7 @@
     align-items: flex-start;
     gap: 8px;
     color: #9ca3af;
-    font-size: 13px;
+    font-size: 12px;
     line-height: 1.4;
     word-wrap: break-word;
     overflow-wrap: break-word;
@@ -447,10 +467,10 @@
     width: 100%;
     background: #262832;
     border: 1px solid #404040;
-    border-radius: 6px;
-    padding: 10px 12px;
+    border-radius: 0;
+    padding: 8px 12px;
     color: #ffffff;
-    font-size: 14px;
+    font-size: 13px;
     cursor: pointer;
     transition: all 0.2s ease;
     box-sizing: border-box;
@@ -526,9 +546,9 @@
     background: #3b82f6;
     color: white;
     border: none;
-    border-radius: 8px;
+    border-radius: 0;
     padding: 12px 24px;
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
