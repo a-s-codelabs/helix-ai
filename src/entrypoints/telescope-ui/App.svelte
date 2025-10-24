@@ -24,6 +24,8 @@
         searchIndex = state.currentIndex + 1;
         totalResults = state.totalResults;
         inputValue = state.query;
+        // Ensure the input is ready for user interaction
+        currentState = 'search';
       }
     });
     return unsubscribe;
