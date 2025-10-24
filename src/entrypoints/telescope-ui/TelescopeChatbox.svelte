@@ -297,7 +297,7 @@ $effect(() => {
     flex-shrink: 0;
     margin-top: auto;
     padding: 12px;
-    width: 100%;
+    width: calc(100% - 32px);
     box-sizing: border-box;
   }
 
