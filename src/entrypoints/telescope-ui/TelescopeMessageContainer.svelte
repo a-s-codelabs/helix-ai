@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { Message } from "./type";
   import { formatBasicMarkdown, sanitizeHtml, isContentSafe } from "../../lib/streamingMarkdown";
+  // @ts-ignore - Svelte component import
+  import CopyIcon from "./icons/Copy.svelte";
 
   let { messages = [], isStreaming = false, streamingMessageId = null }: {
     messages: Message[],
@@ -10,6 +12,52 @@
 
   let messageContainer = $state<HTMLElement | undefined>(undefined);
   let autoScroll = $state(true);
+  let copiedMessageId = $state<number | null>(null);
+
+  /**
+   * Copy message content to clipboard
+   * @param content - The message content to copy
+   * @param messageId - The ID of the message being copied
+   */
+  async function copyToClipboard(content: string, messageId: number) {
+    try {
+      // Remove HTML tags and get plain text
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = content;
+      const plainText = tempDiv.textContent || tempDiv.innerText || '';
+
+      await navigator.clipboard.writeText(plainText);
+
+      // Show "Copied!" feedback
+      copiedMessageId = messageId;
+      setTimeout(() => {
+        copiedMessageId = null;
+      }, 2000); // Hide after 2 seconds
+
+      console.log('Content copied to clipboard');
+    } catch (err) {
+      console.error('Failed to copy content: ', err);
+      // Fallback for older browsers
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = content.replace(/<[^>]*>/g, ''); // Remove HTML tags
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+
+        // Show "Copied!" feedback for fallback too
+        copiedMessageId = messageId;
+        setTimeout(() => {
+          copiedMessageId = null;
+        }, 2000);
+
+        console.log('Content copied to clipboard (fallback)');
+      } catch (fallbackErr) {
+        console.error('Fallback copy failed: ', fallbackErr);
+      }
+    }
+  }
 
   /**
    * Safely render markdown content with security sanitization
@@ -100,19 +148,38 @@
       class:user-message={message.type === "user"}
       class:assistant-message={message.type === "assistant"}
       class:streaming={isStreaming && message.id === streamingMessageId}
-
-
     >
-      {#if message.images && message.images.length > 0}
-        <div class="message-images">
-          {#each message.images as image}
-            <img src={image} alt="" class="message-image" />
-          {/each}
-        </div>
-      {/if}
-      {@html renderMarkdownContent(message.content)}
-      {#if isStreaming && message.id === streamingMessageId}
-        <span class="streaming-cursor">|</span>
+      <div class="message-content">
+        {#if message.images && message.images.length > 0}
+          <div class="message-images">
+            {#each message.images as image}
+              <img src={image} alt="" class="message-image" />
+            {/each}
+          </div>
+        {/if}
+        {@html renderMarkdownContent(message.content)}
+        {#if isStreaming && message.id === streamingMessageId}
+          <span class="streaming-cursor">|</span>
+        {/if}
+      </div>
+
+      <!-- Copy button for assistant messages -->
+      {#if message.type === "assistant"}
+        <button
+          class="copy-button"
+          onclick={() => copyToClipboard(message.content, message.id)}
+          title="Copy message"
+          aria-label="Copy message"
+        >
+          <CopyIcon />
+        </button>
+
+        <!-- Copied feedback -->
+        {#if copiedMessageId === message.id}
+          <div class="copied-feedback">
+            Copied!
+          </div>
+        {/if}
       {/if}
     </div>
   {/each}
@@ -160,7 +227,9 @@
     font-family: "Sora", sans-serif;
     font-size: 14px;
     color: #fff;
-    display: inline-block;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
     max-width: 450px;
     width: max-content;
     cursor: pointer;
@@ -169,6 +238,14 @@
     overflow-wrap: break-word;
     hyphens: auto;
     min-width: 60px;
+    position: relative;
+  }
+
+  .message-content {
+    flex: 1;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
   }
 
   .message:hover {
@@ -189,6 +266,61 @@
     background: #4177f1;
     align-self: flex-end;
     margin-left: auto;
+  }
+
+  .copy-button {
+    background: transparent;
+    border: none;
+    color: #ccc;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    opacity: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+  }
+
+  .message:hover .copy-button {
+    opacity: 1;
+  }
+
+  .copy-button:hover {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .copy-button:active {
+    transform: scale(0.95);
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .copied-feedback {
+    position: absolute;
+    bottom: 8px;
+    right: 40px;
+    background: #666;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    z-index: 10;
+    animation: fadeInOut 2s ease-in-out;
+  }
+
+  @keyframes fadeInOut {
+    0% { opacity: 0; transform: translateY(5px); }
+    20% { opacity: 1; transform: translateY(0); }
+    80% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-5px); }
   }
 
   :global(.message > p) {
@@ -248,6 +380,12 @@
     hyphens: auto;
   }
 
+  :global(.sidepanel-layout) .message-content {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+
   :global(.sidepanel-layout) .message-container {
     overflow-x: hidden;
     width: 100%;
@@ -274,6 +412,11 @@
       max-width: 95%;
     }
 
+    .copy-button {
+      min-width: 20px;
+      height: 20px;
+    }
+
     .message-image {
       max-width: 120px;
       max-height: 120px;
@@ -291,6 +434,11 @@
       font-size: 12px;
       padding: 8px;
       max-width: 95%;
+    }
+
+    .copy-button {
+      min-width: 18px;
+      height: 18px;
     }
 
     .message-image {
