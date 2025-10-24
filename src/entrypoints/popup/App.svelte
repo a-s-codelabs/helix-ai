@@ -87,7 +87,7 @@
 <main bind:this={mainElement}>
   <div class="header">
     <div class="header-content">
-      <h1>Telescope</h1>
+      <h1>Helix</h1>
       <p class="subtitle">AI search assistant for smarter website queries.</p>
     </div>
     <div class="toggle-container">
@@ -210,7 +210,7 @@
   }
 
   main {
-    width: 750px !important;
+    width: 400px !important;
     height: auto;
     padding: 0 0 80px 0 !important;
     margin: 0 !important;
@@ -429,7 +429,7 @@
     word-wrap: break-word;
     overflow-wrap: break-word;
     hyphens: auto;
-    max-width: calc(100% - 100px);
+    max-width: calc(100% - 10px);
     margin-bottom: 16px;
   }
 
