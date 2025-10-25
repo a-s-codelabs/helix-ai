@@ -1,9 +1,3 @@
-/**
- * HTML to Markdown Converter for LLM consumption
- * Based on the browser console script but adapted for content script usage
- */
-
-// Configuration for LLM-optimized markdown
 const config = {
   // Remove elements that don't add semantic value
   removeSelectors: [
@@ -49,15 +43,13 @@ const config = {
     'em',
     'a',
     'img',
+    'button',
   ],
   // Maximum content length for LLM processing
-  maxLength: 50_000,
+  maxLength: 50000,
 };
 
-/**
- * Clean HTML for LLM consumption
- */
-function cleanHTML(html: string): string {
+export function cleanHTML(html: string): string {
   // Pre-process HTML to handle common issues
   let processedHTML = html
     // Fix common HTML issues
@@ -91,10 +83,46 @@ function cleanHTML(html: string): string {
   const parser = new DOMParser();
   const doc = parser.parseFromString(processedHTML, 'text/html');
 
+  // Extract button text before removing elements
+  const buttons = doc.querySelectorAll(
+    'button, input[type="button"], input[type="submit"]'
+  );
+  buttons.forEach((btn) => {
+    const text =
+      btn.textContent?.trim() ||
+      btn.getAttribute('value') ||
+      btn.getAttribute('aria-label') ||
+      '';
+    if (text) {
+      // Replace button with a span containing its text
+      const span = doc.createElement('span');
+      span.textContent = `[Button: ${text}] `;
+      btn.replaceWith(span);
+    }
+  });
+
   // Remove unwanted elements
   config.removeSelectors.forEach((selector) => {
     const elements = doc.querySelectorAll(selector);
     elements.forEach((el) => el.remove());
+  });
+
+  // Remove all images with base64 data URIs and keep only alt text
+  const images = doc.querySelectorAll('img');
+  images.forEach((img) => {
+    const src = img.getAttribute('src') || '';
+    const alt = img.getAttribute('alt') || '';
+
+    // Remove base64 images completely
+    if (src.startsWith('data:')) {
+      if (alt) {
+        const span = doc.createElement('span');
+        span.textContent = alt;
+        img.replaceWith(span);
+      } else {
+        img.remove();
+      }
+    }
   });
 
   // Remove all style attributes and CSS classes
@@ -103,8 +131,8 @@ function cleanHTML(html: string): string {
     // Remove style attributes
     el.removeAttribute('style');
     el.removeAttribute('class');
-    // Keep only essential attributes
-    const allowedAttrs = ['href', 'src', 'alt', 'title'];
+    // Keep only essential attributes (but not href with data: URIs)
+    const allowedAttrs = ['alt', 'title'];
     Array.from(el.attributes).forEach((attr) => {
       if (!allowedAttrs.includes(attr.name)) {
         el.removeAttribute(attr.name);
@@ -115,12 +143,16 @@ function cleanHTML(html: string): string {
   return doc.body.innerHTML;
 }
 
-/**
- * Additional text processing for better LLM consumption
- */
-function processTextForLLM(text: string): string {
+// Additional text processing for better LLM consumption
+export function processTextForLLM(text: string): string {
   return (
     text
+      // Remove any remaining base64 data URIs
+      .replace(/data:image\/[a-z]+;base64,[A-Za-z0-9+/=]+/gi, '')
+      .replace(/data:[^,]*;base64,[A-Za-z0-9+/=]+/gi, '')
+      // Remove URLs (keep domain names but remove full URLs in parentheses)
+      .replace(/\(https?:\/\/[^\)]+\)/g, '')
+      .replace(/\(\/\/[^\)]+\)/g, '')
       // Handle escaped newlines and special characters - convert to br tags
       .replace(/\\n/g, '<br>')
       .replace(/\\t/g, '\t')
@@ -164,10 +196,8 @@ function processTextForLLM(text: string): string {
   );
 }
 
-/**
- * Convert HTML to markdown
- */
-function htmlToMarkdown(html: string): string {
+// Convert HTML to markdown
+export function htmlToMarkdown(html: string): string {
   let markdown = html;
 
   // Clean the HTML first
@@ -189,14 +219,19 @@ function htmlToMarkdown(html: string): string {
     .replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
     .replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*')
 
-    // Links
-    .replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)')
+    // Links - extract just the text content, remove URLs
+    .replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '$2')
 
-    // Images
+    // Images - already handled in cleanHTML, but as a safety measure
     .replace(
       /<img[^>]*src="([^"]*)"[^>]*(?:alt="([^"]*)")?[^>]*>/gi,
       (match, src, alt) => {
-        return alt ? `![${alt}](${src})` : `![](${src})`;
+        // Only keep images with non-base64 sources, or just the alt text
+        if (src.startsWith('data:')) {
+          return alt || '';
+        }
+        // For regular images, just return alt text
+        return alt || '';
       }
     )
 
@@ -307,65 +342,38 @@ function htmlToMarkdown(html: string): string {
   return processTextForLLM(markdown);
 }
 
-/**
- * Convert current page to safe markdown for AI consumption
- */
-export function convertPageToMarkdown(): string {
-  try {
-    // Get the current page content
-    const html = document.documentElement.outerHTML;
+// Main function to convert current page
+export function convertPageToMarkdown() {
+  console.log('🔄 Converting page to markdown...');
 
-    // Convert to markdown
-    const markdown = htmlToMarkdown(html);
+  // Get the current page content
+  const html = document.documentElement.outerHTML;
 
-    // Truncate if too long for LLM processing
-    const finalMarkdown =
-      markdown.length > config.maxLength
-        ? markdown.substring(0, config.maxLength) +
-          '\n\n... [Content truncated for LLM processing]'
-        : markdown;
+  // Convert to markdown
+  const markdown = htmlToMarkdown(html);
 
-    // Add metadata header
-    const metadata = `# ${document.title || 'Web Page'}
+  // Truncate if too long for LLM processing
+  const finalMarkdown =
+    markdown.length > config.maxLength
+      ? markdown.substring(0, config.maxLength) +
+        '\n\n... [Content truncated for LLM processing]'
+      : markdown;
+
+  // Add metadata header
+  const metadata = `# ${document.title || 'Web Page'}
 
 **URL:** ${window.location.href}
-**Converted2:** ${new Date().toISOString()}
+**Converted:** ${new Date().toISOString()}
 **Content Length:** ${finalMarkdown.length} characters
 
 ---
 
 `;
 
-    return metadata + finalMarkdown;
-  } catch (error) {
-    console.error('Error converting page to markdown:', error);
-    // Fallback to simple text extraction
-    return `# ${document.title || 'Web Page'}
+  const fullMarkdown = metadata + finalMarkdown;
 
-**URL:** ${window.location.href}
-**Error:** Failed to convert to markdown, using fallback text extraction
+  // Copy to clipboard
+  navigator.clipboard.writeText(fullMarkdown);
 
----
-
-${document.body.textContent || 'No content available'}`;
-  }
-}
-
-/**
- * Convert specific element to markdown
- */
-export function convertElementToMarkdown(selector: string): string | null {
-  try {
-    const element = document.querySelector(selector);
-    if (!element) {
-      console.error(`Element not found: ${selector}`);
-      return null;
-    }
-
-    const markdown = htmlToMarkdown(element.outerHTML);
-    return markdown;
-  } catch (error) {
-    console.error('Error converting element to markdown:', error);
-    return null;
-  }
+  return fullMarkdown;
 }
