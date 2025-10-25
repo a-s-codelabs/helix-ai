@@ -3,6 +3,8 @@
   import { formatBasicMarkdown, sanitizeHtml, isContentSafe } from "../../lib/streamingMarkdown";
   // @ts-ignore - Svelte component import
   import CopyIcon from "./icons/Copy.svelte";
+  // @ts-ignore - Svelte component import
+  import SpeakerIcon from "./icons/Speaker.svelte";
 
   let { messages = [], isStreaming = false, streamingMessageId = null }: {
     messages: Message[],
@@ -13,6 +15,7 @@
   let messageContainer = $state<HTMLElement | undefined>(undefined);
   let autoScroll = $state(true);
   let copiedMessageId = $state<number | null>(null);
+  let speakingMessageId = $state<number | null>(null);
 
   /**
    * Copy message content to clipboard
@@ -56,6 +59,57 @@
       } catch (fallbackErr) {
         console.error('Fallback copy failed: ', fallbackErr);
       }
+    }
+  }
+
+  /**
+   * Convert message content to speech using Web Speech API
+   * @param content - The message content to speak
+   * @param messageId - The ID of the message being spoken
+   */
+  async function speakMessage(content: string, messageId: number) {
+    try {
+      // Stop any currently speaking message
+      if (speakingMessageId !== null) {
+        window.speechSynthesis.cancel();
+        speakingMessageId = null;
+        return;
+      }
+
+      // Remove HTML tags and get plain text
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = content;
+      const plainText = tempDiv.textContent || tempDiv.innerText || '';
+
+      if (!plainText.trim()) {
+        console.warn('No text content to speak');
+        return;
+      }
+
+      // Create speech synthesis utterance
+      const utterance = new SpeechSynthesisUtterance(plainText);
+
+      // Set speaking state
+      speakingMessageId = messageId;
+
+      // Handle speech end
+      utterance.onend = () => {
+        speakingMessageId = null;
+      };
+
+      // Handle speech error
+      utterance.onerror = (event) => {
+        console.error('Speech synthesis error:', event.error);
+        speakingMessageId = null;
+      };
+
+      // Start speaking
+      window.speechSynthesis.speak(utterance);
+
+      console.log('Started speaking message');
+    } catch (err) {
+      console.error('Failed to speak message:', err);
+      speakingMessageId = null;
     }
   }
 
@@ -163,16 +217,30 @@
         {/if}
       </div>
 
-      <!-- Copy button for assistant messages -->
-      {#if message.type === "assistant"}
-        <button
-          class="copy-button"
-          onclick={() => copyToClipboard(message.content, message.id)}
-          title="Copy message"
-          aria-label="Copy message"
-        >
-          <CopyIcon />
-        </button>
+      <!-- Action buttons for assistant messages (only show when not streaming) -->
+      {#if message.type === "assistant" && !(isStreaming && message.id === streamingMessageId)}
+        <div class="message-actions">
+          <!-- Speaker button -->
+          <button
+            class="speaker-button"
+            class:speaking={speakingMessageId === message.id}
+            onclick={() => speakMessage(message.content, message.id)}
+            title={speakingMessageId === message.id ? "Stop speaking" : "Speak message"}
+            aria-label={speakingMessageId === message.id ? "Stop speaking" : "Speak message"}
+          >
+            <SpeakerIcon />
+          </button>
+
+          <!-- Copy button -->
+          <button
+            class="copy-button"
+            onclick={() => copyToClipboard(message.content, message.id)}
+            title="Copy message"
+            aria-label="Copy message"
+          >
+            <CopyIcon />
+          </button>
+        </div>
 
         <!-- Copied feedback -->
         {#if copiedMessageId === message.id}
@@ -268,6 +336,18 @@
     margin-left: auto;
   }
 
+  .message-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    opacity: 1;
+    transition: opacity 0.2s ease;
+  }
+
+  .speaker-button,
   .copy-button {
     background: transparent;
     border: none;
@@ -276,30 +356,33 @@
     padding: 4px;
     border-radius: 4px;
     transition: all 0.2s ease;
-    opacity: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     min-width: 24px;
     height: 24px;
     flex-shrink: 0;
-    position: absolute;
-    bottom: 8px;
-    right: 8px;
   }
 
-  .message:hover .copy-button {
-    opacity: 1;
-  }
-
+  .speaker-button:hover,
   .copy-button:hover {
     color: #fff;
     background-color: rgba(255, 255, 255, 0.1);
   }
 
+  .speaker-button:active,
   .copy-button:active {
     transform: scale(0.95);
     background-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .speaker-button.speaking {
+    color: #4177f1;
+    background-color: rgba(65, 119, 241, 0.1);
+  }
+
+  .speaker-button.speaking:hover {
+    background-color: rgba(65, 119, 241, 0.2);
   }
 
   .copied-feedback {
@@ -412,6 +495,7 @@
       max-width: 95%;
     }
 
+    .speaker-button,
     .copy-button {
       min-width: 20px;
       height: 20px;
@@ -436,6 +520,7 @@
       max-width: 95%;
     }
 
+    .speaker-button,
     .copy-button {
       min-width: 18px;
       height: 18px;
