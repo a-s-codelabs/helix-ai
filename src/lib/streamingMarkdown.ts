@@ -39,7 +39,21 @@ export class SecureStreamingMarkdown {
 
     // Sanitize all chunks received so far for security
     const sanitized = DOMPurify.sanitize(this.chunks, {
-      ALLOWED_TAGS: ['strong', 'em', 'br', 'a', 'p', 'code', 'pre'],
+      ALLOWED_TAGS: [
+        'strong',
+        'em',
+        'br',
+        'a',
+        'p',
+        'code',
+        'pre',
+        'table',
+        'thead',
+        'tbody',
+        'tr',
+        'th',
+        'td',
+      ],
       ALLOWED_ATTR: ['href', 'target', 'rel'],
       ALLOWED_URI_REGEXP:
         /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
@@ -101,11 +115,62 @@ export class SecureStreamingMarkdown {
 
 /**
  * Simple markdown formatter for basic text formatting
- * Handles bold (**text**), italic (*text*), links [text](url), plain URLs, and line breaks
+ * Handles bold (**text**), italic (*text*), links [text](url), plain URLs, tables, and line breaks
  */
 export function formatBasicMarkdown(text: string): string {
+  // First, extract and convert tables to HTML
+  let result = text;
+
+  // Match markdown tables (lines starting with |)
+  const tableRegex = /^(\|.+\|)\s*\n(\|[-:\s|]+\|)\s*\n((?:\|.+\|\s*\n?)+)/gm;
+
+  result = result.replace(
+    tableRegex,
+    (match, headerRow, separatorRow, bodyRows) => {
+      // Parse header
+      const headers = headerRow
+        .split('|')
+        .slice(1, -1)
+        .map((h: string) => h.trim());
+
+      // Parse body rows
+      const rows = bodyRows
+        .trim()
+        .split('\n')
+        .map((row: string) =>
+          row
+            .split('|')
+            .slice(1, -1)
+            .map((cell: string) => cell.trim())
+        );
+
+      // Build HTML table
+      let tableHtml = '<table>';
+
+      // Header
+      tableHtml += '<thead><tr>';
+      headers.forEach((header: string) => {
+        tableHtml += `<th>${header}</th>`;
+      });
+      tableHtml += '</tr></thead>';
+
+      // Body
+      tableHtml += '<tbody>';
+      rows.forEach((row: string[]) => {
+        tableHtml += '<tr>';
+        row.forEach((cell: string) => {
+          tableHtml += `<td>${cell}</td>`;
+        });
+        tableHtml += '</tr>';
+      });
+      tableHtml += '</tbody></table>';
+
+      return tableHtml;
+    }
+  );
+
   return (
-    text
+    result
       // Handle markdown links [text](url) - convert to clickable links (must be done BEFORE plain URL detection)
       .replace(
         /\[([^\]]+)\]\(([^)]+)\)/g,
@@ -127,8 +192,8 @@ export function formatBasicMarkdown(text: string): string {
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       // Handle italic text (*text*)
       .replace(/(?<!\*)\*(?!\*)([^*]+?)\*(?!\*)/g, '<em>$1</em>')
-      // Handle line breaks
-      .replace(/\n/g, '<br>')
+      // Handle line breaks (but not within tables)
+      .replace(/\n(?![^<]*<\/table>)/g, '<br>')
   );
 }
 
@@ -138,9 +203,23 @@ export function formatBasicMarkdown(text: string): string {
  * @returns Sanitized HTML content
  */
 export function sanitizeHtml(html: string): string {
-  // Configure DOMPurify to allow anchor tags with necessary attributes
+  // Configure DOMPurify to allow anchor tags with necessary attributes and table elements
   return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['strong', 'em', 'br', 'a', 'p', 'code', 'pre'],
+    ALLOWED_TAGS: [
+      'strong',
+      'em',
+      'br',
+      'a',
+      'p',
+      'code',
+      'pre',
+      'table',
+      'thead',
+      'tbody',
+      'tr',
+      'th',
+      'td',
+    ],
     ALLOWED_ATTR: ['href', 'target', 'rel'],
     ALLOWED_URI_REGEXP:
       /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
@@ -154,7 +233,21 @@ export function sanitizeHtml(html: string): string {
  */
 export function isContentSafe(content: string): boolean {
   const sanitized = DOMPurify.sanitize(content, {
-    ALLOWED_TAGS: ['strong', 'em', 'br', 'a', 'p', 'code', 'pre'],
+    ALLOWED_TAGS: [
+      'strong',
+      'em',
+      'br',
+      'a',
+      'p',
+      'code',
+      'pre',
+      'table',
+      'thead',
+      'tbody',
+      'tr',
+      'th',
+      'td',
+    ],
     ALLOWED_ATTR: ['href', 'target', 'rel'],
     ALLOWED_URI_REGEXP:
       /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,

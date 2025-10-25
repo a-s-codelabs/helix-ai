@@ -457,6 +457,58 @@
     color: #b3d4f7;
   }
 
+  /* Table styling */
+  :global(.message table) {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 8px 0;
+    font-size: 13px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  :global(.message th) {
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+  }
+
+  :global(.message td) {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    color: #e0e0e0;
+  }
+
+  :global(.message tr:last-child td) {
+    border-bottom: none;
+  }
+
+  :global(.message tbody tr:hover) {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+
+  /* User message table styling */
+  :global(.user-message table) {
+    background-color: rgba(0, 0, 0, 0.2);
+  }
+
+  :global(.user-message th) {
+    background-color: rgba(0, 0, 0, 0.3);
+    border-bottom-color: rgba(255, 255, 255, 0.3);
+  }
+
+  :global(.user-message td) {
+    border-bottom-color: rgba(255, 255, 255, 0.2);
+  }
+
+  :global(.user-message tbody tr:hover) {
+    background-color: rgba(0, 0, 0, 0.2);
+  }
+
   .streaming-cursor {
     animation: blink 1s infinite;
     color: #4177f1;
