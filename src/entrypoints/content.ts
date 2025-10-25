@@ -77,10 +77,17 @@ export default defineContentScript({
     document.addEventListener('keydown', handleKeyDown);
 
     // Listen for messages from popup
-    const handleMessage = async (message: any) => {
+    const handleMessage = (message: any, sender: any, sendResponse: any) => {
       if (message.action === 'openTelescope') {
-        if (!isVisible) {
+        (async () => {
           try {
+            // If already visible, hide it first, then show it again
+            if (isVisible) {
+              searchStore.hide();
+              ui.remove();
+              isVisible = false;
+            }
+
             // Wait for the page to be ready
             if (document.readyState === 'loading') {
               await new Promise((resolve) => {
@@ -97,7 +104,8 @@ export default defineContentScript({
           } catch (error) {
             console.error('Failed to open telescope:', error);
           }
-        }
+        })();
+        return true; // Indicate we will send a response asynchronously
       }
     };
 

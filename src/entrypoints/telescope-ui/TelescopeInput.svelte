@@ -55,6 +55,18 @@
       inputImageAttached.length > 0
   );
 
+  // Focus the input when the component becomes visible
+  $effect(() => {
+    if (inputElement && !disabled) {
+      // Use a small delay to ensure the element is fully rendered
+      setTimeout(() => {
+        inputElement.focus();
+        // Ensure the input is visible and ready for typing
+        inputElement.select();
+      }, 100);
+    }
+  });
+
   function handleInput(event: Event) {
     const target = event.target as HTMLTextAreaElement;
     inputValue = target.value;

@@ -5,6 +5,53 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Default Popup Title</title>
     <meta name="manifest.type" content="browser_action" />
+    <style>
+      #app {
+        width: 400px !important;
+        height: auto;
+        padding: 0 !important;
+        margin: 0 !important;
+        box-sizing: border-box;
+        overflow: hidden;
+        max-width: none !important;
+        text-align: left !important;
+      }
+
+      body {
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden;
+        width: 400px;
+        height: auto;
+        box-sizing: border-box;
+      }
+
+      html {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 400px;
+        height: auto;
+        box-sizing: border-box;
+      }
+
+      /* Override any external CSS that might interfere */
+      * {
+        box-sizing: border-box;
+        max-width: 100%;
+        overflow-x: hidden;
+        overflow-y: hidden;
+      }
+
+      /* Hide scrollbars completely */
+      ::-webkit-scrollbar {
+        display: none;
+      }
+
+      /* Hide scrollbars for Firefox */
+      * {
+        scrollbar-width: none;
+      }
+    </style>
   </head>
   <body>
     <div id="app"></div>
