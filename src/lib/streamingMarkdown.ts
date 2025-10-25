@@ -38,7 +38,12 @@ export class SecureStreamingMarkdown {
     this.chunks += chunk;
 
     // Sanitize all chunks received so far for security
-    const sanitized = DOMPurify.sanitize(this.chunks);
+    const sanitized = DOMPurify.sanitize(this.chunks, {
+      ALLOWED_TAGS: ['strong', 'em', 'br', 'a', 'p', 'code', 'pre'],
+      ALLOWED_ATTR: ['href', 'target', 'rel'],
+      ALLOWED_URI_REGEXP:
+        /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+    });
 
     // Check if the output was insecure
     if (DOMPurify.removed.length > 0) {
@@ -96,11 +101,28 @@ export class SecureStreamingMarkdown {
 
 /**
  * Simple markdown formatter for basic text formatting
- * Handles bold (**text**), italic (*text*), and line breaks
+ * Handles bold (**text**), italic (*text*), links [text](url), plain URLs, and line breaks
  */
 export function formatBasicMarkdown(text: string): string {
   return (
     text
+      // Handle markdown links [text](url) - convert to clickable links (must be done BEFORE plain URL detection)
+      .replace(
+        /\[([^\]]+)\]\(([^)]+)\)/g,
+        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+      )
+      // Handle plain URLs - convert to clickable links
+      // Matches http://, https://, ftp://, www. URLs
+      .replace(
+        /(?<!href="|href='|src="|src=')(https?:\/\/|ftp:\/\/|www\.)([^\s<>"']+)/gi,
+        (match, protocol, rest) => {
+          const fullUrl =
+            protocol.toLowerCase() === 'www.'
+              ? `https://www.${rest}`
+              : protocol + rest;
+          return `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer">${protocol}${rest}</a>`;
+        }
+      )
       // Handle bold text (**text**)
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       // Handle italic text (*text*)
@@ -116,7 +138,13 @@ export function formatBasicMarkdown(text: string): string {
  * @returns Sanitized HTML content
  */
 export function sanitizeHtml(html: string): string {
-  return DOMPurify.sanitize(html);
+  // Configure DOMPurify to allow anchor tags with necessary attributes
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['strong', 'em', 'br', 'a', 'p', 'code', 'pre'],
+    ALLOWED_ATTR: ['href', 'target', 'rel'],
+    ALLOWED_URI_REGEXP:
+      /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+  });
 }
 
 /**
@@ -125,6 +153,11 @@ export function sanitizeHtml(html: string): string {
  * @returns true if content is safe, false if potentially dangerous
  */
 export function isContentSafe(content: string): boolean {
-  const sanitized = DOMPurify.sanitize(content);
+  const sanitized = DOMPurify.sanitize(content, {
+    ALLOWED_TAGS: ['strong', 'em', 'br', 'a', 'p', 'code', 'pre'],
+    ALLOWED_ATTR: ['href', 'target', 'rel'],
+    ALLOWED_URI_REGEXP:
+      /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+  });
   return DOMPurify.removed.length === 0;
 }

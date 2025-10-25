@@ -669,10 +669,8 @@ function createChatStore() {
             stream,
           });
           // IMPORTANT: working AI session - runs every prompt
-          // const systemPromptAndPageContext = `${systemPrompt(
-          //   4
-          // )} ${pageContext}`;
-          stream = session.promptStreaming(pageContext);
+          // Pass the actual user message, not pageContext (pageContext is already in systemPrompt)
+          stream = session.promptStreaming(userMessage);
           console.log('##HELIX session 4', {
             session,
             stream,

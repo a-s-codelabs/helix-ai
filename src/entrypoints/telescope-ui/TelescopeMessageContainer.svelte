@@ -427,6 +427,37 @@
     line-height: 1.4;
   }
 
+  /* Link styling */
+  :global(.message a) {
+    color: #6bb5ff;
+    text-decoration: underline;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    word-break: break-all;
+  }
+
+  :global(.message a:hover) {
+    color: #8ec9ff;
+    text-decoration: underline;
+  }
+
+  :global(.message a:active) {
+    color: #4a9bef;
+  }
+
+  /* User message links have different color scheme */
+  :global(.user-message a) {
+    color: #d4e7ff;
+  }
+
+  :global(.user-message a:hover) {
+    color: #ffffff;
+  }
+
+  :global(.user-message a:active) {
+    color: #b3d4f7;
+  }
+
   .streaming-cursor {
     animation: blink 1s infinite;
     color: #4177f1;
