@@ -48,7 +48,23 @@
   // Initialize chat store when visible
   $effect(() => {
     if (isVisible) {
-      chatStore.init();
+      // If we're in side panel mode, fetch page content first
+      if (isInSidePanel) {
+        (async () => {
+          console.log('App: In side panel mode, fetching page content...');
+          const pageContext = await sidePanelUtils.getPageContent();
+          if (pageContext) {
+            console.log('App: Received page content, initializing chat store');
+            await chatStore.init(pageContext);
+          } else {
+            console.warn('App: Failed to get page content, initializing without context');
+            await chatStore.init();
+          }
+        })();
+      } else {
+        // In content script mode, extract page content directly
+        chatStore.init();
+      }
     }
   });
 
