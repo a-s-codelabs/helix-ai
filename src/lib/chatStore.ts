@@ -1,4 +1,9 @@
 import { writable } from 'svelte/store';
+import {
+  cleanHTML,
+  htmlToMarkdown,
+  processTextForLLM,
+} from './utils/converters';
 
 export type ChatMessage = {
   id: number;
@@ -42,6 +47,7 @@ declare global {
     language?: string;
     outputLanguage?: string;
     output?: { language: string };
+    initialPrompts?: { role: string; content: string }[];
   };
 
   type AILanguageModel = {
@@ -149,81 +155,124 @@ function createErrorMessage(error: unknown): ChatMessage {
 }
 
 /**
- * Extract page content for AI context
+ * Extract page content for AI context using JavaScript markdown converter
+ * Based on script/index.js implementation
  */
-function extractPageContent(): string {
+async function extractPageContent(): Promise<string> {
   try {
-    // Get main content
-    const mainContent = document.querySelector('main, article, [role="main"]');
-    const contentElement = mainContent || document.body;
+    // Load script functions
+    // const functions = await loadScriptFunctions();
 
-    // Extract text from various elements
-    const textElements = contentElement.querySelectorAll(
-      'h1, h2, h3, h4, h5, h6, p, li, td, th'
-    );
-    const texts: string[] = [];
+    // Call the functions from script/index.js in the right order
+    // 1. Get HTML content
+    const html = document.documentElement.outerHTML;
 
-    textElements.forEach((el) => {
-      const text = el.textContent?.trim();
-      if (text) {
-        texts.push(text);
-      }
-    });
+    // 2. Clean HTML (remove CSS, scripts, etc.)
+    const cleanedHTML = cleanHTML(html);
+    // console.log('##HELIX cleanedHTML', cleanedHTML);
 
-    // Get page title
-    const pageTitle = document.title;
-    const pageUrl = window.location.href;
+    // 3. Convert to markdown
+    const markdown = htmlToMarkdown(cleanedHTML);
 
-    return `Page: ${pageTitle}\nURL: ${pageUrl}\n\nContent:\n${texts.join(
-      '\n'
-    )}`.substring(0, 3000);
+    // 4. Process for LLM
+    const processedMarkdown = processTextForLLM(markdown);
+
+    // 5. Add metadata
+    const metadata = `# ${document.title || 'Web Page'}
+
+**URL:** ${window.location.href}
+**Converted:** ${new Date().toISOString()}
+
+---
+
+`;
+
+    // 6. Truncate for AI context
+    const maxLength = 6_000;
+    const finalContent = metadata + processedMarkdown;
+
+    return finalContent.length > maxLength
+      ? finalContent.substring(0, maxLength) +
+          '\n\n... [Content truncated for AI context]'
+      : finalContent;
   } catch (err) {
     console.error('Error extracting page content:', err);
-    return `Page: ${document.title}`;
+    return `# ${document.title || 'Web Page'}
+
+**URL:** ${window.location.href}
+
+**Error:** Failed to convert to markdown, using fallback text extraction
+
+---
+
+${document.body.textContent || 'No content available'}`;
   }
 }
 
 /**
  * Create AI session using whichever API is available
  */
+// url: //www.user-site-${n}.com
+// const systemPrompt = (
+//   n: number
+// ) => `You are a helpful AI assistant embedded in a browser extension called "Helix". You have access to the current page's content and can answer questions about it. So answer questions based on the page content.
+
+// Your capabilities:
+// • Answer questions about the page content
+// • If the question isn't related to the page, provide a brief general answer
+
+// Current Page Content: url: https://www.defaultsite.com
+// ---
+// ${pageContext.substring(0, 2000)}
+// ---
+
+// When answering, prioritize information from the page content above.`;
+// ${pageContext.substring(0, 2000)}
 async function createAISession(pageContext: string): Promise<AILanguageModel> {
-  const systemPrompt = `You are a helpful AI assistant embedded in a browser extension called "Helix". You have access to the current page's content and can answer questions about it.
+  const temperature = 0.4;
+  const topK = 4;
+  const systemPrompt = (
+    n: number
+  ) => `You are a helpful AI assistant embedded in a browser extension called "Helix". You have access to the current page's content and can answer questions about it. So answer questions based on the page content.
+  Your capabilities:
+  • Answer questions about the page content
+  • If the question isn't related to the page, provide a brief general answer
+  Current Page Content:
+  ---
+  ${pageContext.substring(0, 2000)}
+  ---
+  When answering, prioritize information from the page content above.`;
 
-Your capabilities:
-• Answer questions about the page content
-• Summarize information from the page
-• Explain concepts mentioned on the page
-• Help users understand the content better
-
-Guidelines:
-• Be concise and helpful
-• Reference specific content from the page when relevant
-• If the question isn't related to the page, provide a brief general answer
-• Keep responses clear and easy to read
-
-Current Page Content:
----
-${pageContext.substring(0, 2000)}
----
-
-When answering, prioritize information from the page content above.`;
-
-  const temperature = 0.7;
-  const topK = 40;
+  console.log('##HELIX createAISession 1', {
+    systemPrompt: systemPrompt(1),
+    temperature,
+    topK,
+    pageContext,
+  });
 
   // Try Method 1: Global LanguageModel API
   if (typeof LanguageModel !== 'undefined') {
     try {
       const availability = await LanguageModel.availability();
       if (availability === 'readily' || availability === 'available') {
-        return await LanguageModel.create({
-          systemPrompt,
+        console.log('##HELIX condition 1 - available');
+        // IMPORTANT: working LanguageModel
+        const session = await LanguageModel.create({
+          systemPrompt: systemPrompt(2),
           language: 'en',
           outputLanguage: 'en',
           output: { language: 'en' },
           temperature,
           topK,
+          initialPrompts: [
+            {
+              role: 'system',
+              content: systemPrompt(6),
+            },
+          ],
         });
+        console.log('##HELIX condition 1 - session', session);
+        return session;
       }
       if (availability === 'after-download') {
         throw new Error(
@@ -245,8 +294,9 @@ When answering, prioritize information from the page content above.`;
           capabilities.defaultTopK ?? topK,
           capabilities.maxTopK ?? topK
         );
+        console.log('##HELIX condition 2 - available');
         return await window.ai.languageModel.create({
-          systemPrompt,
+          systemPrompt: systemPrompt(3),
           temperature: optimalTemp,
           topK: optimalTopK,
         });
@@ -272,6 +322,7 @@ When answering, prioritize information from the page content above.`;
         console.warn(
           '⚠️ Using Summarizer API - designed for summarization, not chat!'
         );
+        console.log('##HELIX condition 3 - available');
         const summarizer = await Summarizer.create({
           sharedContext: pageContext.substring(0, 1000),
           type: 'tldr',
@@ -438,7 +489,8 @@ function createChatStore() {
       }));
 
       // Extract page content
-      pageContext = extractPageContent();
+      pageContext = await extractPageContent();
+      console.log('##HELIX pageContext', pageContext);
     },
 
     /**
@@ -467,6 +519,7 @@ function createChatStore() {
         // Create or reuse session
         if (!session) {
           session = await createAISession(pageContext);
+          console.log('##HELIX session 1', session);
         }
 
         // Send prompt to AI
@@ -551,7 +604,12 @@ function createChatStore() {
         // Create or reuse session with retry mechanism
         if (!session) {
           try {
+            // const systemPromptAndPageContext = `${systemPrompt(
+            //   7
+            // )} ${pageContext}`;
+            // IMPORTANT: runs 1st time only - session
             session = await createAISession(pageContext);
+            console.log('##HELIX session 5', session);
           } catch (sessionError) {
             console.error('Failed to create AI session:', sessionError);
             throw new Error(
@@ -564,6 +622,7 @@ function createChatStore() {
           console.warn(
             'Session does not support streaming. Falling back to regular prompt.'
           );
+          console.log('##HELIX session 2', session);
           // Fallback to regular prompt
           const aiResponse = await session.prompt(userMessage);
 
@@ -592,7 +651,19 @@ function createChatStore() {
         // Create stream with error handling
         let stream;
         try {
-          stream = session.promptStreaming(userMessage);
+          console.log('##HELIX session 3', {
+            session,
+            stream,
+          });
+          // IMPORTANT: working AI session - runs every prompt
+          // const systemPromptAndPageContext = `${systemPrompt(
+          //   4
+          // )} ${pageContext}`;
+          stream = session.promptStreaming(pageContext);
+          console.log('##HELIX session 4', {
+            session,
+            stream,
+          });
         } catch (streamCreationError) {
           console.error('Failed to create stream:', streamCreationError);
           throw new Error(
@@ -792,16 +863,29 @@ function createChatStore() {
       safeDestroySession(session);
       session = null;
       // Send a message to the background script to clear the telescope state in Chrome storage (side panel integration)
-      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+      if (
+        typeof chrome !== 'undefined' &&
+        chrome.runtime &&
+        chrome.runtime.sendMessage
+      ) {
         try {
-          chrome.runtime.sendMessage({ type: 'CLEAR_TELESCOPE_STATE' }, (response) => {
-            if (chrome.runtime.lastError) {
-              console.warn('CLEAR_TELESCOPE_STATE: chrome error', chrome.runtime.lastError.message);
-            } else if (!response?.success) {
-              console.warn('CLEAR_TELESCOPE_STATE: failed to clear state', response?.error);
+          chrome.runtime.sendMessage(
+            { type: 'CLEAR_TELESCOPE_STATE' },
+            (response) => {
+              if (chrome.runtime.lastError) {
+                console.warn(
+                  'CLEAR_TELESCOPE_STATE: chrome error',
+                  chrome.runtime.lastError.message
+                );
+              } else if (!response?.success) {
+                console.warn(
+                  'CLEAR_TELESCOPE_STATE: failed to clear state',
+                  response?.error
+                );
+              }
+              // No action needed on UI, this is just cleanup
             }
-            // No action needed on UI, this is just cleanup
-          });
+          );
         } catch (error) {
           console.warn('Exception during CLEAR_TELESCOPE_STATE:', error);
         }
@@ -829,5 +913,3 @@ function createChatStore() {
 }
 
 export const chatStore = createChatStore();
-
-

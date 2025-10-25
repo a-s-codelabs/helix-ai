@@ -1,9 +1,9 @@
 <script lang="ts">
+  import MessageContainer from './TelescopeMessageContainer.svelte';
   import Close from './icons/Close.svelte';
   import RightSidePanel from './icons/RightSidePanel.svelte';
-  import type { Message, ChatboxProps } from './type';
-  import MessageContainer from './TelescopeMessageContainer.svelte';
   import { sidePanelUtils } from '../../lib/sidePanelStore';
+  import type { Message, ChatboxProps } from './type';
 
   let {
     input,
@@ -13,23 +13,16 @@
     onClose,
     isStreaming = false,
     streamingMessageId = null,
-  // Additional props for side panel functionality
-  inputValue = '',
-  inputImageAttached = [],
-  searchIndex = 1,
-  totalResults = 0,
-  currentState = 'ask',
-}: ChatboxProps = $props();
+    // Additional props for side panel functionality
+    inputValue = '',
+    inputImageAttached = [],
+    searchIndex = 1,
+    totalResults = 0,
+    currentState = 'ask',
+  }: ChatboxProps = $props();
 
-// Check if we're in side panel mode
-let isInSidePanel = $state(false);
-
-$effect(() => {
-  // Check if we're in a side panel context
-  isInSidePanel = window.location.pathname.includes('sidepanel') ||
-                 window.location.href.includes('sidepanel') ||
-                 document.title.includes('Side Panel');
-});
+  // Check if we're in side panel mode
+  let isInSidePanel = $state(false);
 
   // Handle move to side panel
   async function handleMoveToSidePanel() {
@@ -44,7 +37,7 @@ $effect(() => {
       searchIndex,
       totalResults,
       currentState,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     console.log('Telescope state to move:', telescopeState);
@@ -65,11 +58,15 @@ $effect(() => {
             console.log('Side panel opened directly as fallback');
             onClose?.();
           } else {
-            alert('Failed to open side panel. Please try clicking the extension icon in the toolbar.');
+            alert(
+              'Failed to open side panel. Please try clicking the extension icon in the toolbar.'
+            );
           }
         } catch (directError) {
           console.error('Direct side panel open also failed:', directError);
-          alert('Failed to open side panel. Please try clicking the extension icon in the toolbar.');
+          alert(
+            'Failed to open side panel. Please try clicking the extension icon in the toolbar.'
+          );
         }
       }
     } catch (error) {
@@ -89,9 +86,25 @@ $effect(() => {
       }
     }
   }
+
+  $effect(() => {
+    // Check if we're in a side panel context
+    isInSidePanel =
+      window.location.pathname.includes('sidepanel') ||
+      window.location.href.includes('sidepanel') ||
+      document.title.includes('Side Panel');
+  });
+
+  // $effect(() => {
+  //   if (isInSidePanel) handleMoveToSidePanel()
+  // });
 </script>
 
-<div class:chat-box={messages.length > 0} class:sidepanel-layout={isInSidePanel} class="default-chat-box">
+<div
+  class:chat-box={messages.length > 0}
+  class:sidepanel-layout={isInSidePanel}
+  class="default-chat-box"
+>
   {#if messages.length > 0}
     {#if !isInSidePanel}
       <button
