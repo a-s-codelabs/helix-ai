@@ -296,7 +296,7 @@
     font-size: 14px;
     color: #fff;
     display: flex;
-    align-items: flex-start;
+    flex-direction: column;
     gap: 8px;
     max-width: 450px;
     width: max-content;
@@ -310,7 +310,7 @@
   }
 
   .message-content {
-    flex: 1;
+    width: 100%;
     word-wrap: break-word;
     overflow-wrap: break-word;
     hyphens: auto;
@@ -340,11 +340,10 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    position: absolute;
-    bottom: 8px;
-    right: 8px;
+    margin-top: 4px;
     opacity: 1;
     transition: opacity 0.2s ease;
+    align-self: flex-start;
   }
 
   .speaker-button,
@@ -387,8 +386,8 @@
 
   .copied-feedback {
     position: absolute;
-    bottom: 8px;
-    right: 40px;
+    top: -30px;
+    left: 0;
     background: #666;
     color: white;
     padding: 4px 8px;
