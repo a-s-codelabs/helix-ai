@@ -36,7 +36,9 @@ export const sidePanelUtils = {
       }
 
       console.log('Chrome runtime available, using service worker approach...');
-      console.log('Note: chrome.sidePanel API is only available in service worker, not in content scripts');
+      console.log(
+        'Note: chrome.sidePanel API is only available in service worker, not in content scripts'
+      );
 
       // Use service worker approach (chrome.sidePanel is not available in content scripts)
       return new Promise((resolve) => {
@@ -56,13 +58,18 @@ export const sidePanelUtils = {
 
             // Check for runtime errors
             if (chrome.runtime.lastError) {
-              console.error('Chrome runtime error:', chrome.runtime.lastError.message);
+              console.error(
+                'Chrome runtime error:',
+                chrome.runtime.lastError.message
+              );
               resolve(false);
               return;
             }
 
             if (response?.success) {
-              console.log('Successfully moved to side panel via service worker');
+              console.log(
+                'Successfully moved to side panel via service worker'
+              );
               sidePanelStore.update((store) => ({
                 ...store,
                 isInSidePanel: true,
@@ -70,7 +77,10 @@ export const sidePanelUtils = {
               }));
               resolve(true);
             } else {
-              console.error('Failed to move to side panel via service worker:', response);
+              console.error(
+                'Failed to move to side panel via service worker:',
+                response
+              );
               resolve(false);
             }
           }
@@ -108,7 +118,10 @@ export const sidePanelUtils = {
 
             // Check for runtime errors
             if (chrome.runtime.lastError) {
-              console.error('Chrome runtime error:', chrome.runtime.lastError.message);
+              console.error(
+                'Chrome runtime error:',
+                chrome.runtime.lastError.message
+              );
               resolve(null);
               return;
             }
@@ -183,5 +196,61 @@ export const sidePanelUtils = {
       isInSidePanel = store.isInSidePanel;
     })();
     return isInSidePanel;
+  },
+
+  // Get page content from active tab (for side panel mode)
+  async getPageContent(): Promise<string | null> {
+    try {
+      console.log(
+        'sidePanelUtils.getPageContent: Requesting page content from background'
+      );
+
+      return new Promise((resolve) => {
+        // Check if Chrome runtime is available
+        if (typeof chrome === 'undefined' || !chrome.runtime) {
+          console.error('Chrome runtime not available');
+          resolve(null);
+          return;
+        }
+
+        // Set a timeout to prevent hanging
+        const timeout = setTimeout(() => {
+          console.error('Timeout: No response from background script');
+          resolve(null);
+        }, 10000); // 10 second timeout
+
+        chrome.runtime.sendMessage(
+          {
+            type: 'GET_PAGE_CONTENT',
+          },
+          (response) => {
+            clearTimeout(timeout);
+
+            // Check for runtime errors
+            if (chrome.runtime.lastError) {
+              console.error(
+                'Chrome runtime error:',
+                chrome.runtime.lastError.message
+              );
+              resolve(null);
+              return;
+            }
+
+            if (response?.success && response.pageContext) {
+              console.log(
+                'sidePanelUtils.getPageContent: Received page content'
+              );
+              resolve(response.pageContext);
+            } else {
+              console.error('Failed to get page content:', response?.error);
+              resolve(null);
+            }
+          }
+        );
+      });
+    } catch (error) {
+      console.error('Error getting page content:', error);
+      return null;
+    }
   },
 };

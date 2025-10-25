@@ -296,7 +296,7 @@
     font-size: 14px;
     color: #fff;
     display: flex;
-    align-items: flex-start;
+    flex-direction: column;
     gap: 8px;
     max-width: 450px;
     width: max-content;
@@ -310,7 +310,7 @@
   }
 
   .message-content {
-    flex: 1;
+    width: 100%;
     word-wrap: break-word;
     overflow-wrap: break-word;
     hyphens: auto;
@@ -340,11 +340,10 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    position: absolute;
-    bottom: 8px;
-    right: 8px;
+    margin-top: 4px;
     opacity: 1;
     transition: opacity 0.2s ease;
+    align-self: flex-start;
   }
 
   .speaker-button,
@@ -387,8 +386,8 @@
 
   .copied-feedback {
     position: absolute;
-    bottom: 8px;
-    right: 40px;
+    top: -30px;
+    left: 0;
     background: #666;
     color: white;
     padding: 4px 8px;
@@ -425,6 +424,89 @@
 
   :global(.message br) {
     line-height: 1.4;
+  }
+
+  /* Link styling */
+  :global(.message a) {
+    color: #6bb5ff;
+    text-decoration: underline;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    word-break: break-all;
+  }
+
+  :global(.message a:hover) {
+    color: #8ec9ff;
+    text-decoration: underline;
+  }
+
+  :global(.message a:active) {
+    color: #4a9bef;
+  }
+
+  /* User message links have different color scheme */
+  :global(.user-message a) {
+    color: #d4e7ff;
+  }
+
+  :global(.user-message a:hover) {
+    color: #ffffff;
+  }
+
+  :global(.user-message a:active) {
+    color: #b3d4f7;
+  }
+
+  /* Table styling */
+  :global(.message table) {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 8px 0;
+    font-size: 13px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  :global(.message th) {
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+  }
+
+  :global(.message td) {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    color: #e0e0e0;
+  }
+
+  :global(.message tr:last-child td) {
+    border-bottom: none;
+  }
+
+  :global(.message tbody tr:hover) {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+
+  /* User message table styling */
+  :global(.user-message table) {
+    background-color: rgba(0, 0, 0, 0.2);
+  }
+
+  :global(.user-message th) {
+    background-color: rgba(0, 0, 0, 0.3);
+    border-bottom-color: rgba(255, 255, 255, 0.3);
+  }
+
+  :global(.user-message td) {
+    border-bottom-color: rgba(255, 255, 255, 0.2);
+  }
+
+  :global(.user-message tbody tr:hover) {
+    background-color: rgba(0, 0, 0, 0.2);
   }
 
   .streaming-cursor {

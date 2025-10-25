@@ -76,7 +76,7 @@ export default defineContentScript({
     // Listen for keyboard events
     document.addEventListener('keydown', handleKeyDown);
 
-    // Listen for messages from popup
+    // Listen for messages from popup and background
     const handleMessage = (message: any, sender: any, sendResponse: any) => {
       if (message.action === 'openTelescope') {
         (async () => {
@@ -103,6 +103,65 @@ export default defineContentScript({
             isVisible = true;
           } catch (error) {
             console.error('Failed to open telescope:', error);
+          }
+        })();
+        return true; // Indicate we will send a response asynchronously
+      }
+
+      // Handle page content extraction request from side panel
+      if (message.type === 'EXTRACT_PAGE_CONTENT') {
+        console.log('Content script: Received EXTRACT_PAGE_CONTENT request');
+        (async () => {
+          try {
+            // Import the necessary functions
+            const { cleanHTML, htmlToMarkdown, processTextForLLM } =
+              await import('../lib/utils/converters');
+
+            // Extract page content
+            const html = document.documentElement.outerHTML;
+            const cleanedHTML = cleanHTML(html);
+            const markdown = htmlToMarkdown(cleanedHTML);
+            const processedMarkdown = processTextForLLM(markdown);
+
+            // Add metadata
+            const metadata = `# ${document.title || 'Web Page'}
+
+**URL:** ${window.location.href}
+**Converted:** ${new Date().toISOString()}
+
+---
+
+`;
+
+            // Truncate for AI context
+            const maxLength = 6_000;
+            const finalContent = metadata + processedMarkdown;
+            const pageContext =
+              finalContent.length > maxLength
+                ? finalContent.substring(0, maxLength) +
+                  '\n\n... [Content truncated for AI context]'
+                : finalContent;
+
+            console.log('Content script: Extracted page context, sending back');
+            sendResponse({ success: true, pageContext });
+          } catch (error) {
+            console.error(
+              'Content script: Error extracting page content:',
+              error
+            );
+            sendResponse({
+              success: false,
+              error: 'Failed to extract page content',
+              pageContext: `# ${document.title || 'Web Page'}
+
+**URL:** ${window.location.href}
+
+**Error:** Failed to convert to markdown
+
+---
+
+${document.body.textContent || 'No content available'}`,
+            });
           }
         })();
         return true; // Indicate we will send a response asynchronously

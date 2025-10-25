@@ -135,6 +135,68 @@ export default defineBackground(() => {
       return true;
     }
 
+    // Handle GET_PAGE_CONTENT message
+    if (message.type === 'GET_PAGE_CONTENT') {
+      console.log('Background: Received GET_PAGE_CONTENT message');
+
+      // Get the active tab using callback style
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const activeTab = tabs[0];
+
+        if (!activeTab || !activeTab.id) {
+          console.error('Background: No active tab found');
+          sendResponse({ success: false, error: 'No active tab found' });
+          return;
+        }
+
+        console.log(
+          'Background: Sending message to content script in tab',
+          activeTab.id
+        );
+
+        // Send message to content script to get page content
+        chrome.tabs.sendMessage(
+          activeTab.id,
+          { type: 'EXTRACT_PAGE_CONTENT' },
+          (response) => {
+            // Check for runtime errors
+            if (chrome.runtime.lastError) {
+              console.error(
+                'Background: Error communicating with content script:',
+                chrome.runtime.lastError.message
+              );
+              sendResponse({
+                success: false,
+                error: 'Content script not available. Please reload the page.',
+              });
+              return;
+            }
+
+            if (response && response.success && response.pageContext) {
+              console.log(
+                'Background: Received page content from content script'
+              );
+              sendResponse({
+                success: true,
+                pageContext: response.pageContext,
+              });
+            } else {
+              console.error(
+                'Background: Failed to get page content:',
+                response?.error
+              );
+              sendResponse({
+                success: false,
+                error: response?.error || 'Failed to extract page content',
+              });
+            }
+          }
+        );
+      });
+
+      return true; // Keep the message channel open for async response
+    }
+
     return false;
   });
 

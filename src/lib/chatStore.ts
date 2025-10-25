@@ -480,7 +480,7 @@ function createChatStore() {
     /**
      * Initialize and check AI availability
      */
-    async init() {
+    async init(providedPageContext?: string) {
       const status = await checkAPIStatus();
       update((state) => ({
         ...state,
@@ -488,9 +488,22 @@ function createChatStore() {
         aiStatus: status.message,
       }));
 
-      // Extract page content
-      pageContext = await extractPageContent();
-      console.log('##HELIX pageContext', pageContext);
+      // Extract page content or use provided context
+      if (providedPageContext) {
+        pageContext = providedPageContext;
+        console.log('##HELIX pageContext (provided)', pageContext);
+      } else {
+        pageContext = await extractPageContent();
+        console.log('##HELIX pageContext (extracted)', pageContext);
+      }
+    },
+
+    /**
+     * Set page context externally (for side panel mode)
+     */
+    setPageContext(context: string) {
+      pageContext = context;
+      console.log('##HELIX pageContext (set externally)', pageContext);
     },
 
     /**
@@ -656,10 +669,8 @@ function createChatStore() {
             stream,
           });
           // IMPORTANT: working AI session - runs every prompt
-          // const systemPromptAndPageContext = `${systemPrompt(
-          //   4
-          // )} ${pageContext}`;
-          stream = session.promptStreaming(pageContext);
+          // Pass the actual user message, not pageContext (pageContext is already in systemPrompt)
+          stream = session.promptStreaming(userMessage);
           console.log('##HELIX session 4', {
             session,
             stream,
