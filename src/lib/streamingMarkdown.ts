@@ -207,8 +207,24 @@ export function formatBasicMarkdown(text: string): string {
       .replace(
         /```(\w+)?\s*\r?\n([\s\S]*?)\r?\n?```/g,
         (match, language, code) => {
+          // Strip markdown formatting from code content
+          let cleanCode = code
+            // Remove markdown links [text](url)
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
+            // Remove bold **text**
+            .replace(/\*\*(.*?)\*\*/g, '$1')
+            // Remove italic *text*
+            .replace(/(?<!\*)\*(?!\*)([^*]+?)\*(?!\*)/g, '$1')
+            // Remove headings #
+            .replace(/^#{1,6}\s+/gm, '')
+            // Remove horizontal rules
+            .replace(/^[-*_]{3,}\s*$/gm, '')
+            // Remove list markers
+            .replace(/^[\s]*[-*+]\s+/gm, '')
+            .replace(/^[\s]*\d+\.\s+/gm, '');
+
           // Escape HTML entities in code to prevent injection
-          const escapedCode = code
+          const escapedCode = cleanCode
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
@@ -308,6 +324,7 @@ export function sanitizeHtml(html: string): string {
       'ul',
       'ol',
       'li',
+      'blockquote',
     ],
     ALLOWED_ATTR: ['href', 'target', 'rel'],
     ALLOWED_URI_REGEXP:
@@ -345,6 +362,7 @@ export function isContentSafe(content: string): boolean {
       'ul',
       'ol',
       'li',
+      'blockquote',
     ],
     ALLOWED_ATTR: ['href', 'target', 'rel'],
     ALLOWED_URI_REGEXP:
