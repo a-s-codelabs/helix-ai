@@ -238,20 +238,34 @@ export function formatBasicMarkdown(text: string): string {
       .replace(/^##\s+(.+)$/gm, '<h2>$1</h2>')
       .replace(/^#\s+(.+)$/gm, '<h1>$1</h1>')
       // Handle markdown links [text](url) - convert to clickable links (must be done BEFORE plain URL detection)
-      .replace(
-        /\[([^\]]+)\]\(([^)]+)\)/g,
-        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
-      )
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
+        // Normalize URL - add protocol if missing and remove trailing slash
+        let normalizedUrl = url.trim().replace(/\/$/, '');
+        if (normalizedUrl.startsWith('www.')) {
+          normalizedUrl = `https://${normalizedUrl}`;
+        } else if (!/^(https?|ftp):\/\//i.test(normalizedUrl)) {
+          // If no protocol and doesn't start with www., assume https://
+          normalizedUrl = `https://${normalizedUrl}`;
+        }
+        return `<a href="${normalizedUrl}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+      })
       // Handle plain URLs - convert to clickable links
-      // Matches http://, https://, ftp://, www. URLs
+      // Matches http://, https://, ftp://, www. URLs that are NOT already in HTML tags
       .replace(
-        /(?<!href="|href='|src="|src=')(https?:\/\/|ftp:\/\/|www\.)([^\s<>"']+)/gi,
-        (match, protocol, rest) => {
+        /(^|[^"'=])(https?:\/\/|ftp:\/\/|www\.)([^\s<>"']+)/gi,
+        (match, prefix, protocol, rest) => {
+          // Check if this URL is inside an HTML tag attribute (simple heuristic)
+          // If prefix is part of an attribute like href=" or src=", skip it
+          if (prefix.match(/[="]/)) {
+            return match; // Return original match unchanged
+          }
+          // Remove trailing slash from rest
+          const cleanRest = rest.replace(/\/$/, '');
           const fullUrl =
             protocol.toLowerCase() === 'www.'
-              ? `https://www.${rest}`
-              : protocol + rest;
-          return `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer">${protocol}${rest}</a>`;
+              ? `https://www.${cleanRest}`
+              : protocol + cleanRest;
+          return `${prefix}<a href="${fullUrl}" target="_blank" rel="noopener noreferrer">${protocol}${cleanRest}</a>`;
         }
       )
       // Handle bold text (**text**)
