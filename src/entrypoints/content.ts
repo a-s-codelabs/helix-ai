@@ -1,7 +1,11 @@
 /*@ts-ignore */
 import App from './telescope-ui/App.svelte';
+/*@ts-ignore */
+import SelectionPopupContainer from './selection-popup/SelectionPopupContainer.svelte';
 import { mount, unmount } from 'svelte';
 import { searchStore } from '../lib/searchStore';
+import { selectionPopupStore } from '../lib/selectionPopupStore';
+import type { SelectionAction } from './selection-popup/types';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -10,6 +14,9 @@ export default defineContentScript({
   async main(ctx) {
     let ui: any = null;
     let isVisible = false;
+
+    // Selection popup state
+    let selectionPopupUI: any = null;
 
     // Create the UI
     const createUI = async () => {
@@ -46,6 +53,150 @@ export default defineContentScript({
         throw error;
       }
     };
+
+    // Create selection popup UI
+    const createSelectionPopupUI = async () => {
+      if (selectionPopupUI) return selectionPopupUI;
+
+      try {
+        selectionPopupUI = await createShadowRootUi(ctx, {
+          position: 'inline',
+          name: 'selection-popup-ui',
+          anchor: 'body',
+          onMount: (container) => {
+            container.style.position = 'fixed';
+            container.style.top = '0';
+            container.style.left = '0';
+            container.style.width = '0';
+            container.style.height = '0';
+            container.style.zIndex = '2147483647';
+            container.style.pointerEvents = 'none';
+
+            const app = mount(SelectionPopupContainer, {
+              target: container,
+              props: {
+                onAction: handleSelectionAction,
+                onClose: hideSelectionPopup
+              }
+            });
+
+            // Enable pointer events for the popup
+            container.style.pointerEvents = 'auto';
+
+            return app;
+          },
+          onRemove: (app) => {
+            unmount(app as any);
+            selectionPopupUI = null;
+          }
+        });
+
+        return selectionPopupUI;
+      } catch (error) {
+        console.error('Failed to create selection popup UI:', error);
+        throw error;
+      }
+    };
+
+    // Get selection position
+    const getSelectionPosition = (): { x: number; y: number } | null => {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return null;
+
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+
+      // Center horizontally, position above the selection
+      const x = rect.left + rect.width / 2;
+      const y = rect.top;
+
+      return { x, y };
+    };
+
+    // Show selection popup
+    const showSelectionPopup = async () => {
+      const selection = window.getSelection();
+      const selectedText = selection?.toString().trim();
+
+      if (!selectedText || selectedText.length === 0) {
+        hideSelectionPopup();
+        return;
+      }
+
+      const position = getSelectionPosition();
+      if (!position) return;
+
+      // Ensure the UI is created
+      if (!selectionPopupUI) {
+        await createSelectionPopupUI();
+        selectionPopupUI.mount();
+      }
+
+      // Update state
+      selectionPopupStore.show(position.x, position.y, selectedText);
+    };
+
+    // Hide selection popup
+    const hideSelectionPopup = () => {
+      selectionPopupStore.hide();
+
+      // Keep the UI mounted but hidden for better performance
+      // Only remove it when the content script is invalidated
+    };
+
+    // Handle selection action
+    const handleSelectionAction = (action: SelectionAction, text: string) => {
+      console.log(`Action: ${action}, Text: ${text}`);
+
+      // TODO: Implement action handlers
+      switch (action) {
+        case 'summarise':
+          console.log('Summarising:', text);
+          // TODO: Send to AI for summarization
+          break;
+        case 'translate':
+          console.log('Translating:', text);
+          // TODO: Send to AI for translation
+          break;
+        case 'addToChat':
+          console.log('Adding to chat:', text);
+          // TODO: Add to chat interface
+          break;
+      }
+    };
+
+    // Handle text selection
+    const handleSelectionChange = () => {
+      // Use a debounce to avoid too many calls
+      clearTimeout((window as any).__selectionTimeout);
+      (window as any).__selectionTimeout = setTimeout(() => {
+        const selection = window.getSelection();
+        const selectedText = selection?.toString().trim();
+
+        if (selectedText && selectedText.length > 0) {
+          showSelectionPopup();
+        } else {
+          hideSelectionPopup();
+        }
+      }, 100);
+    };
+
+    // Handle mouse up (for better UX)
+    const handleMouseUp = (event: MouseEvent) => {
+      // Ignore clicks on the popup itself
+      if ((event.target as HTMLElement).closest('.selection-popup')) {
+        return;
+      }
+
+      // Small delay to let the selection stabilize
+      setTimeout(() => {
+        handleSelectionChange();
+      }, 10);
+    };
+
+    // Listen for text selection
+    document.addEventListener('selectionchange', handleSelectionChange);
+    document.addEventListener('mouseup', handleMouseUp);
 
     // Handle keyboard shortcuts
     const handleKeyDown = async (event: KeyboardEvent) => {
@@ -174,11 +325,21 @@ ${document.body.textContent || 'No content available'}`,
     // Clean up on script removal
     ctx.onInvalidated(() => {
       document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('selectionchange', handleSelectionChange);
+      document.removeEventListener('mouseup', handleMouseUp);
       chrome.runtime.onMessage.removeListener(handleMessage);
+
       if (ui && isVisible) {
         searchStore.hide();
         ui.remove();
       }
+
+      if (selectionPopupUI) {
+        selectionPopupUI.remove();
+      }
+
+      // Clear any pending selection timeout
+      clearTimeout((window as any).__selectionTimeout);
     });
   },
 });
