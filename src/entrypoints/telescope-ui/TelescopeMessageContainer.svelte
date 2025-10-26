@@ -457,6 +457,91 @@
     color: #b3d4f7;
   }
 
+  /* Code styling */
+  :global(.message code) {
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    color: #f0f0f0;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  :global(.message pre) {
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 12px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 8px 0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  :global(.message pre code) {
+    background-color: transparent;
+    padding: 0;
+    border-radius: 0;
+    font-size: 12px;
+    line-height: 1.5;
+    display: block;
+    white-space: pre;
+    word-break: normal;
+  }
+
+  /* User message code styling */
+  :global(.user-message code) {
+    background-color: rgba(0, 0, 0, 0.2);
+    color: #ffffff;
+  }
+
+  :global(.user-message pre) {
+    background-color: rgba(0, 0, 0, 0.4);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  /* Heading styling */
+  :global(.message h1),
+  :global(.message h2),
+  :global(.message h3),
+  :global(.message h4),
+  :global(.message h5),
+  :global(.message h6) {
+    margin: 8px 0 4px 0;
+    font-weight: 600;
+    line-height: 1.3;
+    color: #fff;
+  }
+
+  :global(.message h1) {
+    font-size: 20px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    padding-bottom: 4px;
+  }
+
+  :global(.message h2) {
+    font-size: 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    padding-bottom: 3px;
+  }
+
+  :global(.message h3) {
+    font-size: 16px;
+  }
+
+  :global(.message h4) {
+    font-size: 15px;
+  }
+
+  :global(.message h5) {
+    font-size: 14px;
+  }
+
+  :global(.message h6) {
+    font-size: 13px;
+    color: #e0e0e0;
+  }
+
   /* Table styling */
   :global(.message table) {
     border-collapse: collapse;

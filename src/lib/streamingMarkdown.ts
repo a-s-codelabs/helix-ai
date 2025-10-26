@@ -121,7 +121,7 @@ export class SecureStreamingMarkdown {
 
 /**
  * Simple markdown formatter for basic text formatting
- * Handles bold (**text**), italic (*text*), links [text](url), plain URLs, tables, and line breaks
+ * Handles bold (**text**), italic (*text*), links [text](url), plain URLs, tables, code blocks, and line breaks
  */
 export function formatBasicMarkdown(text: string): string {
   // First, extract and convert tables to HTML
@@ -177,8 +177,35 @@ export function formatBasicMarkdown(text: string): string {
 
   return (
     result
+      // Handle fenced code blocks (```language\ncode\n```) - must be done before inline code
+      // Support both \n and \r\n line endings, optional language identifier, and various formats
+      .replace(
+        /```(\w+)?\s*\r?\n([\s\S]*?)\r?\n?```/g,
+        (match, language, code) => {
+          // Escape HTML entities in code to prevent injection
+          const escapedCode = code
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+          return `<pre><code>${escapedCode}</code></pre>`;
+        }
+      )
+      // Handle inline code (`code`) - must be done after code blocks
+      // Use negative lookahead to avoid matching triple backticks
+      .replace(/(?<!`)`(?!``)([^`\n]+)`(?!`)/g, (match, code) => {
+        // Escape HTML entities in inline code
+        const escapedCode = code
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+        return `<code>${escapedCode}</code>`;
+      })
       // Handle headings (h1-h6) - must be processed before other inline formatting
-      // Match headings at the start of a line (with optional leading whitespace)
+      // Match headings at the start of a line with at least one space after #
       .replace(/^######\s+(.+)$/gm, '<h6>$1</h6>')
       .replace(/^#####\s+(.+)$/gm, '<h5>$1</h5>')
       .replace(/^####\s+(.+)$/gm, '<h4>$1</h4>')
@@ -206,8 +233,8 @@ export function formatBasicMarkdown(text: string): string {
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       // Handle italic text (*text*)
       .replace(/(?<!\*)\*(?!\*)([^*]+?)\*(?!\*)/g, '<em>$1</em>')
-      // Handle line breaks (but not within tables)
-      .replace(/\n(?![^<]*<\/table>)/g, '<br>')
+      // Handle line breaks (but not within tables or code blocks)
+      .replace(/\n(?![^<]*<\/table>)(?![^<]*<\/code>)(?![^<]*<\/pre>)/g, '<br>')
   );
 }
 
