@@ -71,16 +71,19 @@ declare global {
 
     /**
      * Expected input languages (BCP 47 language tags)
+     * @example ["en", "ja", "es"] or ["en-US", "fr-FR"]
      */
     expectedInputLanguages?: string[];
 
     /**
      * Expected context languages (BCP 47 language tags)
+     * @example ["en", "ja", "es"] or ["en-US", "fr-FR"]
      */
     expectedContextLanguages?: string[];
 
     /**
      * Output language (BCP 47 language tag)
+     * @example "es" or "en-US" or "fr-FR"
      */
     outputLanguage?: string;
 
@@ -121,16 +124,19 @@ declare global {
 
     /**
      * Expected input languages (BCP 47 language tags)
+     * @example ["en", "ja", "es"] or ["en-US", "fr-FR"]
      */
     expectedInputLanguages?: string[];
 
     /**
      * Expected context languages (BCP 47 language tags)
+     * @example ["en", "ja", "es"] or ["en-US", "fr-FR"]
      */
     expectedContextLanguages?: string[];
 
     /**
      * Output language (BCP 47 language tag)
+     * @example "es" or "en-US" or "fr-FR"
      */
     outputLanguage?: string;
 

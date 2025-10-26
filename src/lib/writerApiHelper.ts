@@ -7,13 +7,36 @@ export type WriterTone = 'formal' | 'neutral' | 'casual';
 export type WriterFormat = 'markdown' | 'plain-text';
 export type WriterLength = 'short' | 'medium' | 'long';
 
+/**
+ * Writer API Options
+ *
+ * @example
+ * ```typescript
+ * const options: WriterOptions = {
+ *   tone: 'neutral',
+ *   format: 'markdown',
+ *   length: 'short',
+ *   sharedContext: "I'm a long-standing customer.",
+ *   outputLanguage: "es",
+ *   expectedInputLanguages: ["en", "ja", "es"],
+ *   expectedContextLanguages: ["en", "ja", "es"]
+ * };
+ * ```
+ */
 export interface WriterOptions {
+  /** The tone of the writing. @default 'neutral' */
   tone?: WriterTone;
+  /** The output format. @default 'plain-text' */
   format?: WriterFormat;
+  /** The length of the output. @default 'medium' */
   length?: WriterLength;
+  /** Shared context for the writing session */
   sharedContext?: string;
+  /** Output language (BCP 47 language tag). @example "es", "en-US", "fr-FR" */
   outputLanguage?: string;
+  /** Expected input languages (BCP 47 language tags). @example ["en", "ja", "es"] */
   expectedInputLanguages?: string[];
+  /** Expected context languages (BCP 47 language tags). @example ["en", "ja", "es"] */
   expectedContextLanguages?: string[];
 }
 

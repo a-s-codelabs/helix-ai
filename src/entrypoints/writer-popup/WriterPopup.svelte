@@ -22,6 +22,7 @@
   let isGenerating = $state(false);
   let error = $state('');
   let showOptions = $state(false);
+  let showLanguages = $state(false);
   let apiAvailable = $state<'available' | 'after-download' | 'unavailable'>(
     'unavailable'
   );
@@ -30,10 +31,24 @@
   let tone = $state<'formal' | 'neutral' | 'casual'>('neutral');
   let length = $state<'short' | 'medium' | 'long'>('medium');
   let format = $state<'markdown' | 'plain-text'>('plain-text');
-  let sharedContext = $state('');
-  let outputLanguage = $state('');
-  let expectedInputLanguages = $state('');
-  let expectedContextLanguages = $state('');
+  let outputLanguage = $state('en');
+
+  // Language checkboxes
+  let inputLangs = $state({
+    en: false,
+    fr: false,
+    ja: false,
+    pt: false,
+    es: false,
+  });
+
+  let contextLangs = $state({
+    en: false,
+    fr: false,
+    ja: false,
+    pt: false,
+    es: false,
+  });
 
   // Streaming control
   let abortController: AbortController | null = null;
@@ -84,29 +99,31 @@
     abortController = new AbortController();
 
     try {
+      // Convert checkbox states to language arrays
+      const selectedInputLangs = Object.entries(inputLangs)
+        .filter(([_, checked]) => checked)
+        .map(([lang]) => lang);
+
+      const selectedContextLangs = Object.entries(contextLangs)
+        .filter(([_, checked]) => checked)
+        .map(([lang]) => lang);
+
       const options: WriterOptions = {
         tone,
         length,
         format,
-        ...(sharedContext.trim() && { sharedContext: sharedContext.trim() }),
-        ...(outputLanguage.trim() && { outputLanguage: outputLanguage.trim() }),
-        ...(expectedInputLanguages.trim() && {
-          expectedInputLanguages: expectedInputLanguages
-            .split(',')
-            .map((l) => l.trim())
-            .filter(Boolean),
+        ...(context.trim() && { sharedContext: context.trim() }),
+        ...(outputLanguage && outputLanguage !== '' && { outputLanguage }),
+        ...(selectedInputLangs.length > 0 && {
+          expectedInputLanguages: selectedInputLangs,
         }),
-        ...(expectedContextLanguages.trim() && {
-          expectedContextLanguages: expectedContextLanguages
-            .split(',')
-            .map((l) => l.trim())
-            .filter(Boolean),
+        ...(selectedContextLangs.length > 0 && {
+          expectedContextLanguages: selectedContextLangs,
         }),
       };
 
       console.log('[Writer API] Generating with streaming:', {
         prompt: prompt.trim(),
-        context: context.trim() || undefined,
         options,
       });
 
@@ -114,7 +131,6 @@
       const stream = writeContentStreaming(
         {
           prompt: prompt.trim(),
-          context: context.trim() || undefined,
         },
         options
       );
@@ -237,6 +253,28 @@
     }, 2000);
   }
 
+  function handleResetOptions() {
+    tone = 'neutral';
+    length = 'medium';
+    format = 'plain-text';
+    outputLanguage = 'en';
+    inputLangs = {
+      en: false,
+      fr: false,
+      ja: false,
+      pt: false,
+      es: false,
+    };
+    contextLangs = {
+      en: false,
+      fr: false,
+      ja: false,
+      pt: false,
+      es: false,
+    };
+    context = '';
+  }
+
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
       // Stop generation if running
@@ -337,20 +375,8 @@
           <textarea
             id="context"
             bind:value={context}
-            placeholder="Add background information for this specific write..."
-            rows="2"
-            disabled={isGenerating}
-          ></textarea>
-        </div>
-
-        <!-- Shared Context -->
-        <div class="field">
-          <label for="sharedContext">Shared Context (optional)</label>
-          <textarea
-            id="sharedContext"
-            bind:value={sharedContext}
-            placeholder="e.g., I'm a long-standing customer..."
-            rows="2"
+            placeholder="Add background information... e.g., I'm a long-standing customer..."
+            rows="3"
             disabled={isGenerating}
           ></textarea>
         </div>
@@ -384,51 +410,149 @@
           </div>
         </div>
 
-        <!-- Languages Section -->
-        <div class="section-header">Languages (BCP 47 tags)</div>
-
-        <div class="field">
-          <label for="outputLanguage">Output Language (optional)</label>
-          <input
-            type="text"
-            id="outputLanguage"
-            bind:value={outputLanguage}
-            placeholder="e.g., en-US, es, fr-FR"
-            disabled={isGenerating}
-          />
-        </div>
-
-        <div class="field">
-          <label for="expectedInputLanguages"
-            >Expected Input Languages (optional)</label
-          >
-          <input
-            type="text"
-            id="expectedInputLanguages"
-            bind:value={expectedInputLanguages}
-            placeholder="e.g., en-US, es (comma-separated)"
-            disabled={isGenerating}
-          />
-        </div>
-
-        <div class="field">
-          <label for="expectedContextLanguages"
-            >Expected Context Languages (optional)</label
-          >
-          <input
-            type="text"
-            id="expectedContextLanguages"
-            bind:value={expectedContextLanguages}
-            placeholder="e.g., en-US, es (comma-separated)"
-            disabled={isGenerating}
-          />
-        </div>
-
-        <!-- Info Section -->
+        <!-- Input Quota Info -->
         <div class="info-section">
           <span class="info-label">Input Quota:</span>
           <span class="info-value">~6000 characters</span>
         </div>
+
+        <!-- Languages Section (Collapsible) -->
+        <button
+          type="button"
+          class="section-toggle"
+          onclick={() => (showLanguages = !showLanguages)}
+        >
+          <span class="toggle-icon">{showLanguages ? '▼' : '▶'}</span>
+          Languages (optional)
+        </button>
+
+        {#if showLanguages}
+          <div class="languages-panel" transition:slide={{ duration: 200 }}>
+            <!-- Output Language -->
+            <div class="field">
+              <label for="outputLanguage">Output Language</label>
+              <select
+                id="outputLanguage"
+                bind:value={outputLanguage}
+                disabled={isGenerating}
+              >
+                <option value="en">English</option>
+                <option value="fr">French</option>
+                <option value="ja">Japanese</option>
+                <option value="pt">Portuguese</option>
+                <option value="es">Spanish</option>
+              </select>
+            </div>
+
+            <!-- Expected Input Languages -->
+            <div class="field">
+              <fieldset class="checkbox-fieldset">
+                <legend>Expected Input Languages</legend>
+                <div class="checkbox-group">
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    bind:checked={inputLangs.en}
+                    disabled={isGenerating}
+                  />
+                  <span>English</span>
+                </label>
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    bind:checked={inputLangs.fr}
+                    disabled={isGenerating}
+                  />
+                  <span>French</span>
+                </label>
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    bind:checked={inputLangs.ja}
+                    disabled={isGenerating}
+                  />
+                  <span>Japanese</span>
+                </label>
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    bind:checked={inputLangs.pt}
+                    disabled={isGenerating}
+                  />
+                  <span>Portuguese</span>
+                </label>
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    bind:checked={inputLangs.es}
+                    disabled={isGenerating}
+                  />
+                  <span>Spanish</span>
+                </label>
+              </div>
+              </fieldset>
+            </div>
+
+            <!-- Expected Context Languages -->
+            <div class="field">
+              <fieldset class="checkbox-fieldset">
+                <legend>Expected Context Languages</legend>
+                <div class="checkbox-group">
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    bind:checked={contextLangs.en}
+                    disabled={isGenerating}
+                  />
+                  <span>English</span>
+                </label>
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    bind:checked={contextLangs.fr}
+                    disabled={isGenerating}
+                  />
+                  <span>French</span>
+                </label>
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    bind:checked={contextLangs.ja}
+                    disabled={isGenerating}
+                  />
+                  <span>Japanese</span>
+                </label>
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    bind:checked={contextLangs.pt}
+                    disabled={isGenerating}
+                  />
+                  <span>Portuguese</span>
+                </label>
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    bind:checked={contextLangs.es}
+                    disabled={isGenerating}
+                  />
+                  <span>Spanish</span>
+                </label>
+              </div>
+              </fieldset>
+            </div>
+          </div>
+        {/if}
+
+        <!-- Reset Button -->
+        <button
+          type="button"
+          class="reset-btn"
+          onclick={handleResetOptions}
+          disabled={isGenerating}
+        >
+          Reset Options
+        </button>
 
         <!-- Keyboard shortcuts hint -->
         <div class="shortcuts-hint">
@@ -639,7 +763,7 @@
   }
 
   input[type='text'] {
-    width: 100%;
+    width: 94%;
     padding: 8px 10px;
     background: #18181b;
     border: 1px solid #3f3f46;
@@ -722,14 +846,49 @@
     cursor: pointer;
   }
 
-  /* Section header */
-  .section-header {
+  /* Section toggle button */
+  .section-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: #27272a;
+    border: 1px solid #3f3f46;
+    border-radius: 6px;
+    color: #a78bfa;
     font-size: 12px;
     font-weight: 600;
-    color: #a78bfa;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s ease;
     margin-top: 8px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #3f3f46;
+  }
+
+  .section-toggle:hover {
+    background: #3f3f46;
+    border-color: #52525b;
+  }
+
+  .section-toggle:active {
+    transform: scale(0.99);
+  }
+
+  .toggle-icon {
+    font-size: 10px;
+    color: #a1a1aa;
+  }
+
+  /* Languages panel */
+  .languages-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+    background: #27272a;
+    border-radius: 6px;
+    border: 1px solid #3f3f46;
+    margin-top: 8px;
   }
 
   /* Info section */
@@ -753,6 +912,93 @@
     color: #e4e4e7;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
       monospace;
+  }
+
+  /* Checkbox fieldset */
+  .checkbox-fieldset {
+    border: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .checkbox-fieldset legend {
+    font-size: 12px;
+    font-weight: 500;
+    color: #a1a1aa;
+    margin-bottom: 6px;
+  }
+
+  /* Checkbox group */
+  .checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+    background: #18181b;
+    border-radius: 4px;
+    border: 1px solid #3f3f46;
+  }
+
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #e4e4e7;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: background 0.15s ease;
+  }
+
+  .checkbox-label:hover {
+    background: #27272a;
+  }
+
+  .checkbox-label input[type='checkbox'] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #a78bfa;
+  }
+
+  .checkbox-label input[type='checkbox']:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .checkbox-label span {
+    user-select: none;
+  }
+
+  /* Reset Button */
+  .reset-btn {
+    width: 100%;
+    padding: 8px 12px;
+    background: #27272a;
+    border: 1px solid #3f3f46;
+    border-radius: 6px;
+    color: #a1a1aa;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .reset-btn:hover:not(:disabled) {
+    background: #3f3f46;
+    border-color: #52525b;
+    color: #e4e4e7;
+  }
+
+  .reset-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .reset-btn:active:not(:disabled) {
+    transform: scale(0.99);
   }
 
   /* Keyboard shortcuts hint */
