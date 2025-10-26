@@ -1,6 +1,4 @@
 <script lang="ts">
-  // RightSidePanel icon component
-  // This icon represents moving content to the side panel
 </script>
 
 <svg

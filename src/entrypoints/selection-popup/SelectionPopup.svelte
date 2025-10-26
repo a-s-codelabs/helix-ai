@@ -1,7 +1,9 @@
 <script lang="ts">
-  import { fade, scale } from 'svelte/transition';
+  import { scale } from 'svelte/transition';
   import type { SelectionAction } from './types';
-
+  import Summarise from '../telescope-ui/icons/Summarise.svelte';
+  import Translate from '../telescope-ui/icons/Translate.svelte';
+  import AddToChat from '../telescope-ui/icons/AddToChat.svelte';
   interface Props {
     x: number;
     y: number;
@@ -11,10 +13,10 @@
 
   let { x, y, onAction, onClose }: Props = $props();
 
-  const actions: Array<{ id: SelectionAction; icon: string; label: string }> = [
-    { id: 'summarise', icon: '📝', label: 'Summarise' },
-    { id: 'translate', icon: '🌐', label: 'Translate' },
-    { id: 'addToChat', icon: '💬', label: 'Add to Chat' },
+  const actions: Array<{ id: SelectionAction; icon: any; label: string }> = [
+    { id: 'addToChat', icon: AddToChat, label: 'Add to Chat' },
+    { id: 'summarise', icon: Summarise, label: 'Summarise' },
+    { id: 'translate', icon: Translate, label: 'Translate' },
   ];
 
   function handleAction(action: SelectionAction) {
@@ -48,7 +50,10 @@
         type="button"
         aria-label={action.label}
       >
-        <span class="action-icon">{action.icon}</span>
+        <span class="action-icon">
+          <!-- svelte-ignore svelte_component_deprecated -->
+          <svelte:component this={action.icon} />
+        </span>
         <span class="action-label">{action.label}</span>
       </button>
     {/each}
@@ -83,7 +88,7 @@
     gap: 4px;
     padding: 6px;
     background: rgba(17, 24, 39, 0.95);
-    border-radius: 10px;
+    border-radius: 32px;
     box-shadow:
       0 10px 25px -5px rgba(0, 0, 0, 0.3),
       0 8px 10px -6px rgba(0, 0, 0, 0.2),
@@ -129,6 +134,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: #2B2E39;
+    border-radius: 50%;
+    padding: 4px;
   }
 
   .action-label {
