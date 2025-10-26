@@ -79,12 +79,15 @@
       // Remove HTML tags and get plain text
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = content;
-      const plainText = tempDiv.textContent || tempDiv.innerText || '';
+      let plainText = tempDiv.textContent || tempDiv.innerText || '';
 
       if (!plainText.trim()) {
         console.warn('No text content to speak');
         return;
       }
+
+      // Replace markdown characters (* and #) with spaces for better speech
+      plainText = plainText.replace(/[*#]/g, ' ');
 
       // Create speech synthesis utterance
       const utterance = new SpeechSynthesisUtterance(plainText);
