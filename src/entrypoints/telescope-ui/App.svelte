@@ -1,6 +1,5 @@
 <script lang="ts">
   import Telescope from './Telescope.svelte';
-  import { searchStore } from '../../lib/searchStore';
   import { chatStore } from '../../lib/chatStore';
   import { sidePanelUtils, sidePanelStore } from '../../lib/sidePanelStore';
   import type { Direction, State, Message } from './type';
@@ -15,21 +14,7 @@
   let messages: Message[] = $state([]);
   let isStreaming = $state(false);
   let streamingMessageId = $state<number | null>(null);
-
-  // Subscribe to search store
-  $effect(() => {
-    const unsubscribe = searchStore.subscribe((state) => {
-      isVisible = state.isVisible;
-      if (state.isVisible) {
-        searchIndex = state.currentIndex + 1;
-        totalResults = state.totalResults;
-        inputValue = state.query;
-        // Ensure the input is ready for user interaction
-        currentState = 'search';
-      }
-    });
-    return unsubscribe;
-  });
+  let source = $state<'append' | 'move'>('append');
 
   // Subscribe to chat store
   $effect(() => {
@@ -37,10 +22,6 @@
       messages = state.messages;
       isStreaming = state.isStreaming;
       streamingMessageId = state.streamingMessageId;
-      // Update search store when we have messages
-      if (state.messages.length > 0) {
-        searchStore.setAskMode(true);
-      }
     });
     return unsubscribe;
   });
@@ -57,7 +38,9 @@
             console.log('App: Received page content, initializing chat store');
             await chatStore.init(pageContext);
           } else {
-            console.warn('App: Failed to get page content, initializing without context');
+            console.warn(
+              'App: Failed to get page content, initializing without context'
+            );
             await chatStore.init();
           }
         })();
@@ -74,9 +57,10 @@
   // Detect if we're in side panel by checking the URL or window context
   $effect(() => {
     // Check if we're in a side panel context
-    isInSidePanel = window.location.pathname.includes('sidepanel') ||
-                   window.location.href.includes('sidepanel') ||
-                   document.title.includes('Side Panel');
+    isInSidePanel =
+      window.location.pathname.includes('sidepanel') ||
+      window.location.href.includes('sidepanel') ||
+      document.title.includes('Side Panel');
 
     // If we're in side panel mode, automatically show the UI
     if (isInSidePanel) {
@@ -86,29 +70,52 @@
 
   // Check for side panel state restoration
   $effect(() => {
-    // Check if we're in side panel mode and need to restore state
-    const checkSidePanelState = async () => {
-      const storedState = await sidePanelUtils.getTelescopeState();
-      if (storedState) {
-        // Restore the telescope state
-        messages = storedState.messages;
-        isStreaming = storedState.isStreaming;
-        streamingMessageId = storedState.streamingMessageId;
-        inputValue = storedState.inputValue;
-        inputImageAttached = storedState.inputImageAttached;
-        searchIndex = storedState.searchIndex;
-        totalResults = storedState.totalResults;
-        currentState = storedState.currentState;
+    if (isInSidePanel) {
+      // Function to update state from storage
+      const updateStateFromStorage = async () => {
+        const storedState = await sidePanelUtils.getTelescopeState();
+        if (storedState) {
+          console.log('App: Updating state from storage:', storedState);
 
-        // Update stores with restored state
-        chatStore.setMessages(messages);
-        if (messages.length > 0) {
-          searchStore.setAskMode(true);
+
+          // Update local state
+          messages = storedState.messages;
+          isStreaming = storedState.isStreaming;
+          streamingMessageId = storedState.streamingMessageId;
+          inputValue = storedState.inputValue;
+          inputImageAttached = storedState.inputImageAttached;
+          searchIndex = storedState.searchIndex;
+          totalResults = storedState.totalResults;
+          currentState = storedState.currentState;
+          source = storedState.source
+          const lastUserMessage = messages.filter(msg => msg.type === 'user').pop();
+          if (lastUserMessage) {
+            chatStore.summarise(lastUserMessage.content);
+          }
         }
-      }
-    };
+      };
 
-    checkSidePanelState();
+      // Initial state restoration
+      updateStateFromStorage();
+
+      // Listen for Chrome storage changes
+      const handleStorageChange = (changes: { [key: string]: any }, areaName: string) => {
+        if (areaName === 'local' && changes.telescopeState) {
+          console.log('App: Storage changed, updating state');
+          updateStateFromStorage();
+        }
+      };
+
+      // Add the storage change listener
+      if (typeof chrome !== 'undefined' && chrome.storage) {
+        (chrome.storage as any).onChanged.addListener(handleStorageChange);
+
+        // Cleanup function
+        return () => {
+          (chrome.storage as any).onChanged.removeListener(handleStorageChange);
+        };
+      }
+    }
   });
 
   function handleStateChange({ state }: { state: State }) {
@@ -117,43 +124,11 @@
 
   function handleInput({ value }: { value: string }) {
     inputValue = value;
-    // Determine if this is a search or ask based on content
-    const isQuestion =
-      value.includes('?') ||
-      value.toLowerCase().startsWith('what') ||
-      value.toLowerCase().startsWith('how') ||
-      value.toLowerCase().startsWith('why') ||
-      value.toLowerCase().startsWith('when') ||
-      value.toLowerCase().startsWith('where') ||
-      value.toLowerCase().startsWith('who') ||
-      value.toLowerCase().startsWith('explain') ||
-      value.toLowerCase().startsWith('tell me') ||
-      value.toLowerCase().startsWith('can you');
-
-    if (isQuestion) {
-      currentState = 'ask';
-    } else {
-      currentState = 'search';
-      // Perform search as user types
-      searchStore.search(inputValue);
-    }
   }
 
   function handleAsk({ value, images }: { value: string; images?: string[] }) {
     if (value.trim()) {
-      // Switch to ask mode
-      searchStore.setAskMode(true);
-       // Use Chrome's AI capabilities via chatStore with streaming
        chatStore.sendMessageStreaming(value, images);
-      // Note: inputValue reset is handled by TelescopeInput.svelte resetInput() function
-    }
-  }
-
-  function handleSearchNavigation({ direction }: { direction: Direction }) {
-    if (direction === 'up') {
-      searchStore.previous();
-    } else if (direction === 'down') {
-      searchStore.next();
     }
   }
 
@@ -170,18 +145,11 @@
     console.log('Attachment clicked');
   }
 
-  function handleClear() {
-    // Note: inputValue reset is handled by TelescopeInput.svelte resetInput() function
-    searchStore.clearHighlights();
-  }
-
   function handleClearChat() {
     chatStore.clear();
   }
 
   function handleClose() {
-    searchStore.hide();
-    searchStore.setAskMode(false);
     chatStore.clear();
   }
 
@@ -250,10 +218,19 @@
       };
     }
   });
+
+  function handleMessage(event: MessageEvent) {
+    console.log({ event })
+  }
 </script>
 
+<svelte:window on:message={handleMessage} />
 {#if isVisible || isInSidePanel}
-  <div class="telescope-container" class:draggable={!isInSidePanel} bind:this={telescopeContainer}>
+  <div
+    class="telescope-container"
+    class:draggable={!isInSidePanel}
+    bind:this={telescopeContainer}
+  >
     <Telescope
       inputState={currentState}
       bind:inputValue
@@ -268,9 +245,7 @@
       onAsk={handleAsk}
       onVoiceInput={handleVoiceInput}
       onAttachment={handleAttachment}
-      onClear={handleClear}
       onSuggestedQuestion={handleSuggestedQuestion}
-      onSearchNavigation={handleSearchNavigation}
       onClose={handleClose}
       onStop={handleStop}
       onDragStart={handleDragStart}

@@ -5,4 +5,5 @@ export interface SelectionPopupState {
   x: number;
   y: number;
   selectedText: string;
+  isAtTop?: boolean;
 }

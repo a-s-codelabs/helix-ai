@@ -5,7 +5,7 @@ import SelectionPopupContainer from './selection-popup/SelectionPopupContainer.s
 /*@ts-ignore */
 import WriterAssistant from './writer-popup/WriterAssistant.svelte';
 import { mount, unmount } from 'svelte';
-import { searchStore } from '../lib/searchStore';
+import { get } from 'svelte/store';
 import { selectionPopupStore } from '../lib/selectionPopupStore';
 import { writerPopupStore } from '../lib/writerPopupStore';
 import type { SelectionAction } from './selection-popup/types';
@@ -172,20 +172,44 @@ export default defineContentScript({
       const position = getSelectionPosition();
       if (!position) return;
 
+      // Ensure popup stays within viewport bounds
+      const popupWidth = 200; // Approximate popup width
+      const popupHeight = 60; // Approximate popup height
+      const margin = 20; // Margin from viewport edges
+
+      let { x, y } = position;
+
+      // Adjust horizontal position if popup would go off-screen
+      if (x - popupWidth / 2 < margin) {
+        x = margin + popupWidth / 2;
+      } else if (x + popupWidth / 2 > window.innerWidth - margin) {
+        x = window.innerWidth - margin - popupWidth / 2;
+      }
+
+      // Adjust vertical position if popup would go off-screen
+      let isAtTop = false;
+      if (y - popupHeight - margin < 0) {
+        // If popup would go above viewport, position it at the top with extra margin
+        y = margin + 40; // Extra margin when at top
+        isAtTop = true;
+      } else if (y > window.innerHeight - margin) {
+        // If popup would go below viewport, position it at the bottom
+        y = window.innerHeight - margin;
+      }
+
       // Ensure the UI is created
       if (!selectionPopupUI) {
         await createSelectionPopupUI();
         selectionPopupUI.mount();
       }
 
-      // Update state
-      selectionPopupStore.show(position.x, position.y, selectedText);
+      // Update state with positioning info
+      selectionPopupStore.show(x, y, selectedText, isAtTop);
     };
 
     // Hide selection popup
     const hideSelectionPopup = () => {
       selectionPopupStore.hide();
-
       // Keep the UI mounted but hidden for better performance
       // Only remove it when the content script is invalidated
     };
@@ -209,6 +233,60 @@ export default defineContentScript({
           // TODO: Add to chat interface
           break;
       }
+    };
+
+    // Helper to check if the selection popup is currently visible
+    const isSelectionPopupVisible = () => {
+      // Checks via the store (works since we always mount but can update the store state)
+      // Use get method since it's a Svelte writable
+      return get(selectionPopupStore.getState()).visible;
+    };
+
+    // Helper to update the popup position according to current selection
+    const updateSelectionPopupPosition = () => {
+      // If the popup is not showing, don't do anything
+      if (!isSelectionPopupVisible()) return;
+
+      // Find new position and selected text
+      const selection = window.getSelection();
+      const selectedText = selection?.toString().trim();
+      if (!selectedText || selectedText.length === 0) {
+        hideSelectionPopup();
+        return;
+      }
+
+      const position = getSelectionPosition();
+      if (!position) {
+        hideSelectionPopup();
+        return;
+      }
+
+      // Ensure popup stays within viewport bounds
+      const popupWidth = 200; // Approximate popup width
+      const popupHeight = 60; // Approximate popup height
+      const margin = 20; // Margin from viewport edges
+
+      let { x, y } = position;
+
+      // Adjust horizontal position if popup would go off-screen
+      if (x - popupWidth / 2 < margin) {
+        x = margin + popupWidth / 2;
+      } else if (x + popupWidth / 2 > window.innerWidth - margin) {
+        x = window.innerWidth - margin - popupWidth / 2;
+      }
+
+      // Adjust vertical position if popup would go off-screen
+      let isAtTop = false;
+      if (y - popupHeight - margin < 0) {
+        // If popup would go above viewport, position it at the top with extra margin
+        y = margin + 40; // Extra margin when at top
+        isAtTop = true;
+      } else if (y > window.innerHeight - margin) {
+        // If popup would go below viewport, position it at the bottom
+        y = window.innerHeight - margin;
+      }
+
+      selectionPopupStore.show(x, y, selectedText, isAtTop);
     };
 
     // Handle text selection
@@ -244,6 +322,59 @@ export default defineContentScript({
     document.addEventListener('selectionchange', handleSelectionChange);
     document.addEventListener('mouseup', handleMouseUp);
 
+    // --- Enhance for object observer: recalculate position on resize/scroll ---
+    let resizeScrollObserver: (() => void) | null = null;
+
+    const setupSelectionPopupRepositioning = () => {
+      // Clean up before adding new observers
+      if (resizeScrollObserver) {
+        resizeScrollObserver();
+      }
+
+      // Debounced update handler
+      let timeout: number | null = null;
+      const onRecalc = () => {
+        if (timeout) clearTimeout(timeout);
+        timeout = window.setTimeout(() => {
+          updateSelectionPopupPosition();
+        }, 50);
+      };
+
+      // Listen for window resize and scroll
+      window.addEventListener('resize', onRecalc);
+      window.addEventListener('scroll', onRecalc, true); // true to catch scroll on any ancestor
+
+      // Listen for DOM mutations that could affect layout (optional, heavy in complex pages)
+      let mutationObserver: MutationObserver | null = null;
+      if (typeof MutationObserver !== 'undefined') {
+        mutationObserver = new MutationObserver(() => {
+          onRecalc();
+        });
+        mutationObserver.observe(document.body, {
+          attributes: true,
+          childList: true,
+          subtree: true,
+        });
+      }
+
+      // Cleanup function to remove listeners/observers
+      resizeScrollObserver = () => {
+        window.removeEventListener('resize', onRecalc);
+        window.removeEventListener('scroll', onRecalc, true);
+        if (mutationObserver) mutationObserver.disconnect();
+      };
+    };
+
+    // Set up observers when popup first appears, clean up when it hides
+    // Listen to store changes to know when popup is visible
+    selectionPopupStore.getState().subscribe((current) => {
+      if (current.visible) {
+        setupSelectionPopupRepositioning();
+      } else if (resizeScrollObserver) {
+        resizeScrollObserver();
+        resizeScrollObserver = null;
+      }
+    });
     // Writer Assistant - Textarea/Input detection
     let currentFocusedElement: HTMLTextAreaElement | HTMLInputElement | null =
       null;
@@ -361,10 +492,8 @@ export default defineContentScript({
         if (!isVisible) {
           await createUI();
           ui.mount();
-          searchStore.show();
           isVisible = true;
         } else {
-          searchStore.hide();
           ui.remove();
           isVisible = false;
         }
@@ -372,7 +501,6 @@ export default defineContentScript({
 
       // Handle Escape key
       if (event.key === 'Escape' && isVisible) {
-        searchStore.hide();
         ui.remove();
         isVisible = false;
       }
@@ -388,7 +516,6 @@ export default defineContentScript({
           try {
             // If already visible, hide it first, then show it again
             if (isVisible) {
-              searchStore.hide();
               ui.remove();
               isVisible = false;
             }
@@ -404,7 +531,6 @@ export default defineContentScript({
 
             await createUI();
             ui.mount();
-            searchStore.show();
             isVisible = true;
           } catch (error) {
             console.error('Failed to open telescope:', error);
@@ -487,7 +613,6 @@ ${document.body.textContent || 'No content available'}`,
       chrome.runtime.onMessage.removeListener(handleMessage);
 
       if (ui && isVisible) {
-        searchStore.hide();
         ui.remove();
       }
 

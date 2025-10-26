@@ -1,4 +1,3 @@
-// Shared state management for side panel functionality
 import { writable } from 'svelte/store';
 
 export interface TelescopeState {
@@ -9,11 +8,11 @@ export interface TelescopeState {
   inputImageAttached: string[];
   searchIndex: number;
   totalResults: number;
-  currentState: 'ask' | 'search' | 'chat';
+  currentState: 'ask' | 'chat';
+  source: 'append' | 'move';
   timestamp: number;
 }
 
-// Store for managing side panel state
 export const sidePanelStore = writable<{
   isInSidePanel: boolean;
   telescopeState: TelescopeState | null;
@@ -22,74 +21,51 @@ export const sidePanelStore = writable<{
   telescopeState: null,
 });
 
-// Utility functions for side panel state management
 export const sidePanelUtils = {
-  // Move telescope to side panel
   async moveToSidePanel(state: TelescopeState): Promise<boolean> {
-    console.log('sidePanelUtils.moveToSidePanel called with state:', state);
-
-    try {
-      // Check if Chrome runtime is available
+    return new Promise((resolve) => {
       if (typeof chrome === 'undefined' || !chrome.runtime) {
         console.error('Chrome runtime not available');
-        return false;
+        return resolve(false);
       }
+      const timeout = setTimeout(() => {
+        console.error('Timeout: No response from service worker');
+        resolve(false);
+      }, 5000); // 5 second timeout
 
-      console.log('Chrome runtime available, using service worker approach...');
-      console.log(
-        'Note: chrome.sidePanel API is only available in service worker, not in content scripts'
-      );
-
-      // Use service worker approach (chrome.sidePanel is not available in content scripts)
-      return new Promise((resolve) => {
-        const timeout = setTimeout(() => {
-          console.error('Timeout: No response from service worker');
-          resolve(false);
-        }, 5000); // 5 second timeout
-
-        chrome.runtime.sendMessage(
-          {
-            type: 'MOVE_TO_SIDE_PANEL',
-            state,
-          },
-          (response) => {
-            clearTimeout(timeout);
-            console.log('Received response from service worker:', response);
-
-            // Check for runtime errors
-            if (chrome.runtime.lastError) {
-              console.error(
-                'Chrome runtime error:',
-                chrome.runtime.lastError.message
-              );
-              resolve(false);
-              return;
-            }
-
-            if (response?.success) {
-              console.log(
-                'Successfully moved to side panel via service worker'
-              );
-              sidePanelStore.update((store) => ({
-                ...store,
-                isInSidePanel: true,
-                telescopeState: state,
-              }));
-              resolve(true);
-            } else {
-              console.error(
-                'Failed to move to side panel via service worker:',
-                response
-              );
-              resolve(false);
-            }
+      chrome.runtime.sendMessage(
+        {
+          type: 'OPEN_TO_SIDE_PANEL',
+          state,
+        },
+        (response) => {
+          clearTimeout(timeout);
+          if (chrome.runtime.lastError) {
+            console.error(
+              'Chrome runtime error:',
+              chrome.runtime.lastError.message
+            );
+            resolve(false);
+            return;
           }
-        );
-      });
-    } catch (error) {
-      console.error('Error moving to side panel:', error);
-      return false;
-    }
+
+          if (response?.success) {
+            sidePanelStore.update((store) => ({
+              ...store,
+              isInSidePanel: true,
+              telescopeState: state,
+            }));
+            resolve(true);
+          } else {
+            console.error(
+              'Failed to move to side panel via service worker:',
+              response
+            );
+            resolve(false);
+          }
+        }
+      );
+    });
   },
 
   // Get telescope state from storage
@@ -201,10 +177,6 @@ export const sidePanelUtils = {
   // Get page content from active tab (for side panel mode)
   async getPageContent(): Promise<string | null> {
     try {
-      console.log(
-        'sidePanelUtils.getPageContent: Requesting page content from background'
-      );
-
       return new Promise((resolve) => {
         // Check if Chrome runtime is available
         if (typeof chrome === 'undefined' || !chrome.runtime) {
@@ -237,9 +209,6 @@ export const sidePanelUtils = {
             }
 
             if (response?.success && response.pageContext) {
-              console.log(
-                'sidePanelUtils.getPageContent: Received page content'
-              );
               resolve(response.pageContext);
             } else {
               console.error('Failed to get page content:', response?.error);

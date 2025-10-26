@@ -36,6 +36,10 @@ declare namespace chrome {
       function set(items: object, callback?: () => void): void;
       function remove(keys: string | string[], callback?: () => void): void;
     }
+    namespace StorageChange {
+      function addListener(callback: (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => void): void;
+      function removeListener(callback: (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => void): void;
+    }
   }
 
   namespace sidePanel {
