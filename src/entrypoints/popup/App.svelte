@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount } from "svelte";
+  import { globalStorage } from "@/lib/globalStorage";
 
   // State management
   let telescopeEnabled = $state(true);
@@ -13,12 +14,22 @@
 
   // Language options
   const languageOptions = [
-    "English", "Spanish", "French", "German", "Italian", "Portuguese", "Chinese", "Japanese", "Korean"
+    "English",
+    "Spanish",
+    "French",
+    "German",
+    "Italian",
+    "Portuguese",
+    "Chinese",
+    "Japanese",
+    "Korean",
   ];
 
   // Answer format options
   const answerFormatOptions = [
-    "Direct Answer", "Summary", "Detailed Explanation"
+    "Direct Answer",
+    "Summary",
+    "Detailed Explanation",
   ];
 
   function openTelescopeSidePanel() {
@@ -27,7 +38,8 @@
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const currentWindowId = tabs[0]?.windowId;
         if (currentWindowId) {
-          chrome.sidePanel.open({ windowId: currentWindowId })
+          chrome.sidePanel
+            .open({ windowId: currentWindowId })
             .then(() => {
               console.log("Side panel opened successfully");
               // Close the popup after opening side panel
@@ -76,7 +88,7 @@
       useDefaultKeyBinding,
       textToSpeechEnabled,
       languagePreference,
-      answerFormat
+      answerFormat,
     });
     window.close();
   }
@@ -90,10 +102,10 @@
 
   // Set up event listeners
   onMount(() => {
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   });
 </script>
@@ -135,7 +147,15 @@
         </div>
       </div>
       <div class="info-text">
-        <svg class="info-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg
+          class="info-icon"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
           <circle cx="12" cy="12" r="10"></circle>
           <path d="M12 16v-4"></path>
           <path d="M12 8h.01"></path>
@@ -154,7 +174,15 @@
       </label>
     </div>
     <div class="info-text">
-      <svg class="info-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg
+        class="info-icon"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
         <circle cx="12" cy="12" r="10"></circle>
         <path d="M12 16v-4"></path>
         <path d="M12 8h.01"></path>
@@ -173,7 +201,15 @@
       </select>
     </div>
     <div class="info-text">
-      <svg class="info-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg
+        class="info-icon"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
         <circle cx="12" cy="12" r="10"></circle>
         <path d="M12 16v-4"></path>
         <path d="M12 8h.01"></path>
@@ -192,7 +228,15 @@
       </select>
     </div>
     <div class="info-text">
-      <svg class="info-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg
+        class="info-icon"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
         <circle cx="12" cy="12" r="10"></circle>
         <path d="M12 16v-4"></path>
         <path d="M12 8h.01"></path>
@@ -201,9 +245,7 @@
     </div>
   </div>
 
-  <button class="submit-button" onclick={handleSubmit}>
-    Submit
-  </button>
+  <button class="submit-button" onclick={handleSubmit}> Submit </button>
 </main>
 
 <style>
@@ -279,7 +321,6 @@
     cursor: pointer;
     transition: all 0.2s ease;
     box-sizing: border-box;
-
   }
 
   .header-button:hover {
@@ -290,7 +331,6 @@
   .header-button:active {
     transform: translateY(0);
   }
-
 
   .settings-section {
     padding: 0 20px;
@@ -306,7 +346,6 @@
     color: #ffffff;
     margin: 0 0 6px 0;
   }
-
 
   .section-header {
     display: flex;
@@ -439,7 +478,7 @@
   }
 
   kbd {
-    background: #3E424B;
+    background: #3e424b;
     border: 1px solid #4b5563;
     border-radius: 0;
     padding: 2px 6px;
@@ -572,7 +611,6 @@
     box-sizing: border-box;
     z-index: 10;
   }
-
 
   .submit-button:hover {
     background: #2563eb;

@@ -4,6 +4,7 @@ import {
   htmlToMarkdown,
   processTextForLLM,
 } from './utils/converters';
+import { storage } from 'wxt/utils/storage';
 
 export type ChatMessage = {
   id: number;
@@ -268,31 +269,35 @@ async function createAISession(pageContext: string): Promise<AILanguageModel> {
 
   // Try Method 1: Global LanguageModel API
   if (typeof LanguageModel !== 'undefined') {
+    const config = {
+      systemPrompt: systemPrompt(2),
+      language: 'en',
+      outputLanguage: 'en',
+      output: { language: 'en' },
+      expectedInputs: [{ type: "image" }],
+      temperature,
+      topK,
+      initialPrompts: [
+        {
+          role: 'system',
+          content: systemPrompt(6),
+        },
+      ],
+    }
     try {
       const availability = await LanguageModel.availability();
       console.log({ availability })
       if (availability === 'readily' || availability === 'available') {
         console.log('##HELIX condition 1 - available');
         // IMPORTANT: working LanguageModel
-        const session = await LanguageModel.create({
-          systemPrompt: systemPrompt(2),
-          language: 'en',
-          outputLanguage: 'en',
-          output: { language: 'en' },
-          expectedInputs: [{ type: "image" }],
-          temperature,
-          topK,
-          initialPrompts: [
-            {
-              role: 'system',
-              content: systemPrompt(6),
-            },
-          ],
-        });
+        const session = await LanguageModel.create(config);
         console.log('##HELIX condition 1 - session', session);
         return session;
       }
       if (availability === 'downloadable') {
+        const session = await LanguageModel.create(config);
+
+
         throw new Error(
           'AI model is downloading. Check progress at chrome://components'
         );
