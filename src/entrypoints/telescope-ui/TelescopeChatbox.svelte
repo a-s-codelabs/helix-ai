@@ -29,7 +29,9 @@
   async function handleMoveToSidePanel() {
     console.log('RightSidePanel clicked - attempting to move to side panel');
 
-    const telescopeState = {
+
+    try {
+      const success = await sidePanelUtils.moveToSidePanel({
       messages,
       isStreaming,
       streamingMessageId,
@@ -39,12 +41,8 @@
       totalResults,
       currentState,
       timestamp: Date.now(),
-    };
-
-    console.log('Telescope state to move:', telescopeState);
-
-    try {
-      const success = await sidePanelUtils.moveToSidePanel(telescopeState);
+      source: 'append',
+    });
       console.log('Move to side panel result:', success);
 
       if (success) {

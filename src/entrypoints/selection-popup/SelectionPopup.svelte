@@ -51,6 +51,9 @@
           inputImageAttached: [],
           searchIndex: 1,
           totalResults: 0,
+          currentState: 'ask',
+          source: 'append',
+          timestamp: Date.now(),
         });
         onClose?.();
         break;
