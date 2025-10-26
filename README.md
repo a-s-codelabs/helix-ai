@@ -5,16 +5,29 @@ A powerful browser extension for AI-powered web interactions with integrated con
 ## Features
 
 ### 🔭 Telescope UI
+
 - AI-powered search and chat interface
 - Context-aware interactions
 
+### ✨ Writer API (NEW)
+
+- **AI-powered content generation** directly in text fields
+- **On-device processing** using Chrome's built-in Gemini Nano
+- **Smart assistance** with customizable tone and length
+- **Privacy-first**: All processing happens locally on your device
+- Works on any textarea or text input across all websites
+
+See [WRITER_API_SETUP.md](WRITER_API_SETUP.md) for setup instructions.
+
 ### 📝 Formatter
+
 - Extract recipes and images from web pages
 - AI-powered content parsing using Claude
 - Organize content into collections
 - Export collections to Markdown
 
 ## Recommended IDE Setup
+
 - [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
 
 ## Getting Started
@@ -34,23 +47,45 @@ This will open the Chrome browser with the extension installed.
 src/
 ├── entrypoints/
 │   ├── background.ts          # Background service worker
-│   ├── content.ts             # Content script
+│   ├── content.ts             # Content script with Writer API integration
 │   ├── popup/                 # Extension popup UI
 │   ├── telescope-ui/          # Telescope AI interface
-│   └── formatter/             # Formatter page (NEW)
+│   ├── writer-popup/          # Writer API UI components (NEW)
+│   │   ├── WriterAssistant.svelte      # Main container
+│   │   ├── FloatingButton.svelte       # AI trigger button
+│   │   ├── WriterPopup.svelte         # Generation dialog
+│   │   └── WriterPopupContainer.svelte # Popup wrapper
+│   └── formatter/             # Formatter page
 │       ├── App.svelte         # Main formatter UI
 │       └── main.ts            # Entry point
 ├── lib/
 │   ├── chatStore.ts           # Chat state management
 │   ├── searchStore.ts         # Search state management
+│   ├── writerApiHelper.ts     # Writer API wrapper (NEW)
+│   ├── writerPopupStore.ts    # Writer state management (NEW)
 │   ├── formatterStorage.ts    # Formatter storage (WXT storage API)
 │   └── formatterUtils.ts      # Formatter utilities
 └── types/
     ├── chrome.d.ts            # Chrome extension types
-    └── formatter.ts           # Formatter types (NEW)
+    ├── writer-api.d.ts        # Writer API types (NEW)
+    └── formatter.ts           # Formatter types
 ```
 
-## Using the Formatter
+## Using the Features
+
+### Writer API
+
+1. Click on any textarea or text input field on any webpage
+2. A floating AI button appears in the top-right corner
+3. Click the button to open the AI Writer dialog
+4. Enter your prompt (what you want to write)
+5. Optionally adjust tone and length
+6. Click "Generate" or press `Cmd/Ctrl + Enter`
+7. Generated content is automatically inserted
+
+**Note**: Requires Chrome 137+ and origin trial token. See [setup guide](WRITER_API_SETUP.md).
+
+### Formatter
 
 1. After installing the extension, right-click and select "Open Helix Formatter" or navigate to the formatter page
 2. Choose between Recipe or Image extraction
@@ -68,11 +103,11 @@ src/
 - `pnpm storybook` - Start Storybook
 
 ## Target Browser
+
 - Chrome 142 version
 
 ## Documentation
 
 Please checkout the below for documentation and todo
+
 - https://www.notion.so/salman2301/Helix-ai-27bbbc672b4880ca97c9d060a80646a0?source=copy_link
-
-
