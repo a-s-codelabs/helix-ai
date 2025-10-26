@@ -4,6 +4,7 @@ import {
   htmlToMarkdown,
   processTextForLLM,
 } from './utils/converters';
+import { storage } from 'wxt/utils/storage';
 
 export type ChatMessage = {
   id: number;
@@ -61,32 +62,32 @@ declare global {
 
   var LanguageModel:
     | {
-        availability(): Promise<
-          'readily' | 'available' | 'no' | 'after-download'
-        >;
-        create(
-          options?: AILanguageModelCreateOptions
-        ): Promise<AILanguageModel>;
-      }
+      availability(): Promise<
+        'readily' | 'available' | 'no' | 'downloadable'
+      >;
+      create(
+        options?: AILanguageModelCreateOptions
+      ): Promise<AILanguageModel>;
+    }
     | undefined;
 
   var Summarizer:
     | {
-        availability(): Promise<'readily' | 'available' | 'unavailable'>;
-        create(options?: {
-          sharedContext?: string;
-          type?: 'key-points' | 'tldr' | 'teaser' | 'headline';
-          format?: 'markdown' | 'plain-text';
-          length?: 'short' | 'medium' | 'long';
-          signal?: AbortSignal;
-          monitor?: (monitor: {
-            addEventListener: (
-              type: string,
-              listener: (e: any) => void
-            ) => void;
-          }) => void;
-        }): Promise<AISummarizer>;
-      }
+      availability(): Promise<'readily' | 'available' | 'unavailable'>;
+      create(options?: {
+        sharedContext?: string;
+        type?: 'key-points' | 'tldr' | 'teaser' | 'headline';
+        format?: 'markdown' | 'plain-text';
+        length?: 'short' | 'medium' | 'long';
+        signal?: AbortSignal;
+        monitor?: (monitor: {
+          addEventListener: (
+            type: string,
+            listener: (e: any) => void
+          ) => void;
+        }) => void;
+      }): Promise<AISummarizer>;
+    }
     | undefined;
 
   type AISummarizer = {
@@ -167,7 +168,13 @@ async function extractPageContent(): Promise<string> {
 
     // Call the functions from script/index.js in the right order
     // 1. Get HTML content
-    const html = document.documentElement.outerHTML;
+    const html = (
+      document.querySelector("article") ||
+      document.querySelector("main") ||
+      document.querySelector("[role=\"main\"]") ||
+      document.querySelector("#main") ||
+      document.documentElement
+    ).outerHTML;
 
     // 2. Clean HTML (remove CSS, scripts, etc.)
     const cleanedHTML = cleanHTML(html);
@@ -179,11 +186,14 @@ async function extractPageContent(): Promise<string> {
     // 4. Process for LLM
     const processedMarkdown = processTextForLLM(markdown);
 
+    const metaDescription = document.querySelector("meta[name=\"description\"]")?.getAttribute?.("content") || "";
     // 5. Add metadata
     const metadata = `# ${document.title || 'Web Page'}
-
+**Title:** ${document.title}
+**Description:** ${metaDescription}
 **URL:** ${window.location.href}
-**Converted:** ${new Date().toISOString()}
+**URL:** ${window.location.href}
+**Date:** ${new Date().toISOString()}
 
 ---
 
@@ -195,13 +205,12 @@ async function extractPageContent(): Promise<string> {
 
     return finalContent.length > maxLength
       ? finalContent.substring(0, maxLength) +
-          '\n\n... [Content truncated for AI context]'
+      '\n\n... [Content truncated for AI context]'
       : finalContent;
   } catch (err) {
     console.error('Error extracting page content:', err);
     return `# ${document.title || 'Web Page'}
 
-**URL:** ${window.location.href}
 
 **Error:** Failed to convert to markdown, using fallback text extraction
 
@@ -235,7 +244,7 @@ async function createAISession(pageContext: string): Promise<AILanguageModel> {
   const topK = 4;
   const systemPrompt = (
     n: number
-  ) => `You are a helpful AI assistant embedded in a browser extension called "Helix". You have access to the current page's content and can answer questions about it. So answer questions based on the page content.
+  ) => `You are a helpful AI assistant embedded in a browser extension called "Helix AI". You have access to the current page's content and can answer questions about it. So answer questions based on the page content.
   Your capabilities:
   • Answer questions about the page content
   • If the question isn't related to the page, provide a brief general answer
@@ -243,7 +252,13 @@ async function createAISession(pageContext: string): Promise<AILanguageModel> {
   ---
   ${pageContext.substring(0, 2000)}
   ---
-  When answering, prioritize information from the page content above.`;
+  When answering, prioritize information from the page content above.
+  
+  
+  Do not do:
+  - Never represent yourself other than as "Helix AI"
+
+  `;
 
   console.log('##HELIX createAISession 1', {
     systemPrompt: systemPrompt(1),
@@ -254,31 +269,35 @@ async function createAISession(pageContext: string): Promise<AILanguageModel> {
 
   // Try Method 1: Global LanguageModel API
   if (typeof LanguageModel !== 'undefined') {
+    const config = {
+      systemPrompt: systemPrompt(2),
+      language: 'en',
+      outputLanguage: 'en',
+      output: { language: 'en' },
+      expectedInputs: [{ type: "image" }],
+      temperature,
+      topK,
+      initialPrompts: [
+        {
+          role: 'system',
+          content: systemPrompt(6),
+        },
+      ],
+    }
     try {
       const availability = await LanguageModel.availability();
+      console.log({ availability })
       if (availability === 'readily' || availability === 'available') {
         console.log('##HELIX condition 1 - available');
         // IMPORTANT: working LanguageModel
-        const session = await LanguageModel.create({
-          systemPrompt: systemPrompt(2),
-          language: 'en',
-          outputLanguage: 'en',
-          output: { language: 'en' },
-          expectedInputs: [ {type:"image" }],
-
-          temperature,
-          topK,
-          initialPrompts: [
-            {
-              role: 'system',
-              content: systemPrompt(6),
-            },
-          ],
-        });
+        const session = await LanguageModel.create(config);
         console.log('##HELIX condition 1 - session', session);
         return session;
       }
-      if (availability === 'after-download') {
+      if (availability === 'downloadable') {
+        const session = await LanguageModel.create(config);
+
+
         throw new Error(
           'AI model is downloading. Check progress at chrome://components'
         );
@@ -288,35 +307,35 @@ async function createAISession(pageContext: string): Promise<AILanguageModel> {
     }
   }
 
-  // Try Method 2: window.ai.languageModel (official Prompt API)
-  if (typeof window.ai !== 'undefined' && window.ai.languageModel) {
-    try {
-      const capabilities = await window.ai.languageModel.capabilities();
-      if (capabilities.available === 'readily') {
-        const optimalTemp = capabilities.defaultTemperature ?? temperature;
-        const optimalTopK = Math.min(
-          capabilities.defaultTopK ?? topK,
-          capabilities.maxTopK ?? topK
-        );
-        console.log('##HELIX condition 2 - available');
-        return await window.ai.languageModel.create({
-          systemPrompt: systemPrompt(3),
-          temperature: optimalTemp,
-          topK: optimalTopK,
-        });
-      }
-      if (capabilities.available === 'after-download') {
-        throw new Error(
-          'AI model is downloading. Check progress at chrome://components'
-        );
-      }
-    } catch (err) {
-      console.error(
-        'window.ai.languageModel failed, trying Summarizer...',
-        err
-      );
-    }
-  }
+  // // Try Method 2: window.ai.languageModel (official Prompt API)
+  // if (typeof window.ai !== 'undefined' && window.ai.languageModel) {
+  //   try {
+  //     const capabilities = await window.ai.languageModel.capabilities();
+  //     if (capabilities.available === 'readily') {
+  //       const optimalTemp = capabilities.defaultTemperature ?? temperature;
+  //       const optimalTopK = Math.min(
+  //         capabilities.defaultTopK ?? topK,
+  //         capabilities.maxTopK ?? topK
+  //       );
+  //       console.log('##HELIX condition 2 - available');
+  //       return await window.ai.languageModel.create({
+  //         systemPrompt: systemPrompt(3),
+  //         temperature: optimalTemp,
+  //         topK: optimalTopK,
+  //       });
+  //     }
+  //     if (capabilities.available === 'after-download') {
+  //       throw new Error(
+  //         'AI model is downloading. Check progress at chrome://components'
+  //       );
+  //     }
+  //   } catch (err) {
+  //     console.error(
+  //       'window.ai.languageModel failed, trying Summarizer...',
+  //       err
+  //     );
+  //   }
+  // }
 
   // Try Method 3: Summarizer API (fallback)
   // if (typeof Summarizer !== 'undefined') {
@@ -365,11 +384,11 @@ async function createAISession(pageContext: string): Promise<AILanguageModel> {
 
   throw new Error(
     'Chrome Built-in AI not available.\n\n' +
-      'Please ensure:\n' +
-      '1. You are using Chrome 138+ (Dev/Canary)\n' +
-      '2. Flags are enabled at chrome://flags\n' +
-      '3. Chrome has been fully restarted\n' +
-      '4. Model is downloaded at chrome://components'
+    'Please ensure:\n' +
+    '1. You are using Chrome 138+ (Dev/Canary/Beta)\n' +
+    '2. Flags are enabled at chrome:flags for Built-in AI\n' +
+    '3. Chrome has been fully restarted\n' +
+    '4. Model is downloaded at chrome://components'
   );
 }
 
@@ -398,7 +417,7 @@ async function checkAPIStatus(): Promise<{
             message: '✅ Chrome AI is ready!',
           };
         }
-        if (availability === 'after-download') {
+        if (availability === 'downloadable') {
           return {
             available: false,
             message: '⏬ Downloading AI model...',
@@ -410,40 +429,40 @@ async function checkAPIStatus(): Promise<{
     }
 
     // Try window.ai
-    if (typeof window.ai !== 'undefined' && window.ai.languageModel) {
-      try {
-        const caps = await window.ai.languageModel.capabilities();
-        if (caps.available === 'readily') {
-          return {
-            available: true,
-            message: '✅ Chrome AI is ready!',
-          };
-        }
-        if (caps.available === 'after-download') {
-          return {
-            available: false,
-            message: '⏬ Downloading AI model...',
-          };
-        }
-      } catch (err) {
-        console.error('window.ai check failed', err);
-      }
-    }
+    // if (typeof window.ai !== 'undefined' && window.ai.languageModel) {
+    //   try {
+    //     const caps = await window.ai.languageModel.capabilities();
+    //     if (caps.available === 'readily') {
+    //       return {
+    //         available: true,
+    //         message: '✅ Chrome AI is ready!',
+    //       };
+    //     }
+    //     if (caps.available === 'after-download') {
+    //       return {
+    //         available: false,
+    //         message: '⏬ Downloading AI model...',
+    //       };
+    //     }
+    //   } catch (err) {
+    //     console.error('window.ai check failed', err);
+    //   }
+    // }
 
     // Try Summarizer
-    if (typeof Summarizer !== 'undefined') {
-      try {
-        const availability = await Summarizer.availability();
-        if (availability === 'readily' || availability === 'available') {
-          return {
-            available: true,
-            message: '⚠️ Summarizer API available (limited)',
-          };
-        }
-      } catch (err) {
-        console.error('Summarizer check failed', err);
-      }
-    }
+    // if (typeof Summarizer !== 'undefined') {
+    //   try {
+    //     const availability = await Summarizer.availability();
+    //     if (availability === 'readily' || availability === 'available') {
+    //       return {
+    //         available: true,
+    //         message: '⚠️ Summarizer API available (limited)',
+    //       };
+    //     }
+    //   } catch (err) {
+    //     console.error('Summarizer check failed', err);
+    //   }
+    // }
 
     return {
       available: false,

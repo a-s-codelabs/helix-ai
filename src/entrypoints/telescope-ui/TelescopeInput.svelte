@@ -9,6 +9,7 @@
   import type { InputProps, State } from "./type";
   import SendIcon from "./icons/Send.svelte";
   import StopIcon from "./icons/Stop.svelte";
+  import { globalStorage } from "@/lib/globalStorage";
 
   let {
     inputState = $bindable("search" as State),
@@ -38,9 +39,10 @@
 
   $effect(() => {
     // Check if we're in a side panel context
-    isInSidePanel = window.location.pathname.includes('sidepanel') ||
-                   window.location.href.includes('sidepanel') ||
-                   document.title.includes('Side Panel');
+    isInSidePanel =
+      window.location.pathname.includes("sidepanel") ||
+      window.location.href.includes("sidepanel") ||
+      document.title.includes("Side Panel");
   });
 
   // Dynamic placeholder based on side panel mode

@@ -7,7 +7,7 @@ import { storage } from 'wxt/utils/storage';
 import type { Collection, Site } from '@/types/formatter';
 import { generateId } from './formatterUtils';
 
-const STORAGE_KEY = 'formatter:collections';
+const STORAGE_KEY = 'local:formatter:collections';
 
 /**
  * Get all collections from storage
