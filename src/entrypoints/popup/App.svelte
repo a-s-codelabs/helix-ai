@@ -139,7 +139,7 @@
         <div class="key-combination">
           <kbd>CTRL</kbd>
           <span class="plus">+</span>
-          <kbd>F</kbd>
+          <kbd>E</kbd>
         </div>
       </div>
       <div class="info-text">

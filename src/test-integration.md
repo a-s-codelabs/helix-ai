@@ -26,14 +26,14 @@ The system automatically detects whether input is a search query or a question b
 ## Testing Instructions
 
 ### Test Chrome Search
-1. Open the extension (Ctrl+F or Cmd+F)
+1. Open the extension (Ctrl+E or Cmd+E)
 2. Type a search term (e.g., "button", "text", "image")
 3. Verify that Chrome's native search highlighting appears
 4. Use up/down arrows to navigate between results
 5. Verify result counter shows correct numbers
 
 ### Test Chrome AI
-1. Open the extension (Ctrl+F or Cmd+F)
+1. Open the extension (Ctrl+E or Cmd+E)
 2. Type a question (e.g., "What is this page about?", "How does this work?")
 3. Click "Ask" button or press Enter
 4. Verify AI response appears in chat format

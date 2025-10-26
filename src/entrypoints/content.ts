@@ -49,8 +49,8 @@ export default defineContentScript({
 
     // Handle keyboard shortcuts
     const handleKeyDown = async (event: KeyboardEvent) => {
-      // Check for Cmd+F (Mac) or Ctrl+F (Windows/Linux)
-      if ((event.metaKey || event.ctrlKey) && event.key === 'f') {
+      // Check for Cmd+E (Mac) or Ctrl+E (Windows/Linux)
+      if ((event.metaKey || event.ctrlKey) && event.key === 'e') {
         event.preventDefault();
 
         if (!isVisible) {

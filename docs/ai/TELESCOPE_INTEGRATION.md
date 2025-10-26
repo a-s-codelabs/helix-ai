@@ -78,7 +78,7 @@ Supports multiple API detection strategies:
 ## Usage
 
 ### User Interaction
-1. Press `Ctrl+F` (Windows/Linux) or `Cmd+F` (Mac) to open Telescope
+1. Press `Ctrl+E` (Windows/Linux) or `Cmd+E` (Mac) to open Telescope
 2. Type a query:
    - **Short query**: Activates search mode
    - **Long query or multiline**: Activates AI mode
