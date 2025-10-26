@@ -89,21 +89,21 @@ declare namespace chrome {
     };
   }
 
-  namespace find {
-    interface FindOptions {
-      text: string;
-      caseSensitive?: boolean;
-      entireWord?: boolean;
-      includeMatches?: boolean;
-      matchDiacritics?: boolean;
-    }
+  // namespace find {
+  //   interface FindOptions {
+  //     text: string;
+  //     caseSensitive?: boolean;
+  //     entireWord?: boolean;
+  //     includeMatches?: boolean;
+  //     matchDiacritics?: boolean;
+  //   }
 
-    interface FindResult {
-      numberOfMatches: number;
-      activeMatchOrdinal: number;
-    }
+    // interface FindResult {
+    //   numberOfMatches: number;
+    //   activeMatchOrdinal: number;
+    // }
 
-    function find(query: FindOptions, callback?: (result: FindResult) => void): void;
+    // function find(query: FindOptions, callback?: (result: FindResult) => void): void;
     function highlightResults(): void;
     function removeHighlighting(): void;
   }
@@ -138,4 +138,4 @@ declare namespace chrome {
 
     function generateText(options: TextGenerationOptions, callback: (result: TextGenerationResult) => void): void;
   }
-}
+

@@ -42,7 +42,7 @@
     ) {
       inputState = "ask";
     } else {
-      inputState = "search";
+      inputState = "ask";
     }
 
 
