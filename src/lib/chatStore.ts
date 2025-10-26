@@ -48,9 +48,11 @@ declare global {
     outputLanguage?: string;
     output?: { language: string };
     initialPrompts?: { role: string; content: string }[];
+    expectedInputs?: { type: string }[];
   };
 
   type AILanguageModel = {
+    append(content: { role: string; content: { type: string; value: any }[] }[]): Promise<void>;
     prompt(input: string): Promise<string>;
     promptStreaming(input: string): ReadableStream<string>;
     destroy(): void;
@@ -262,6 +264,8 @@ async function createAISession(pageContext: string): Promise<AILanguageModel> {
           language: 'en',
           outputLanguage: 'en',
           output: { language: 'en' },
+          expectedInputs: [ {type:"image" }],
+
           temperature,
           topK,
           initialPrompts: [
@@ -315,46 +319,49 @@ async function createAISession(pageContext: string): Promise<AILanguageModel> {
   }
 
   // Try Method 3: Summarizer API (fallback)
-  if (typeof Summarizer !== 'undefined') {
-    try {
-      const availability = await Summarizer.availability();
-      if (availability === 'readily' || availability === 'available') {
-        console.warn(
-          '⚠️ Using Summarizer API - designed for summarization, not chat!'
-        );
-        console.log('##HELIX condition 3 - available');
-        const summarizer = await Summarizer.create({
-          sharedContext: pageContext.substring(0, 1000),
-          type: 'tldr',
-          format: 'plain-text',
-          length: 'medium',
-        });
+  // if (typeof Summarizer !== 'undefined') {
+  //   try {
+  //     const availability = await Summarizer.availability();
+  //     if (availability === 'readily' || availability === 'available') {
+  //       console.warn(
+  //         '⚠️ Using Summarizer API - designed for summarization, not chat!'
+  //       );
+  //       console.log('##HELIX condition 3 - available');
+  //       const summarizer = await Summarizer.create({
+  //         sharedContext: pageContext.substring(0, 1000),
+  //         type: 'tldr',
+  //         format: 'plain-text',
+  //         length: 'medium',
+  //       });
 
-        // Wrap Summarizer to match AILanguageModel interface
-        return {
-          prompt: async (input: string): Promise<string> => {
-            const combinedText = `Page content: ${pageContext.substring(
-              0,
-              800
-            )}\n\nUser question: ${input}\n\nProvide a helpful response based on the page content.`;
-            return await summarizer.summarize(combinedText, {
-              context: 'Answer the user question based on the page content',
-            });
-          },
-          promptStreaming: (input: string): ReadableStream<string> => {
-            const combinedText = `Page content: ${pageContext.substring(
-              0,
-              800
-            )}\n\nUser question: ${input}\n\nProvide a helpful response.`;
-            return summarizer.summarizeStreaming(combinedText);
-          },
-          destroy: () => summarizer.destroy(),
-        };
-      }
-    } catch (err) {
-      console.error('Summarizer failed:', err);
-    }
-  }
+  //       // Wrap Summarizer to match AILanguageModel interface
+  //       return {
+  //         append: async (content: { role: string; content: { type: string; value: any }[] }[]): Promise<void> => {
+  //           return;
+  //         },
+  //         prompt: async (input: string): Promise<string> => {
+  //           const combinedText = `Page content: ${pageContext.substring(
+  //             0,
+  //             800
+  //           )}\n\nUser question: ${input}\n\nProvide a helpful response based on the page content.`;
+  //           return await summarizer.summarize(combinedText, {
+  //             context: 'Answer the user question based on the page content',
+  //           });
+  //         },
+  //         promptStreaming: (input: string): ReadableStream<string> => {
+  //           const combinedText = `Page content: ${pageContext.substring(
+  //             0,
+  //             800
+  //           )}\n\nUser question: ${input}\n\nProvide a helpful response.`;
+  //           return summarizer.summarizeStreaming(combinedText);
+  //         },
+  //         destroy: () => summarizer.destroy(),
+  //       };
+  //     }
+  //   } catch (err) {
+  //     console.error('Summarizer failed:', err);
+  //   }
+  // }
 
   throw new Error(
     'Chrome Built-in AI not available.\n\n' +
@@ -631,34 +638,66 @@ function createChatStore() {
           }
         }
 
-        if (typeof session.promptStreaming !== 'function') {
-          console.warn(
-            'Session does not support streaming. Falling back to regular prompt.'
-          );
-          console.log('##HELIX session 2', session);
-          // Fallback to regular prompt
-          const aiResponse = await session.prompt(userMessage);
+        // if (typeof session.promptStreaming !== 'function') {
+        //   console.warn(
+        //     'Session does not support streaming. Falling back to regular prompt.'
+        //   );
+        //   console.log('##HELIX session 2', session);
+        //   // Fallback to regular prompt
+        //   const aiResponse = await session.prompt(userMessage);
 
-          // Update the streaming message with the complete response
-          update((state) => {
-            const updatedMessages = state.messages.map((msg) => {
-              if (msg.id === assistantMsgId) {
-                return {
-                  ...msg,
-                  content: aiResponse.trim(),
-                };
+        //   // Update the streaming message with the complete response
+        //   update((state) => {
+        //     const updatedMessages = state.messages.map((msg) => {
+        //       if (msg.id === assistantMsgId) {
+        //         return {
+        //           ...msg,
+        //           content: aiResponse.trim(),
+        //         };
+        //       }
+        //       return msg;
+        //     });
+
+        //     return {
+        //       ...state,
+        //       messages: updatedMessages,
+        //       isStreaming: false,
+        //       streamingMessageId: null,
+        //     };
+        //   });
+        //   return;
+        // }
+
+        if (images && images.length > 0 && session) {
+          for await (const image of images) {
+            // Convert base64 image to File before sending to the session
+            function base64ToFile(base64Data: string, filename = "image.png") {
+              const arr = base64Data.split(",");
+              const mimeMatch = arr[0].match(/:(.*?);/);
+              const mime = mimeMatch ? mimeMatch[1] : "image/png";
+              const bstr = atob(arr.length > 1 ? arr[1] : arr[0]);
+              let n = bstr.length;
+              const u8arr = new Uint8Array(n);
+              while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
               }
-              return msg;
-            });
+              return new File([u8arr], filename, { type: mime });
+            }
 
-            return {
-              ...state,
-              messages: updatedMessages,
-              isStreaming: false,
-              streamingMessageId: null,
-            };
-          });
-          return;
+            const file = base64ToFile(
+              image.startsWith("data:") ? image : `data:image/png;base64,${image}`
+            );
+
+            console.log("Appending image!!!!")
+            await session?.append([
+              {
+                role: 'user',
+                content: [
+                  { type: 'image', value: file }
+                ],
+              },
+            ]);
+          };
         }
 
         // Create stream with error handling
