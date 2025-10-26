@@ -53,6 +53,12 @@ export class SecureStreamingMarkdown {
         'tr',
         'th',
         'td',
+        'h1',
+        'h2',
+        'h3',
+        'h4',
+        'h5',
+        'h6',
       ],
       ALLOWED_ATTR: ['href', 'target', 'rel'],
       ALLOWED_URI_REGEXP:
@@ -171,6 +177,14 @@ export function formatBasicMarkdown(text: string): string {
 
   return (
     result
+      // Handle headings (h1-h6) - must be processed before other inline formatting
+      // Match headings at the start of a line (with optional leading whitespace)
+      .replace(/^######\s+(.+)$/gm, '<h6>$1</h6>')
+      .replace(/^#####\s+(.+)$/gm, '<h5>$1</h5>')
+      .replace(/^####\s+(.+)$/gm, '<h4>$1</h4>')
+      .replace(/^###\s+(.+)$/gm, '<h3>$1</h3>')
+      .replace(/^##\s+(.+)$/gm, '<h2>$1</h2>')
+      .replace(/^#\s+(.+)$/gm, '<h1>$1</h1>')
       // Handle markdown links [text](url) - convert to clickable links (must be done BEFORE plain URL detection)
       .replace(
         /\[([^\]]+)\]\(([^)]+)\)/g,
@@ -219,6 +233,12 @@ export function sanitizeHtml(html: string): string {
       'tr',
       'th',
       'td',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'h6',
     ],
     ALLOWED_ATTR: ['href', 'target', 'rel'],
     ALLOWED_URI_REGEXP:
@@ -247,6 +267,12 @@ export function isContentSafe(content: string): boolean {
       'tr',
       'th',
       'td',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'h6',
     ],
     ALLOWED_ATTR: ['href', 'target', 'rel'],
     ALLOWED_URI_REGEXP:
