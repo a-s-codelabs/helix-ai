@@ -2,9 +2,12 @@
 import App from './telescope-ui/App.svelte';
 /*@ts-ignore */
 import SelectionPopupContainer from './selection-popup/SelectionPopupContainer.svelte';
+/*@ts-ignore */
+import WriterAssistant from './writer-popup/WriterAssistant.svelte';
 import { mount, unmount } from 'svelte';
 import { get } from 'svelte/store';
 import { selectionPopupStore } from '../lib/selectionPopupStore';
+import { writerPopupStore } from '../lib/writerPopupStore';
 import type { SelectionAction } from './selection-popup/types';
 
 export default defineContentScript({
@@ -17,6 +20,9 @@ export default defineContentScript({
 
     // Selection popup state
     let selectionPopupUI: any = null;
+
+    // Writer assistant state
+    let writerAssistantUI: any = null;
 
     // Create the UI
     const createUI = async () => {
@@ -94,6 +100,46 @@ export default defineContentScript({
         return selectionPopupUI;
       } catch (error) {
         console.error('Failed to create selection popup UI:', error);
+        throw error;
+      }
+    };
+
+    // Create writer assistant UI
+    const createWriterAssistantUI = async () => {
+      if (writerAssistantUI) return writerAssistantUI;
+
+      try {
+        writerAssistantUI = await createShadowRootUi(ctx, {
+          position: 'inline',
+          name: 'writer-assistant-ui',
+          anchor: 'body',
+          onMount: (container) => {
+            container.style.position = 'fixed';
+            container.style.top = '0';
+            container.style.left = '0';
+            container.style.width = '0';
+            container.style.height = '0';
+            container.style.zIndex = '2147483647';
+            container.style.pointerEvents = 'none';
+
+            const app = mount(WriterAssistant, {
+              target: container,
+            });
+
+            // Enable pointer events for the popup
+            container.style.pointerEvents = 'auto';
+
+            return app;
+          },
+          onRemove: (app) => {
+            unmount(app as any);
+            writerAssistantUI = null;
+          },
+        });
+
+        return writerAssistantUI;
+      } catch (error) {
+        console.error('Failed to create writer assistant UI:', error);
         throw error;
       }
     };
@@ -329,6 +375,113 @@ export default defineContentScript({
         resizeScrollObserver = null;
       }
     });
+    // Writer Assistant - Textarea/Input detection
+    let currentFocusedElement: HTMLTextAreaElement | HTMLInputElement | null =
+      null;
+
+    const isWritableElement = (
+      element: Element | null
+    ): element is HTMLTextAreaElement | HTMLInputElement => {
+      if (!element) return false;
+
+      if (element.tagName === 'TEXTAREA') return true;
+
+      if (element.tagName === 'INPUT') {
+        const input = element as HTMLInputElement;
+        const writableTypes = [
+          'text',
+          'email',
+          'search',
+          'url',
+          'tel',
+          'password',
+        ];
+        return writableTypes.includes(input.type);
+      }
+
+      // Check for contenteditable
+      if ((element as HTMLElement).contentEditable === 'true') {
+        return false; // We'll handle contenteditable separately if needed
+      }
+
+      return false;
+    };
+
+    const showWriterButton = async (
+      element: HTMLTextAreaElement | HTMLInputElement
+    ) => {
+      // Ensure the UI is created
+      if (!writerAssistantUI) {
+        await createWriterAssistantUI();
+        writerAssistantUI.mount();
+      }
+
+      // Get element position
+      const rect = element.getBoundingClientRect();
+
+      // Position the button at the top-right corner of the element
+      const x = rect.right - 20;
+      const y = rect.top + 20;
+
+      // Update state
+      currentFocusedElement = element;
+      writerPopupStore.show(x, y, element);
+    };
+
+    const hideWriterButton = () => {
+      writerPopupStore.hide();
+      currentFocusedElement = null;
+    };
+
+    const handleTextareaFocus = (event: FocusEvent) => {
+      const target = event.target;
+
+      if (isWritableElement(target as Element | null)) {
+        // Small delay to ensure the element is fully focused
+        setTimeout(() => {
+          if (document.activeElement === target) {
+            showWriterButton(target as HTMLTextAreaElement | HTMLInputElement);
+          }
+        }, 100);
+      }
+    };
+
+    const handleTextareaBlur = (event: FocusEvent) => {
+      const target = event.target;
+
+      if (isWritableElement(target as Element | null)) {
+        // Delay to check if we're clicking on the writer button or popup
+        setTimeout(() => {
+          // Check if popup dialog is open - don't hide while user is interacting
+          let isPopupOpen = false;
+          const unsubscribe = writerPopupStore.subscribe((state) => {
+            isPopupOpen = state.popupOpen;
+          });
+          unsubscribe();
+
+          if (!isPopupOpen) {
+            hideWriterButton();
+          }
+        }, 150);
+      }
+    };
+
+    const handleTextareaClick = (event: MouseEvent) => {
+      const target = event.target;
+
+      if (
+        isWritableElement(target as Element) &&
+        target === currentFocusedElement
+      ) {
+        // Element is already focused, just ensure button is visible
+        showWriterButton(target as HTMLTextAreaElement | HTMLInputElement);
+      }
+    };
+
+    // Listen for textarea/input interactions
+    document.addEventListener('focusin', handleTextareaFocus, true);
+    document.addEventListener('focusout', handleTextareaBlur, true);
+    document.addEventListener('click', handleTextareaClick, true);
 
     // Handle keyboard shortcuts
     const handleKeyDown = async (event: KeyboardEvent) => {
@@ -454,6 +607,9 @@ ${document.body.textContent || 'No content available'}`,
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('selectionchange', handleSelectionChange);
       document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('focusin', handleTextareaFocus, true);
+      document.removeEventListener('focusout', handleTextareaBlur, true);
+      document.removeEventListener('click', handleTextareaClick, true);
       chrome.runtime.onMessage.removeListener(handleMessage);
 
       if (ui && isVisible) {
@@ -462,6 +618,10 @@ ${document.body.textContent || 'No content available'}`,
 
       if (selectionPopupUI) {
         selectionPopupUI.remove();
+      }
+
+      if (writerAssistantUI) {
+        writerAssistantUI.remove();
       }
 
       // Clear any pending selection timeout

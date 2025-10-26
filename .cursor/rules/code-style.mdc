@@ -1,0 +1,11 @@
+---
+alwaysApply: false
+---
+
+simple, understandable code is better than clever code
+ok with iterative and declarative style
+use best practice
+when writing fn - create input and output types
+write code that are direct and easy to understand
+
+do only necessary changes
