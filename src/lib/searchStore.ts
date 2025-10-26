@@ -58,54 +58,54 @@ function createSearchStore() {
     },
 
     // Perform search using Chrome's built-in find API
-    search: (query: string) => {
-      if (!query.trim()) {
-        // Clear Chrome highlighting
-        if (chrome?.find) {
-          chrome.find.removeHighlighting();
-        }
-        update((state) => ({
-          ...state,
-          query: '',
-          results: [],
-          currentIndex: 0,
-          totalResults: 0,
-          isSearching: false,
-          isAskMode: false,
-        }));
-        return;
-      }
+    // search: (query: string) => {
+    //   if (!query.trim()) {
+    //     // Clear Chrome highlighting
+    //     if (chrome?.find) {
+    //       chrome.find.removeHighlighting();
+    //     }
+    //     update((state) => ({
+    //       ...state,
+    //       query: '',
+    //       results: [],
+    //       currentIndex: 0,
+    //       totalResults: 0,
+    //       isSearching: false,
+    //       isAskMode: false,
+    //     }));
+    //     return;
+    //   }
 
-      update((state) => ({
-        ...state,
-        isSearching: true,
-        query,
-        isAskMode: false,
-      }));
+    //   update((state) => ({
+    //     ...state,
+    //     isSearching: true,
+    //     query,
+    //     isAskMode: false,
+    //   }));
 
-      // Use Chrome's built-in find API
-      if (chrome?.find) {
-        chrome.find.find(
-          {
-            text: query,
-            caseSensitive: false,
-            entireWord: false,
-            includeMatches: true,
-          },
-          (result: ChromeFindResult) => {
-            update((state) => ({
-              ...state,
-              totalResults: result.numberOfMatches,
-              currentIndex: result.activeMatchOrdinal - 1, // Chrome uses 1-based indexing
-              isSearching: false,
-            }));
-          }
-        );
-      } else {
-        // Fallback to custom search if Chrome API is not available
-        performCustomSearch(query);
-      }
-    },
+    //   // Use Chrome's built-in find API
+    //   // if (chrome?.find) {
+    //   //   chrome.find.find(
+    //   //     {
+    //   //       text: query,
+    //   //       caseSensitive: false,
+    //   //       entireWord: false,
+    //   //       includeMatches: true,
+    //   //     },
+    //   //     (result: ChromeFindResult) => {
+    //   //       update((state) => ({
+    //   //         ...state,
+    //   //         totalResults: result.numberOfMatches,
+    //   //         currentIndex: result.activeMatchOrdinal - 1, // Chrome uses 1-based indexing
+    //   //         isSearching: false,
+    //   //       }));
+    //   //     }
+    //   //   );
+    //   // } else {
+    //   //   // Fallback to custom search if Chrome API is not available
+    //   //   performCustomSearch(query);
+    //   // }
+    // },
 
     // Set ask mode (AI will be handled by chatStore)
     setAskMode: (isAskMode: boolean) => {
@@ -117,57 +117,57 @@ function createSearchStore() {
     },
 
     // Navigate to next result using Chrome's find API
-    next: () => {
-      if (chrome?.find) {
-        chrome.find.find(
-          {
-            text: '', // Empty text to navigate to next
-            caseSensitive: false,
-            entireWord: false,
-            includeMatches: true,
-          },
-          (result: ChromeFindResult) => {
-            update((state) => ({
-              ...state,
-              currentIndex: result.activeMatchOrdinal - 1,
-              totalResults: result.numberOfMatches,
-            }));
-          }
-        );
-      }
-    },
+    // next: () => {
+    //   if (chrome?.find) {
+    //     chrome.find.find(
+    //       {
+    //         text: '', // Empty text to navigate to next
+    //         caseSensitive: false,
+    //         entireWord: false,
+    //         includeMatches: true,
+    //       },
+    //       (result: ChromeFindResult) => {
+    //         update((state) => ({
+    //           ...state,
+    //           currentIndex: result.activeMatchOrdinal - 1,
+    //           totalResults: result.numberOfMatches,
+    //         }));
+    //       }
+    //     );
+    //   }
+    // },
 
     // Navigate to previous result using Chrome's find API
-    previous: () => {
-      if (chrome?.find) {
-        // Chrome doesn't have a direct "previous" method, so we'll use a workaround
-        // by searching again and cycling through results
-        chrome.find.find(
-          {
-            text: '', // Empty text to navigate to previous
-            caseSensitive: false,
-            entireWord: false,
-            includeMatches: true,
-          },
-          (result: ChromeFindResult) => {
-            update((state) => ({
-              ...state,
-              currentIndex: result.activeMatchOrdinal - 1,
-              totalResults: result.numberOfMatches,
-            }));
-          }
-        );
-      }
-    },
+    // previous: () => {
+    //   if (chrome?.find) {
+    //     // Chrome doesn't have a direct "previous" method, so we'll use a workaround
+    //     // by searching again and cycling through results
+    //     chrome.find.find(
+    //       {
+    //         text: '', // Empty text to navigate to previous
+    //         caseSensitive: false,
+    //         entireWord: false,
+    //         includeMatches: true,
+    //       },
+    //       (result: ChromeFindResult) => {
+    //         update((state) => ({
+    //           ...state,
+    //           currentIndex: result.activeMatchOrdinal - 1,
+    //           totalResults: result.numberOfMatches,
+    //         }));
+    //       }
+    //     );
+    //   }
+    // },
 
     // Clear all highlights
-    clearHighlights: () => {
-      if (chrome?.find) {
-        chrome.find.removeHighlighting();
-      } else {
-        clearHighlights();
-      }
-    },
+    // clearHighlights: () => {
+    //   if (chrome?.find) {
+    //     chrome.find.removeHighlighting();
+    //   } else {
+    //     clearHighlights();
+    //   }
+    // },
   };
 
   // Fallback custom search function

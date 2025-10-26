@@ -443,12 +443,14 @@
     border: none;
     color: #9ca3af;
     cursor: pointer;
-    padding: 8px;
+    padding: 6px;
     border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
+    flex-shrink: 0;
+    align-self: center;
   }
   /* .telescope-container.expanded {
     max-width: 800px;
@@ -471,10 +473,11 @@
   .input-bar {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     transition: all 0.3s ease;
     position: relative;
     width: 100%;
+    flex-wrap: nowrap;
     /* min-height: 48px; */
   }
 
@@ -570,14 +573,14 @@
   }
 
   .input-field {
-    flex: 1;
+    flex: 1 1 auto;
     background: transparent;
     border: none;
     outline: none;
     color: #ffffff;
     font-size: 16px;
     font-weight: 500;
-    min-width: 0;
+    min-width: 80px;
     min-height: 24px;
     max-height: 240px;
     line-height: 1.4;
@@ -588,7 +591,6 @@
     padding: 0;
     margin: 0;
     height: 24px;
-    min-width: 200px;
   }
   .input-field.input-expanded {
     width: calc(100% - 24px);
@@ -649,7 +651,8 @@
   .action-icons {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
+    flex-shrink: 0;
   }
 
   .input-bar.input-expanded .action-icons {
@@ -662,12 +665,13 @@
     border: none;
     color: #9ca3af;
     cursor: pointer;
-    padding: 8px;
+    padding: 6px;
     border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
+    flex-shrink: 0;
   }
 
   .icon-button:hover {
@@ -679,12 +683,16 @@
     background: #3b82f6;
     color: white;
     border: none;
-    padding: 8px 16px;
+    padding: 6px 14px;
     border-radius: 8px;
     font-weight: 600;
+    font-size: 14px;
     cursor: pointer;
     transition: all 0.2s ease;
     flex-shrink: 0;
+    white-space: nowrap;
+    height: fit-content;
+    align-self: center;
   }
 
   .input-bar.input-expanded .ask-button {
@@ -702,12 +710,14 @@
     border: none;
     color: #9ca3af;
     cursor: pointer;
-    padding: 8px;
+    padding: 6px;
     border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
+    flex-shrink: 0;
+    align-self: center;
   }
 
   .input-bar.input-expanded .close-button {
