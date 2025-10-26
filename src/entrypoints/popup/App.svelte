@@ -22,6 +22,28 @@
     "Direct Answer", "Summary", "Detailed Explanation"
   ];
 
+  function openTelescopeSidePanel() {
+    // Open the side panel
+    if (typeof chrome !== "undefined" && chrome.sidePanel && chrome.tabs) {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const currentWindowId = tabs[0]?.windowId;
+        if (currentWindowId) {
+          chrome.sidePanel.open({ windowId: currentWindowId })
+            .then(() => {
+              console.log("Side panel opened successfully");
+              // Close the popup after opening side panel
+              window.close();
+            })
+            .catch((error: Error) => {
+              console.error("Error opening side panel:", error);
+            });
+        }
+      });
+    } else {
+      console.error("Side panel API not available");
+    }
+  }
+
   function openTelescopeSearch() {
     // Send message to content script to open telescope
     if (typeof chrome !== "undefined" && chrome.tabs) {
@@ -90,7 +112,7 @@
       <h1>Helix</h1>
       <p class="subtitle">AI search assistant for smarter website queries.</p>
     </div>
-    <button class="header-button" onclick={openTelescopeSearch}>
+    <button class="header-button" onclick={openTelescopeSidePanel}>
       Open Telescope
     </button>
   </div>
