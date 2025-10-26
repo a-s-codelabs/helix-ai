@@ -42,7 +42,7 @@ export default defineBackground(() => {
 
           // Open the side panel first
           if (chrome.sidePanel) {
-            console.log('Background: Opening side panel...');
+            console.log('Background: Opening side panel...', message);
             await chrome.sidePanel.open({
               windowId: sender.tab?.windowId,
             });

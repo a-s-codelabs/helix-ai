@@ -253,8 +253,8 @@ async function createAISession(pageContext: string): Promise<AILanguageModel> {
   ${pageContext.substring(0, 2000)}
   ---
   When answering, prioritize information from the page content above.
-  
-  
+
+
   Do not do:
   - Never represent yourself other than as "Helix AI"
 
@@ -503,6 +503,7 @@ function createChatStore() {
   return {
     subscribe,
 
+
     /**
      * Initialize and check AI availability
      */
@@ -600,6 +601,138 @@ function createChatStore() {
         safeDestroySession(session);
         session = null;
       }
+    },
+
+    async summarise(userMessage: string) {
+      if (!userMessage.trim()) return;
+
+      // Create abort controller for this streaming session
+      const abortController = new AbortController();
+
+      // Add user message
+      const userMsg: ChatMessage = {
+        id: Date.now(),
+        type: 'user',
+        content: userMessage,
+        images: [],
+        timestamp: new Date(),
+      };
+
+      // Create assistant message placeholder for streaming
+      const assistantMsgId = Date.now() + 1;
+      const assistantMsg: ChatMessage = {
+        id: assistantMsgId,
+        type: 'assistant',
+        content: '',
+        timestamp: new Date(),
+      };
+
+      update((state) => ({
+        ...state,
+        messages: [...state.messages, userMsg, assistantMsg],
+        isLoading: false,
+        isStreaming: true,
+        streamingMessageId: assistantMsgId,
+        abortController,
+        error: null,
+        inputValue: ""
+      }));
+
+      if (typeof Summarizer === 'undefined') {
+        throw new Error('Summarizer API not available');
+      }
+
+      const summarizer = await Summarizer.create({
+        sharedContext: userMessage,
+        type: 'tldr',
+        format: 'markdown',
+        length: 'short',
+        monitor(m) {
+          m.addEventListener('downloadprogress', (e) => {
+            console.log(`Downloaded ${e.loaded * 100}%`);
+          });
+        }
+      });
+
+      const stream = summarizer.summarizeStreaming(userMessage, {
+        signal: abortController.signal,
+      });
+
+
+      try {
+        const streamTimeout = setTimeout(() => {
+          console.warn('Stream timeout - falling back to regular prompt');
+          throw new Error('Stream timeout');
+        }, 30000); // 30 second timeout
+
+        let hasReceivedChunks = false;
+        let chunkCount = 0;
+
+        // Wrap the stream iteration in a try-catch to handle Chrome AI specific errors
+        try {
+          for await (const chunk of stream) {
+            // Check if streaming was aborted
+            if (abortController.signal.aborted) {
+              break;
+            }
+
+            clearTimeout(streamTimeout);
+            hasReceivedChunks = true;
+            chunkCount++;
+
+            if (chunk && typeof chunk === 'string') {
+              update((state) => {
+                const updatedMessages = state.messages.map((msg) => {
+                  if (msg.id === assistantMsgId) {
+                    return {
+                      ...msg,
+                      content: msg.content + chunk,
+                    };
+                  }
+                  return msg;
+                });
+
+                return {
+                  ...state,
+                  messages: updatedMessages,
+                };
+              });
+            }
+          }
+        } catch (iterationError) {
+          console.error('Error during stream iteration:', iterationError);
+          // If we got some chunks before the error, continue with what we have
+          if (hasReceivedChunks) {
+            console.log(
+              `Stream failed after ${chunkCount} chunks, but we have content`
+            );
+          } else {
+            throw iterationError;
+          }
+        }
+
+        clearTimeout(streamTimeout);
+
+        // If no chunks were received, this might indicate an issue
+        if (!hasReceivedChunks) {
+          console.warn(
+            'No chunks received from stream - falling back to regular prompt'
+          );
+          throw new Error('No chunks received from stream');
+        }
+      } catch (streamError) {
+        console.error('Error processing stream chunks:', streamError);
+        console.error('Stream error details:', getErrorDetails(streamError));
+        throw streamError;
+      }
+
+      // Mark streaming as complete
+      update((state) => ({
+        ...state,
+        isStreaming: false,
+        streamingMessageId: null,
+        abortController: null,
+      }));
     },
 
     /**

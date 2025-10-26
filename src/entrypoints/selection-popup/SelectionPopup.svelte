@@ -4,6 +4,8 @@
   import Summarise from '../telescope-ui/icons/Summarise.svelte';
   import Translate from '../telescope-ui/icons/Translate.svelte';
   import AddToChat from '../telescope-ui/icons/AddToChat.svelte';
+  import { sidePanelUtils } from '../../lib/sidePanelStore';
+
   interface Props {
     x: number;
     y: number;
@@ -19,7 +21,45 @@
     { id: 'translate', icon: Translate, label: 'Translate' },
   ];
 
-  function handleAction(action: SelectionAction) {
+  // Helper to grab selected text from the document
+  function getSelectedText(): string {
+    return (window.getSelection?.() || document.getSelection?.())?.toString() || '';
+  }
+
+  async function handleAction(action: SelectionAction) {
+    const selectedText = getSelectedText();
+
+    switch (action) {
+      case 'addToChat':
+        onAction(action);
+        onClose?.();
+        break;
+      case 'summarise': {
+        const success = await sidePanelUtils.moveToSidePanel({
+          messages: [
+            {
+              id: Date.now(),
+              type: 'user',
+              content: selectedText,
+              timestamp: new Date(),
+            },
+          ],
+          isStreaming: false,
+          streamingMessageId: null,
+          inputValue: "",
+          inputImageAttached: [],
+          searchIndex: 1,
+          totalResults: 0,
+        });
+        onClose?.();
+        break;
+      }
+      case 'translate':
+        onAction(action);
+        onClose?.();
+        break;
+    }
+  }
     onAction(action);
     onClose?.();
   }
