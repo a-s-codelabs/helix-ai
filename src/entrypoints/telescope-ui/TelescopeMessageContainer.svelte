@@ -457,15 +457,114 @@
     color: #b3d4f7;
   }
 
+  /* Code styling */
+  :global(.message code) {
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    color: #f0f0f0;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  :global(.message pre) {
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 12px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 8px 0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  :global(.message pre code) {
+    background-color: transparent;
+    padding: 0;
+    border-radius: 0;
+    font-size: 12px;
+    line-height: 1.5;
+    display: block;
+    white-space: pre;
+    word-break: normal;
+  }
+
+  /* User message code styling */
+  :global(.user-message code) {
+    background-color: rgba(0, 0, 0, 0.2);
+    color: #ffffff;
+  }
+
+  :global(.user-message pre) {
+    background-color: rgba(0, 0, 0, 0.4);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
+  /* Heading styling */
+  :global(.message h1),
+  :global(.message h2),
+  :global(.message h3),
+  :global(.message h4),
+  :global(.message h5),
+  :global(.message h6) {
+    margin: 0 0 4px 0;
+    font-weight: 600;
+    line-height: 1.3;
+    color: #fff;
+  }
+
+  /* Add small spacing between multiple headings/blocks */
+  :global(.message h1:not(:first-child)),
+  :global(.message h2:not(:first-child)),
+  :global(.message h3:not(:first-child)),
+  :global(.message h4:not(:first-child)),
+  :global(.message h5:not(:first-child)),
+  :global(.message h6:not(:first-child)) {
+    margin-top: 12px;
+  }
+
+  :global(.message h1) {
+    font-size: 20px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    padding-bottom: 4px;
+  }
+
+  :global(.message h2) {
+    font-size: 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    padding-bottom: 3px;
+  }
+
+  :global(.message h3) {
+    font-size: 16px;
+  }
+
+  :global(.message h4) {
+    font-size: 15px;
+  }
+
+  :global(.message h5) {
+    font-size: 14px;
+  }
+
+  :global(.message h6) {
+    font-size: 13px;
+    color: #e0e0e0;
+  }
+
   /* Table styling */
   :global(.message table) {
     border-collapse: collapse;
     width: 100%;
-    margin: 8px 0;
+    margin: 0 0 8px 0;
     font-size: 13px;
     background-color: rgba(255, 255, 255, 0.05);
     border-radius: 8px;
     overflow: hidden;
+  }
+
+  :global(.message table:not(:first-child)) {
+    margin-top: 8px;
   }
 
   :global(.message th) {
@@ -507,6 +606,57 @@
 
   :global(.user-message tbody tr:hover) {
     background-color: rgba(0, 0, 0, 0.2);
+  }
+
+  /* List styling */
+  :global(.message ul),
+  :global(.message ol) {
+    margin: 0 0 8px 0;
+    padding-left: 20px;
+    color: #e0e0e0;
+  }
+
+  :global(.message ul:not(:first-child)),
+  :global(.message ol:not(:first-child)) {
+    margin-top: 8px;
+  }
+
+  :global(.message li) {
+    margin: 2px 0;
+    line-height: 1.5;
+  }
+
+  /* User message list styling */
+  :global(.user-message ul),
+  :global(.user-message ol) {
+    color: #fff;
+  }
+
+  /* Blockquote styling */
+  :global(.message blockquote) {
+    margin: 0 0 8px 0;
+    padding: 8px 12px;
+    border-left: 4px solid rgba(255, 255, 255, 0.3);
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    font-style: italic;
+    color: #e0e0e0;
+  }
+
+  :global(.message blockquote:not(:first-child)) {
+    margin-top: 8px;
+  }
+
+  :global(.message blockquote p) {
+    margin: 0;
+    display: block;
+  }
+
+  /* User message blockquote styling */
+  :global(.user-message blockquote) {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-left-color: rgba(255, 255, 255, 0.4);
+    color: #fff;
   }
 
   .streaming-cursor {
