@@ -194,19 +194,13 @@
   let dragOffset = $state({ x: 0, y: 0 });
   let telescopeContainer = $state<HTMLElement | undefined>(undefined);
 
-  function handleMouseDown(event: MouseEvent) {
+  function handleDragStart(event: MouseEvent) {
     if (telescopeContainer) {
-      const target = event.target as HTMLElement;
-      const isClickableElement = target.closest(
-        'button, input, textarea, [role="button"]'
-      );
-      if (!isClickableElement) {
-        isDragging = true;
-        const rect = telescopeContainer.getBoundingClientRect();
-        dragOffset.x = event.clientX - rect.left;
-        dragOffset.y = event.clientY - rect.top;
-        telescopeContainer.style.cursor = 'grabbing';
-      }
+      isDragging = true;
+      const rect = telescopeContainer.getBoundingClientRect();
+      dragOffset.x = event.clientX - rect.left;
+      dragOffset.y = event.clientY - rect.top;
+      event.preventDefault(); // Prevent text selection while dragging
     }
   }
 
@@ -236,9 +230,6 @@
   function handleMouseUp() {
     if (isDragging) {
       isDragging = false;
-      if (telescopeContainer) {
-        telescopeContainer.style.cursor = 'grab';
-      }
     }
   }
 
@@ -250,12 +241,10 @@
         telescopeContainer.style.transform = 'translateX(-50%)';
       }
 
-      document.addEventListener('mousedown', handleMouseDown);
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
 
       return () => {
-        document.removeEventListener('mousedown', handleMouseDown);
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
       };
@@ -284,6 +273,7 @@
       onSearchNavigation={handleSearchNavigation}
       onClose={handleClose}
       onStop={handleStop}
+      onDragStart={handleDragStart}
     />
   </div>
 {/if}
@@ -303,14 +293,9 @@
     top: 20px;
     left: 50%;
     transform: translateX(-50%);
-    cursor: grab;
     z-index: 100000;
     margin: 0;
     border-radius: 12px;
-  }
-
-  .telescope-container.draggable:active {
-    cursor: grabbing;
   }
 
   /* Side panel mode styling */

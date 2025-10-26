@@ -19,6 +19,7 @@
     searchIndex = 1,
     totalResults = 0,
     currentState = 'ask',
+    onDragStart,
   }: ChatboxProps = $props();
 
   // Check if we're in side panel mode
@@ -95,6 +96,13 @@
       document.title.includes('Side Panel');
   });
 
+  function handleDragKeyDown(event: KeyboardEvent) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      // Keyboard users can't drag, so we just acknowledge the interaction
+      event.preventDefault();
+    }
+  }
+
   // $effect(() => {
   //   if (isInSidePanel) handleMoveToSidePanel()
   // });
@@ -141,6 +149,19 @@
     </div>
   {/if}
   <div class="input">{@render input()}</div>
+  {#if !isInSidePanel}
+    <div
+      class="drag-handle"
+      data-drag-handle
+      onmousedown={onDragStart}
+      onkeydown={handleDragKeyDown}
+      role="button"
+      tabindex="0"
+      aria-label="Drag to reposition"
+    >
+      <div class="drag-indicator"></div>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -354,5 +375,45 @@
       padding: 12px 0px 0px 0px;
       gap: 4px;
     }
+  }
+
+  /* Drag handle styles */
+  .drag-handle {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 8px;
+    cursor: grab;
+    user-select: none;
+    transition: background-color 0.2s ease;
+    outline: none;
+    border-radius: 8px;
+  }
+
+  .drag-handle:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+
+  .drag-handle:active {
+    cursor: grabbing;
+  }
+
+  .drag-handle:focus {
+    background-color: rgba(255, 255, 255, 0.08);
+    outline: 2px solid rgba(255, 255, 255, 0.3);
+    outline-offset: 2px;
+  }
+
+  .drag-indicator {
+    width: 40px;
+    height: 4px;
+    background-color: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+    transition: background-color 0.2s ease;
+  }
+
+  .drag-handle:hover .drag-indicator,
+  .drag-handle:focus .drag-indicator {
+    background-color: rgba(255, 255, 255, 0.5);
   }
 </style>

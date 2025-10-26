@@ -34,6 +34,7 @@ export type InputProps = {
   isStreaming?: boolean;
   streamingMessageId?: number | null;
   onStop?: () => void;
+  onDragStart?: (event: MouseEvent) => void;
 };
 
 export type Message = {
@@ -58,4 +59,5 @@ export type ChatboxProps = {
   searchIndex?: number;
   totalResults?: number;
   currentState?: State;
+  onDragStart?: (event: MouseEvent) => void;
 };

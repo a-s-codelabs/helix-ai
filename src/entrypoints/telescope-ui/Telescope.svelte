@@ -27,6 +27,7 @@
     isStreaming = false,
     streamingMessageId = null,
     onStop,
+    onDragStart,
   }: InputProps = $props();
 
   $effect(() => {
@@ -66,6 +67,7 @@
   {searchIndex}
   {totalResults}
   currentState={inputState}
+  {onDragStart}
 >
   {#snippet input()}
     <TelescopeInput
