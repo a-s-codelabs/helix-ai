@@ -1,5 +1,4 @@
 <script lang="ts">
-  import Counter from "../../lib/Counter.svelte";
   import { onMount, onDestroy } from 'svelte';
 
   // State management
@@ -67,13 +66,6 @@
           window.close();
         }
       });
-    }
-  }
-
-  function openTelescopeDemo() {
-    // Open the telescope UI demo page
-    if (typeof chrome !== "undefined" && chrome.tabs) {
-      chrome.tabs.create({ url: chrome.runtime.getURL("telescope-ui.html") });
     }
   }
 
