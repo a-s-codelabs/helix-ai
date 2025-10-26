@@ -9,7 +9,8 @@ export interface TelescopeState {
   inputImageAttached: string[];
   searchIndex: number;
   totalResults: number;
-  currentState: 'ask' | 'search' | 'chat';
+  currentState: 'ask' | 'chat';
+  source: 'append' | 'move';
   timestamp: number;
 }
 

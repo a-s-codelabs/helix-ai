@@ -4,7 +4,6 @@ import App from './telescope-ui/App.svelte';
 import SelectionPopupContainer from './selection-popup/SelectionPopupContainer.svelte';
 import { mount, unmount } from 'svelte';
 import { get } from 'svelte/store';
-import { searchStore } from '../lib/searchStore';
 import { selectionPopupStore } from '../lib/selectionPopupStore';
 import type { SelectionAction } from './selection-popup/types';
 
@@ -340,10 +339,8 @@ export default defineContentScript({
         if (!isVisible) {
           await createUI();
           ui.mount();
-          searchStore.show();
           isVisible = true;
         } else {
-          searchStore.hide();
           ui.remove();
           isVisible = false;
         }
@@ -351,7 +348,6 @@ export default defineContentScript({
 
       // Handle Escape key
       if (event.key === 'Escape' && isVisible) {
-        searchStore.hide();
         ui.remove();
         isVisible = false;
       }
@@ -367,7 +363,6 @@ export default defineContentScript({
           try {
             // If already visible, hide it first, then show it again
             if (isVisible) {
-              searchStore.hide();
               ui.remove();
               isVisible = false;
             }
@@ -383,7 +378,6 @@ export default defineContentScript({
 
             await createUI();
             ui.mount();
-            searchStore.show();
             isVisible = true;
           } catch (error) {
             console.error('Failed to open telescope:', error);
@@ -463,7 +457,6 @@ ${document.body.textContent || 'No content available'}`,
       chrome.runtime.onMessage.removeListener(handleMessage);
 
       if (ui && isVisible) {
-        searchStore.hide();
         ui.remove();
       }
 

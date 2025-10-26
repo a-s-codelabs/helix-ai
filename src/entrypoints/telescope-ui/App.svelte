@@ -1,6 +1,5 @@
 <script lang="ts">
   import Telescope from './Telescope.svelte';
-  import { searchStore } from '../../lib/searchStore';
   import { chatStore } from '../../lib/chatStore';
   import { sidePanelUtils, sidePanelStore } from '../../lib/sidePanelStore';
   import type { Direction, State, Message } from './type';
@@ -17,33 +16,12 @@
   let streamingMessageId = $state<number | null>(null);
   let source = $state<'append' | 'move'>('append');
 
-
-
-  // Subscribe to search store
-  $effect(() => {
-    const unsubscribe = searchStore.subscribe((state) => {
-      isVisible = state.isVisible;
-      if (state.isVisible) {
-        searchIndex = state.currentIndex + 1;
-        totalResults = state.totalResults;
-        inputValue = state.query;
-        // Ensure the input is ready for user interaction
-        currentState = 'search';
-      }
-    });
-    return unsubscribe;
-  });
-
   // Subscribe to chat store
   $effect(() => {
     const unsubscribe = chatStore.subscribe((state) => {
       messages = state.messages;
       isStreaming = state.isStreaming;
       streamingMessageId = state.streamingMessageId;
-      // Update search store when we have messages
-      if (state.messages.length > 0) {
-        searchStore.setAskMode(true);
-      }
     });
     return unsubscribe;
   });
@@ -121,7 +99,7 @@
       updateStateFromStorage();
 
       // Listen for Chrome storage changes
-      const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
+      const handleStorageChange = (changes: { [key: string]: any }, areaName: string) => {
         if (areaName === 'local' && changes.telescopeState) {
           console.log('App: Storage changed, updating state');
           updateStateFromStorage();
@@ -130,11 +108,11 @@
 
       // Add the storage change listener
       if (typeof chrome !== 'undefined' && chrome.storage) {
-        chrome.storage.onChanged.addListener(handleStorageChange);
+        (chrome.storage as any).onChanged.addListener(handleStorageChange);
 
         // Cleanup function
         return () => {
-          chrome.storage.onChanged.removeListener(handleStorageChange);
+          (chrome.storage as any).onChanged.removeListener(handleStorageChange);
         };
       }
     }
@@ -146,44 +124,11 @@
 
   function handleInput({ value }: { value: string }) {
     inputValue = value;
-    // Determine if this is a search or ask based on content
-    const isQuestion =
-      value.includes('?') ||
-      value.toLowerCase().startsWith('what') ||
-      value.toLowerCase().startsWith('how') ||
-      value.toLowerCase().startsWith('why') ||
-      value.toLowerCase().startsWith('when') ||
-      value.toLowerCase().startsWith('where') ||
-      value.toLowerCase().startsWith('who') ||
-      value.toLowerCase().startsWith('explain') ||
-      value.toLowerCase().startsWith('tell me') ||
-      value.toLowerCase().startsWith('can you');
-
-    if (isQuestion) {
-      currentState = 'ask';
-    } else {
-      currentState = 'search';
-      // Perform search as user types
-      // searchStore.search(inputValue);
-    }
   }
 
   function handleAsk({ value, images }: { value: string; images?: string[] }) {
     if (value.trim()) {
-      // Switch to ask mode
-      searchStore.setAskMode(true);
-      // chatStore.summarise(value);
-      // Use Chrome's AI capabilities via chatStore with streaming
        chatStore.sendMessageStreaming(value, images);
-      // Note: inputValue reset is handled by TelescopeInput.svelte resetInput() function
-    }
-  }
-
-  function handleSearchNavigation({ direction }: { direction: Direction }) {
-    if (direction === 'up') {
-      searchStore.previous();
-    } else if (direction === 'down') {
-      searchStore.next();
     }
   }
 
@@ -200,18 +145,11 @@
     console.log('Attachment clicked');
   }
 
-  function handleClear() {
-    // Note: inputValue reset is handled by TelescopeInput.svelte resetInput() function
-    searchStore.clearHighlights();
-  }
-
   function handleClearChat() {
     chatStore.clear();
   }
 
   function handleClose() {
-    searchStore.hide();
-    searchStore.setAskMode(false);
     chatStore.clear();
   }
 
@@ -307,9 +245,7 @@
       onAsk={handleAsk}
       onVoiceInput={handleVoiceInput}
       onAttachment={handleAttachment}
-      onClear={handleClear}
       onSuggestedQuestion={handleSuggestedQuestion}
-      onSearchNavigation={handleSearchNavigation}
       onClose={handleClose}
       onStop={handleStop}
       onDragStart={handleDragStart}

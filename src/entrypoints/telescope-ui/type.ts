@@ -1,4 +1,4 @@
-export const StateValues = ['ask', 'search', 'chat'] as const;
+export const StateValues = ['ask', 'chat'] as const;
 export const DirectionValues = ['up', 'down'] as const;
 
 export type State = (typeof StateValues)[number];

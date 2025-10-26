@@ -12,7 +12,7 @@
   import { globalStorage } from "@/lib/globalStorage";
 
   let {
-    inputState = $bindable("search" as State),
+    inputState = $bindable("ask" as State),
     inputValue = $bindable(""),
     placeholder = "Summarize this site...",
     searchIndex = 0,
@@ -29,7 +29,6 @@
     onAttachment,
     onClear,
     onSuggestedQuestion,
-    onSearchNavigation,
     onClose,
     onStop,
   }: InputProps = $props();
@@ -73,26 +72,18 @@
     const target = event.target as HTMLTextAreaElement;
     inputValue = target.value;
     onInput?.({ value: inputValue });
-
-    // if (inputValue.includes("\n") || inputImageAttached.length > 0) {
-    //   onStateChange?.({ state: "ask" });
-    // } else {
-    //   onStateChange?.({ state: "search" });
-    // }
   }
 
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       onAsk?.({ value: inputValue, images: inputImageAttached });
-      // Reset input after submission
       resetInput();
     }
   }
 
   function handleAsk() {
     onAsk?.({ value: inputValue, images: inputImageAttached });
-    // Reset input after submission
     resetInput();
   }
 
@@ -130,7 +121,7 @@
   }
 
   function handleClose() {
-    onStateChange?.({ state: "search" });
+    onStateChange?.({ state: "ask" });
     resetInput();
     onClear?.();
     onClose?.();
@@ -138,10 +129,6 @@
 
   function handleImageClose(image: string, idx: number) {
     inputImageAttached = inputImageAttached.filter((_, i) => i !== idx);
-  }
-
-  function handleSearchNavigation(direction: "up" | "down") {
-    onSearchNavigation?.({ direction, currentIndex: searchIndex });
   }
 
   function handleStop() {
@@ -193,11 +180,7 @@
     >
       {#if !isInputExpanded}
         <div class="icon search-icon">
-          {#if inputState === "search"}
-            <SearchIcon />
-          {:else}
-            <SearchAiIcon />
-          {/if}
+          <SearchAiIcon />
         </div>
       {/if}
       <!-- svelte-ignore a11y_autofocus -->
@@ -214,28 +197,6 @@
         style="resize: none;"
         autofocus
       ></textarea>
-
-      {#if inputState === "search" && !isInputExpanded}
-        <div class="search-navigation">
-          <span class="search-counter">{searchIndex}/{totalResults}</span>
-          <button
-            class="nav-button"
-            onclick={() => handleSearchNavigation("up")}
-            disabled={searchIndex <= 1}
-            aria-label="Previous result"
-          >
-            <UpIcon />
-          </button>
-          <button
-            class="nav-button"
-            onclick={() => handleSearchNavigation("down")}
-            disabled={searchIndex >= totalResults}
-            aria-label="Next result"
-          >
-            <DownIcon />
-          </button>
-        </div>
-      {/if}
 
       {#if !isInputExpanded}
         <div class="separator"></div>
@@ -291,11 +252,7 @@
       {#if isInputExpanded}
         <div class="expand-bar">
           <div class="icon search-icon">
-            {#if inputState === "search"}
-              <SearchIcon />
-            {:else}
-              <SearchAiIcon />
-            {/if}
+            <SearchAiIcon />
           </div>
           <div class="expand-bar-content">
             <div class="action-icons">
@@ -598,42 +555,6 @@
 
   .input-field::placeholder {
     color: #9ca3af;
-  }
-
-  .search-navigation {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: #9ca3af;
-    font-size: 14px;
-  }
-
-  .search-counter {
-    font-size: 14px;
-    color: #d1d5db;
-  }
-
-  .nav-button {
-    background: none;
-    border: none;
-    color: #9ca3af;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-  }
-
-  .nav-button:hover:not(:disabled) {
-    background: #404040;
-    color: #d1d5db;
-  }
-
-  .nav-button:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
   }
 
   .separator {
