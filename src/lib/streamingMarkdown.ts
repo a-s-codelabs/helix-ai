@@ -59,6 +59,9 @@ export class SecureStreamingMarkdown {
         'h4',
         'h5',
         'h6',
+        'ul',
+        'ol',
+        'li',
       ],
       ALLOWED_ATTR: ['href', 'target', 'rel'],
       ALLOWED_URI_REGEXP:
@@ -121,7 +124,7 @@ export class SecureStreamingMarkdown {
 
 /**
  * Simple markdown formatter for basic text formatting
- * Handles bold (**text**), italic (*text*), links [text](url), plain URLs, tables, code blocks, and line breaks
+ * Handles bold (**text**), italic (*text*), links [text](url), plain URLs, tables, code blocks, ordered/unordered lists, and line breaks
  */
 export function formatBasicMarkdown(text: string): string {
   // First, extract and convert tables to HTML
@@ -174,6 +177,28 @@ export function formatBasicMarkdown(text: string): string {
       return tableHtml;
     }
   );
+
+  // Handle ordered lists (1. item, 2. item, etc.)
+  // Match consecutive lines starting with number, period, and space
+  result = result.replace(/^(\d+\.\s+.+(?:\n\d+\.\s+.+)*)/gm, (match) => {
+    const items = match
+      .split('\n')
+      .map((line) => line.replace(/^\d+\.\s+/, '').trim())
+      .filter((item) => item.length > 0);
+    const listItems = items.map((item) => `<li>${item}</li>`).join('');
+    return `<ol>${listItems}</ol>`;
+  });
+
+  // Handle unordered lists (-, *, or + followed by space)
+  // Match consecutive lines starting with -, *, or +
+  result = result.replace(/^([*\-+]\s+.+(?:\n[*\-+]\s+.+)*)/gm, (match) => {
+    const items = match
+      .split('\n')
+      .map((line) => line.replace(/^[*\-+]\s+/, '').trim())
+      .filter((item) => item.length > 0);
+    const listItems = items.map((item) => `<li>${item}</li>`).join('');
+    return `<ul>${listItems}</ul>`;
+  });
 
   return (
     result
@@ -266,6 +291,9 @@ export function sanitizeHtml(html: string): string {
       'h4',
       'h5',
       'h6',
+      'ul',
+      'ol',
+      'li',
     ],
     ALLOWED_ATTR: ['href', 'target', 'rel'],
     ALLOWED_URI_REGEXP:
@@ -300,6 +328,9 @@ export function isContentSafe(content: string): boolean {
       'h4',
       'h5',
       'h6',
+      'ul',
+      'ol',
+      'li',
     ],
     ALLOWED_ATTR: ['href', 'target', 'rel'],
     ALLOWED_URI_REGEXP:
