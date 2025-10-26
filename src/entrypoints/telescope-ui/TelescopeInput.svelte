@@ -13,7 +13,7 @@
   let {
     inputState = $bindable("search" as State),
     inputValue = $bindable(""),
-    placeholder = "Find or ask...",
+    placeholder = "Summarize this site...",
     searchIndex = 0,
     totalResults = 0,
     isExpanded = false,
