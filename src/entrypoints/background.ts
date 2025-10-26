@@ -32,6 +32,67 @@ export default defineBackground(() => {
       return true; // Async response
     }
 
+
+
+    // Handle side panel messages
+    if (message.type === 'APPEND_TO_SIDE_PANEL') {
+      console.log('Background: Received APPEND_TO_SIDE_PANEL message:', message);
+
+      (async () => {
+        try {
+          console.log('Background: Starting side panel operations...');
+
+          // Open the side panel first
+          if (chrome.sidePanel) {
+            console.log('Background: Opening side panel...', message);
+            await chrome.sidePanel.open({
+              windowId: sender.tab?.windowId,
+            });
+            console.log('Background: Side panel opened successfully');
+          } else {
+            console.error('Background: chrome.sidePanel not available');
+            sendResponse({
+              success: false,
+              error: 'Side panel API not available',
+            });
+            return;
+          }
+
+          // Store the current state in a shared location
+          if (message.state && chrome.storage) {
+            console.log('Background: Storing telescope state...');
+            chrome.storage.local.set(
+              {
+                telescopeState: {
+                  messages: message.state.messages || [],
+                  isStreaming: message.state.isStreaming || false,
+                  streamingMessageId: message.state.streamingMessageId || null,
+                  inputValue: message.state.inputValue || '',
+                  inputImageAttached: message.state.inputImageAttached || [],
+                  searchIndex: message.state.searchIndex || 1,
+                  totalResults: message.state.totalResults || 0,
+                  currentState: message.state.currentState || 'ask',
+                  timestamp: Date.now(),
+                  source: "append"
+                },
+              },
+              () => {
+                console.log('Background: Telescope state stored successfully');
+              }
+            );
+          }
+
+          console.log('Background: Sending success response...');
+          sendResponse({ success: true });
+        } catch (error) {
+          console.error('Background: Error in MOVE_TO_SIDE_PANEL:', error);
+          sendResponse({ success: false, error: (error as Error).message });
+        }
+      })();
+
+      return true; // Keep the message channel open for async response
+    }
+
     // Handle side panel messages
     if (message.type === 'MOVE_TO_SIDE_PANEL') {
       console.log('Background: Received MOVE_TO_SIDE_PANEL message:', message);
@@ -71,6 +132,7 @@ export default defineBackground(() => {
                   totalResults: message.state.totalResults || 0,
                   currentState: message.state.currentState || 'ask',
                   timestamp: Date.now(),
+                  source: "move"
                 },
               },
               () => {

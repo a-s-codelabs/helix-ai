@@ -19,5 +19,5 @@
 </script>
 
 {#if state.visible}
-  <SelectionPopup x={state.x} y={state.y} onAction={handleAction} {onClose} />
+  <SelectionPopup x={state.x} y={state.y} isAtTop={state.isAtTop} onAction={handleAction} {onClose} />
 {/if}

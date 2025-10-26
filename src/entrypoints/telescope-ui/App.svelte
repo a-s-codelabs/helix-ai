@@ -15,6 +15,9 @@
   let messages: Message[] = $state([]);
   let isStreaming = $state(false);
   let streamingMessageId = $state<number | null>(null);
+  let source = $state<'append' | 'move'>('append');
+
+
 
   // Subscribe to search store
   $effect(() => {
@@ -96,8 +99,6 @@
         if (storedState) {
           console.log('App: Updating state from storage:', storedState);
 
-          // Check if there are new messages (more than current messages)
-          const hasNewMessages = storedState.messages.length > messages.length;
 
           // Update local state
           messages = storedState.messages;
@@ -108,21 +109,10 @@
           searchIndex = storedState.searchIndex;
           totalResults = storedState.totalResults;
           currentState = storedState.currentState;
-
-          // Update stores with restored state
-          chatStore.setMessages(messages);
-          if (messages.length > 0) {
-            searchStore.setAskMode(true);
-          }
-
-          // If there are new messages and we're not already streaming, trigger summarization
-          if (hasNewMessages && !isStreaming && messages.length > 0) {
-            const lastUserMessage = messages.filter(msg => msg.type === 'user').pop();
-            if (lastUserMessage) {
-              console.log('App: New message detected, triggering summarization:', lastUserMessage.content);
-              // Trigger summarization for the latest user message
-              chatStore.summarise(lastUserMessage.content);
-            }
+          source = storedState.source
+          const lastUserMessage = messages.filter(msg => msg.type === 'user').pop();
+          if (lastUserMessage) {
+            chatStore.summarise(lastUserMessage.content);
           }
         }
       };
@@ -290,8 +280,13 @@
       };
     }
   });
+
+  function handleMessage(event: MessageEvent) {
+    console.log({ event })
+  }
 </script>
 
+<svelte:window on:message={handleMessage} />
 {#if isVisible || isInSidePanel}
   <div
     class="telescope-container"

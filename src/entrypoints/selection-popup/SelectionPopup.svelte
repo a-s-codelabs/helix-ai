@@ -9,11 +9,12 @@
   interface Props {
     x: number;
     y: number;
+    isAtTop?: boolean;
     onAction: (action: SelectionAction) => void;
     onClose?: () => void;
   }
 
-  let { x, y, onAction, onClose }: Props = $props();
+  let { x, y, isAtTop = false, onAction, onClose }: Props = $props();
 
   const actions: Array<{ id: SelectionAction; icon: any; label: string }> = [
     { id: 'addToChat', icon: AddToChat, label: 'Add to Chat' },
@@ -60,9 +61,9 @@
         break;
     }
   }
-    onAction(action);
-    onClose?.();
-  }
+  //   onAction(action);
+  //   onClose?.();
+  // }
 
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
@@ -75,13 +76,18 @@
 
 <div
   class="selection-popup"
+  class:at-top={isAtTop}
   style:left="{x}px"
   style:top="{y}px"
   transition:scale={{ duration: 150, start: 0.9 }}
   role="menu"
   aria-label="Text selection actions"
 >
-  <div class="popup-arrow"></div>
+  {#if !isAtTop}
+    <div class="popup-arrow"></div>
+  {:else}
+    <div class="popup-arrow popup-arrow-inverted"></div>
+  {/if}
   <div class="popup-content">
     {#each actions as action (action.id)}
       <button
@@ -111,6 +117,11 @@
     font-size: 14px;
   }
 
+  .selection-popup.at-top {
+    transform: translate(-50%, 0);
+    margin-top: 0;
+  }
+
   .popup-arrow {
     position: absolute;
     bottom: -6px;
@@ -121,6 +132,13 @@
     border-left: 6px solid transparent;
     border-right: 6px solid transparent;
     border-top: 6px solid rgba(17, 24, 39, 0.95);
+  }
+
+  .popup-arrow-inverted {
+    bottom: auto;
+    top: -6px;
+    border-top: none;
+    border-bottom: 6px solid rgba(17, 24, 39, 0.95);
   }
 
   .popup-content {

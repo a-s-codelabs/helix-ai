@@ -7,19 +7,21 @@ class SelectionPopupStore {
     x: 0,
     y: 0,
     selectedText: '',
+    isAtTop: false,
   });
 
   getState() {
     return this.state;
   }
 
-  show(x: number, y: number, selectedText: string) {
+  show(x: number, y: number, selectedText: string, isAtTop: boolean = false) {
     this.state.update((current) => ({
       ...current,
       visible: true,
       x,
       y,
       selectedText,
+      isAtTop,
     }));
   }
 

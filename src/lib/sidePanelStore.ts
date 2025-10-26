@@ -24,6 +24,74 @@ export const sidePanelStore = writable<{
 
 // Utility functions for side panel state management
 export const sidePanelUtils = {
+
+  async appendToSidePanel(state: TelescopeState): Promise<boolean> {
+    console.log('sidePanelUtils.moveToSidePanel called with state:', state);
+
+    try {
+      // Check if Chrome runtime is available
+      if (typeof chrome === 'undefined' || !chrome.runtime) {
+        console.error('Chrome runtime not available');
+        return false;
+      }
+
+      console.log('Chrome runtime available, using service worker approach...');
+      console.log(
+        'Note: chrome.sidePanel API is only available in service worker, not in content scripts'
+      );
+
+      // Use service worker approach (chrome.sidePanel is not available in content scripts)
+      return new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          console.error('Timeout: No response from service worker');
+          resolve(false);
+        }, 5000); // 5 second timeout
+
+        chrome.runtime.sendMessage(
+          {
+            type: 'APPEND_TO_SIDE_PANEL',
+            state,
+          },
+          (response) => {
+            clearTimeout(timeout);
+            console.log('Received response from service worker:', response);
+
+            // Check for runtime errors
+            if (chrome.runtime.lastError) {
+              console.error(
+                'Chrome runtime error:',
+                chrome.runtime.lastError.message
+              );
+              resolve(false);
+              return;
+            }
+
+            if (response?.success) {
+              console.log(
+                'Successfully moved to side panel via service worker'
+              );
+              sidePanelStore.update((store) => ({
+                ...store,
+                isInSidePanel: true,
+                telescopeState: state,
+              }));
+              resolve(true);
+            } else {
+              console.error(
+                'Failed to move to side panel via service worker:',
+                response
+              );
+              resolve(false);
+            }
+          }
+        );
+      });
+    } catch (error) {
+      console.error('Error moving to side panel:', error);
+      return false;
+    }
+  },
+
   // Move telescope to side panel
   async moveToSidePanel(state: TelescopeState): Promise<boolean> {
     console.log('sidePanelUtils.moveToSidePanel called with state:', state);
