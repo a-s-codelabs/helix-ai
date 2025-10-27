@@ -275,22 +275,23 @@
 
   /* Webkit scrollbar styling for thin appearance */
   .message-container::-webkit-scrollbar {
-    width: 6px;
+    width: 4px;
   }
 
   .message-container::-webkit-scrollbar-track {
     background: #2a2a2a;
-    border-radius: 3px;
+    border-radius: 2px;
   }
 
   .message-container::-webkit-scrollbar-thumb {
     background: #555;
-    border-radius: 3px;
+    border-radius: 2px;
   }
 
   .message-container::-webkit-scrollbar-thumb:hover {
     background: #666;
   }
+
   .message {
     background: #131723;
     padding: 12px;
@@ -479,6 +480,28 @@
     overflow-x: auto;
     margin: 8px 0;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    /* Thin scrollbar styling */
+    scrollbar-width: thin;
+    scrollbar-color: #555 #2a2a2a;
+  }
+
+  /* Webkit scrollbar styling for pre code blocks */
+  :global(.message pre::-webkit-scrollbar) {
+    height: 4px;
+  }
+
+  :global(.message pre::-webkit-scrollbar-track) {
+    background: #2a2a2a;
+    border-radius: 2px;
+  }
+
+  :global(.message pre::-webkit-scrollbar-thumb) {
+    background: #555;
+    border-radius: 2px;
+  }
+
+  :global(.message pre::-webkit-scrollbar-thumb:hover) {
+    background: #666;
   }
 
   :global(.message pre code) {

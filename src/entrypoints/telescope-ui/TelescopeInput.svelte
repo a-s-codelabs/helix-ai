@@ -329,6 +329,12 @@
       Roboto,
       sans-serif;
   }
+
+  /* Remove min-width constraint in side panel mode */
+  .telescope-container.sidepanel-mode.reached-min-chars {
+    min-width: 0;
+  }
+
   .reached-min-chars {
     min-width: 600px;
   }
@@ -381,6 +387,16 @@
   }
 
   /* Side panel specific: Ensure all icons are always visible and input field adjusts */
+  .telescope-container.sidepanel-mode {
+    max-width: 100%; /* Remove fixed max-width constraint for side panel */
+    width: 100%; /* Ensure container takes full width */
+  }
+
+  /* Ensure input bar container takes full width in side panel */
+  .telescope-container.sidepanel-mode .input-bar-container {
+    max-width: 100%;
+  }
+
   .telescope-container.sidepanel-mode .action-icons {
     display: flex;
     flex-shrink: 0; /* Prevent icons from shrinking */
@@ -548,9 +564,31 @@
     padding: 0;
     margin: 0;
     height: 24px;
+    /* Thin scrollbar styling */
+    scrollbar-width: thin;
+    scrollbar-color: #555 #2a2a2a;
+  }
+
+  /* Webkit scrollbar styling for input field */
+  .input-field::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .input-field::-webkit-scrollbar-track {
+    background: #2a2a2a;
+    border-radius: 2px;
+  }
+
+  .input-field::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 2px;
+  }
+
+  .input-field::-webkit-scrollbar-thumb:hover {
+    background: #666;
   }
   .input-field.input-expanded {
-    width: calc(100% - 24px);
+    width: calc(100% - -4px);
   }
 
   .input-field::placeholder {
