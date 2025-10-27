@@ -8,6 +8,7 @@ import { mount, unmount } from 'svelte';
 import { get } from 'svelte/store';
 import { selectionPopupStore } from '../lib/selectionPopupStore';
 import { writerPopupStore } from '../lib/writerPopupStore';
+import { sidePanelUtils } from '../lib/sidePanelStore';
 import type { SelectionAction } from './selection-popup/types';
 
 export default defineContentScript({
@@ -215,7 +216,10 @@ export default defineContentScript({
     };
 
     // Handle selection action
-    const handleSelectionAction = (action: SelectionAction, text: string) => {
+    const handleSelectionAction = async (
+      action: SelectionAction,
+      text: string
+    ) => {
       console.log(`Action: ${action}, Text: ${text}`);
 
       // TODO: Implement action handlers
@@ -230,7 +234,22 @@ export default defineContentScript({
           break;
         case 'addToChat':
           console.log('Adding to chat:', text);
-          // TODO: Add to chat interface
+          // Open side panel with selected text in input field
+          const success = await sidePanelUtils.moveToSidePanel({
+            messages: [],
+            isStreaming: false,
+            streamingMessageId: null,
+            inputValue: text,
+            inputImageAttached: [],
+            searchIndex: 1,
+            totalResults: 0,
+            currentState: 'ask',
+            source: 'append',
+            timestamp: Date.now(),
+          });
+          if (success) {
+            console.log('Side panel opened successfully');
+          }
           break;
       }
     };
