@@ -6,6 +6,7 @@
   import AddToChat from '../telescope-ui/icons/AddToChat.svelte';
   import Down from '../telescope-ui/icons/Down.svelte';
   import { sidePanelUtils } from '../../lib/sidePanelStore';
+  import { SUPPORTED_LANGUAGES } from '../../lib/languageHelper';
 
   interface Props {
     x: number;
@@ -25,13 +26,8 @@
 
   let showLanguageDropdown = $state(false);
 
-  const languages = [
-    { code: 'en', name: 'English' },
-    { code: 'es', name: 'Spanish' },
-    { code: 'fr', name: 'French' },
-    { code: 'ja', name: 'Japanese' },
-    { code: 'pt', name: 'Portuguese' },
-  ];
+  // Use a subset of supported languages for the dropdown (most common ones)
+  const languages = SUPPORTED_LANGUAGES.slice(0, 8); // Top 8 languages
 
   // Helper to grab selected text from the document
   function getSelectedText(): string {
@@ -66,6 +62,7 @@
           totalResults: 0,
           currentState: 'ask',
           source: 'append',
+          actionSource: 'summarise',
           timestamp: Date.now(),
         });
         onClose?.();
@@ -80,15 +77,33 @@
 
   async function handleLanguageSelection(languageCode: string) {
     const selectedText = getSelectedText();
-    // Pass action with language code to parent handler
-    // You may need to update the onAction signature to accept language
-    onAction('translate');
+
+    // Handle translate directly with the selected text and target language
+    const success = await sidePanelUtils.moveToSidePanel({
+      messages: [
+        {
+          id: Date.now(),
+          type: 'user',
+          content: selectedText,
+          timestamp: new Date(),
+        },
+      ],
+      isStreaming: false,
+      streamingMessageId: null,
+      inputValue: "",
+      inputImageAttached: [],
+      searchIndex: 1,
+      totalResults: 0,
+      currentState: 'ask',
+      source: 'translate',
+      actionSource: 'translate',
+      targetLanguage: languageCode,
+      timestamp: Date.now(),
+    });
+
     showLanguageDropdown = false;
     onClose?.();
   }
-  //   onAction(action);
-  //   onClose?.();
-  // }
 
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
@@ -161,7 +176,8 @@
                 onclick={() => handleLanguageSelection(language.code)}
                 type="button"
               >
-                {language.name}
+                <span class="language-flag">{language.flag}</span>
+                <span class="language-name">{language.name}</span>
               </button>
             {/each}
           </div>
@@ -308,7 +324,9 @@
   }
 
   .language-option {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     width: 100%;
     padding: 10px 14px;
     background: transparent;
@@ -320,6 +338,15 @@
     font-size: 13px;
     font-weight: 500;
     outline: none;
+  }
+
+  .language-flag {
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .language-name {
+    flex: 1;
   }
 
   .language-option:hover {

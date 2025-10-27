@@ -6,4 +6,6 @@ export interface SelectionPopupState {
   y: number;
   selectedText: string;
   isAtTop?: boolean;
+  source?: 'summarise' | 'translate';
+  targetLanguage?: string;
 }
