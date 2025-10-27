@@ -1,48 +1,63 @@
 import { storage } from 'wxt/utils/storage';
+import { DB_SCHEMA, DBStorageKey, ExtractColumnType } from './db_schema';
 
-const STORAGE_KEY = {
-  config: 'local:global:config',
-} as const;
-
-type GlobalStorageKey = keyof typeof STORAGE_KEY;
-
-const getGlobalStorage = async <T = unknown>(key: GlobalStorageKey): Promise<T | null> => {
-  const value = await storage.getItem<T>(STORAGE_KEY[key]);
+const getGS = async <K extends DBStorageKey>(key: K): Promise<ExtractColumnType<K> | null> => {
+  const value = await storage.getItem<ExtractColumnType<K>>(DB_SCHEMA[key].storageKey);
   return value;
 };
 
-const setGlobalStorage = async <T = unknown>(key: GlobalStorageKey, value: T): Promise<void> => {
-  await storage.setItem(STORAGE_KEY[key], value);
+const setGS = async <K extends DBStorageKey>(key: K, value: ExtractColumnType<K>): Promise<void> => {
+  await storage.setItem(DB_SCHEMA[key].storageKey, value);
 };
 
-const deleteGlobalStorage = async (key: GlobalStorageKey): Promise<void> => {
-  await storage.removeItem(STORAGE_KEY[key]);
+const deleteGS = async <K extends DBStorageKey>(key: K): Promise<void> => {
+  await storage.removeItem(DB_SCHEMA[key].storageKey);
 };
 
-const appendGlobalStorage = async <T = unknown>(key: GlobalStorageKey, value: T): Promise<void> => {
-  const currentValue = await getGlobalStorage<T>(key);
+const appendGS = async <K extends DBStorageKey>(key: K, value: ExtractColumnType<K>): Promise<void> => {
+  const currentValue = await getGS<K>(key);
   if (!currentValue) {
-    await storage.setItem(STORAGE_KEY[key], value);
+    if ("maxLimit" in DB_SCHEMA[key] && Array.isArray(value) && value.length > DB_SCHEMA[key].maxLimit) {
+      value = value.slice(0, DB_SCHEMA[key].maxLimit) as ExtractColumnType<K>;
+    }
+    await storage.setItem(DB_SCHEMA[key].storageKey, value);
     return;
   }
   if (Array.isArray(currentValue)) {
-    await storage.setItem(STORAGE_KEY[key], [...currentValue, value]);
+    if ("maxLimit" in DB_SCHEMA[key] && Array.isArray(value) && currentValue.length + value.length > DB_SCHEMA[key].maxLimit) {
+      value = currentValue.slice(0, DB_SCHEMA[key].maxLimit - value.length) as ExtractColumnType<K>;
+    }
+    await storage.setItem(DB_SCHEMA[key].storageKey, [...currentValue, value]);
     return;
   }
   else if (typeof currentValue === 'object') {
-    await storage.setItem(STORAGE_KEY[key], { ...currentValue, ...value });
+    await storage.setItem(DB_SCHEMA[key].storageKey, { ...currentValue, ...value });
     return;
   }
 
-  await storage.setItem(STORAGE_KEY[key], value);
+  await storage.setItem(DB_SCHEMA[key].storageKey, value);
 };
+
+const onBoardGS = async ({ force = false }: { force?: boolean } = {}) => {
+  const keys = Object.keys(DB_SCHEMA);
+  if (await getGS("config") && !force) {
+    return;
+  }
+  for (const key of keys) {
+    const value = await getGS(key as DBStorageKey);
+    if (!value) {
+      await setGS(key as DBStorageKey, DB_SCHEMA[key as keyof typeof DB_SCHEMA].default);
+    }
+  }
+}
 
 export function globalStorage() {
   return {
-    get: getGlobalStorage,
-    set: setGlobalStorage,
-    delete: deleteGlobalStorage,
-    append: appendGlobalStorage,
-    keys: STORAGE_KEY,
+    get: getGS,
+    set: setGS,
+    delete: deleteGS,
+    append: appendGS,
+    keys: Object.keys(DB_SCHEMA) as DBStorageKey[],
+    onBoard: onBoardGS,
   };
 }
