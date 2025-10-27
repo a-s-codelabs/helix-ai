@@ -554,10 +554,10 @@
 
   .quoted-content-container {
     margin: 8px 0;
-    padding: 0 16px;
+    padding: 0;
     overflow-x: auto;
     overflow-y: hidden;
-    width: 90%;
+    width: 100%;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.05);
   }

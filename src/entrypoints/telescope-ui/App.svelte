@@ -79,7 +79,7 @@
 
 
           // Update local state
-          messages = storedState.messages;
+          messages = storedState.source === 'addtochat' ? messages : storedState.messages;
           isStreaming = storedState.isStreaming;
           streamingMessageId = storedState.streamingMessageId;
           inputValue = storedState.inputValue;
@@ -89,7 +89,8 @@
           currentState = storedState.currentState;
           source = storedState.source
           const lastUserMessage = messages.filter(msg => msg.type === 'user').pop();
-          if (lastUserMessage) {
+          console.log('App: Source:', source);
+          if (lastUserMessage && source !== 'addtochat') {
             chatStore.summarise(lastUserMessage.content);
           }
         }

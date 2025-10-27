@@ -244,7 +244,7 @@ export default defineContentScript({
             searchIndex: 1,
             totalResults: 0,
             currentState: 'ask',
-            source: 'append',
+            source: 'addtochat',
             timestamp: Date.now(),
           });
           if (success) {

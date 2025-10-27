@@ -9,7 +9,7 @@ export interface TelescopeState {
   searchIndex: number;
   totalResults: number;
   currentState: 'ask' | 'chat';
-  source: 'append' | 'move';
+  source: 'append' | 'move' | 'addtochat';
   timestamp: number;
 }
 
