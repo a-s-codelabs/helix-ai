@@ -25,6 +25,8 @@
   ];
 
   let showLanguageDropdown = $state(false);
+  let dropdownShouldBeAtTop = $state(false);
+  let dropdownElement: HTMLDivElement | undefined = $state();
 
   // Use a subset of supported languages for the dropdown (most common ones)
   const languages = SUPPORTED_LANGUAGES.slice(0, 8); // Top 8 languages
@@ -33,6 +35,54 @@
   function getSelectedText(): string {
     return (window.getSelection?.() || document.getSelection?.())?.toString() || '';
   }
+
+  // Check dropdown position and adjust if it hits the top
+  function checkDropdownPosition() {
+    if (!dropdownElement || !showLanguageDropdown) return;
+
+    const rect = dropdownElement.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+
+    // If dropdown would go below the viewport or has less than 100px space below
+    const spaceBelow = viewportHeight - rect.bottom;
+    const shouldBeAtTop = spaceBelow < 100;
+
+    dropdownShouldBeAtTop = shouldBeAtTop;
+  }
+
+  // Use effect to observe dropdown position changes
+  let observer: MutationObserver | undefined;
+
+  $effect(() => {
+    if (showLanguageDropdown && dropdownElement) {
+      // Check position immediately
+      checkDropdownPosition();
+
+      // Set up mutation observer to watch for changes
+      observer = new MutationObserver(() => {
+        checkDropdownPosition();
+      });
+
+      observer.observe(dropdownElement, {
+        attributes: true,
+        attributeFilter: ['style', 'class'],
+        childList: true,
+        subtree: true,
+      });
+
+      // Also check on scroll and resize
+      window.addEventListener('scroll', checkDropdownPosition, true);
+      window.addEventListener('resize', checkDropdownPosition);
+
+      return () => {
+        observer?.disconnect();
+        window.removeEventListener('scroll', checkDropdownPosition, true);
+        window.removeEventListener('resize', checkDropdownPosition);
+      };
+    } else {
+      dropdownShouldBeAtTop = false;
+    }
+  });
 
   async function handleAction(action: SelectionAction) {
     const selectedText = getSelectedText();
@@ -165,8 +215,9 @@
         </button>
         {#if action.id === 'translate' && showLanguageDropdown}
           <div
+            bind:this={dropdownElement}
             class="language-dropdown"
-            class:dropdown-at-top={isAtTop}
+            class:dropdown-at-top={dropdownShouldBeAtTop}
             transition:scale={{ duration: 150, start: 0.9 }}
             onmousedown={(e) => e.stopPropagation()}
           >
