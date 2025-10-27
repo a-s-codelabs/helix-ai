@@ -101,6 +101,51 @@ declare global {
     ): ReadableStream<string>;
     destroy(): void;
   };
+
+  var LanguageDetector:
+    | {
+      availability(): Promise<'readily' | 'available' | 'unavailable'>;
+      create(options?: {
+        signal?: AbortSignal;
+        monitor?: (monitor: {
+          addEventListener: (
+            type: string,
+            listener: (e: any) => void
+          ) => void;
+        }) => void;
+      }): Promise<AILanguageDetector>;
+    }
+    | undefined;
+
+  type AILanguageDetector = {
+    detect(text: string): Promise<Array<{ detectedLanguage: string; confidence?: number }>>;
+    destroy(): void;
+  };
+
+  var Translator:
+    | {
+      availability(options: {
+        sourceLanguage: string;
+        targetLanguage: string;
+      }): Promise<'readily' | 'available' | 'unavailable'>;
+      create(options: {
+        sourceLanguage: string;
+        targetLanguage: string;
+        signal?: AbortSignal;
+        monitor?: (monitor: {
+          addEventListener: (
+            type: string,
+            listener: (e: any) => void
+          ) => void;
+        }) => void;
+      }): Promise<AITranslator>;
+    }
+    | undefined;
+
+  type AITranslator = {
+    translate(text: string): Promise<string>;
+    destroy(): void;
+  };
 }
 
 export type ChatState = {
@@ -729,6 +774,170 @@ function createChatStore() {
         streamingMessageId: null,
         abortController: null,
       }));
+    },
+
+    async translate(userMessage: string, targetLanguage: string) {
+      if (!userMessage.trim()) return;
+
+      // Create abort controller for this translation session
+      const abortController = new AbortController();
+
+      // Add user message with language context
+      const userMsg: ChatMessage = {
+        id: Date.now(),
+        type: 'user',
+        content: userMessage,
+        images: [],
+        timestamp: new Date(),
+      };
+
+      // Create assistant message placeholder for the translation
+      const assistantMsgId = Date.now() + 1;
+      const assistantMsg: ChatMessage = {
+        id: assistantMsgId,
+        type: 'assistant',
+        content: '',
+        timestamp: new Date(),
+      };
+
+      update((state) => ({
+        ...state,
+        messages: [...state.messages, userMsg, assistantMsg],
+        isLoading: true,
+        isStreaming: false,
+        streamingMessageId: null,
+        abortController: null,
+        error: null,
+        inputValue: ""
+      }));
+
+      let detectedLanguage = 'en'; // Default fallback
+
+      try {
+        // Step 1: Detect the source language
+        if (typeof LanguageDetector === 'undefined') {
+          throw new Error('LanguageDetector API not available');
+        }
+
+        const detectorAvailability = await LanguageDetector.availability();
+        if (detectorAvailability === 'unavailable') {
+          throw new Error('Language Detector is not available. Please enable it in Chrome flags.');
+        }
+
+        const detector = await LanguageDetector.create({
+          monitor(m) {
+            m.addEventListener('downloadprogress', (e) => {
+              console.log(`Language Detector Downloaded ${e.loaded * 100}%`);
+            });
+          }
+        });
+
+        const detectionResults = await detector.detect(userMessage);
+        if (detectionResults && detectionResults.length > 0) {
+          detectedLanguage = detectionResults[0].detectedLanguage;
+          console.log(`Detected language: ${detectedLanguage}`);
+        }
+
+        detector.destroy();
+
+        // Step 2: Check if translation is needed
+        if (detectedLanguage === targetLanguage) {
+          // Same language, show message instead of translating
+          update((state) => {
+            const updatedMessages = state.messages.map((msg) => {
+              if (msg.id === assistantMsgId) {
+                return {
+                  ...msg,
+                  content: `ℹ️ The text is already in ${targetLanguage}. No translation needed.`,
+                };
+              }
+              return msg;
+            });
+
+            return {
+              ...state,
+              messages: updatedMessages,
+              isLoading: false,
+            };
+          });
+          return;
+        }
+
+        // Step 3: Create translator
+        if (typeof Translator === 'undefined') {
+          throw new Error('Translator API not available');
+        }
+
+        const translatorAvailability = await Translator.availability({
+          sourceLanguage: detectedLanguage,
+          targetLanguage,
+        });
+
+        if (translatorAvailability === 'unavailable') {
+          throw new Error(
+            `Translation from ${detectedLanguage} to ${targetLanguage} is not available. Please enable it in Chrome flags.`
+          );
+        }
+
+        const translator = await Translator.create({
+          sourceLanguage: detectedLanguage,
+          targetLanguage,
+          signal: abortController.signal,
+          monitor(m) {
+            m.addEventListener('downloadprogress', (e) => {
+              console.log(`Translator Downloaded ${e.loaded * 100}%`);
+            });
+          }
+        });
+
+        // Step 4: Translate the text
+        const translatedText = await translator.translate(userMessage);
+
+        translator.destroy();
+
+        // Step 5: Update the assistant message with the translation
+        update((state) => {
+          const updatedMessages = state.messages.map((msg) => {
+            if (msg.id === assistantMsgId) {
+              return {
+                ...msg,
+                content: translatedText,
+              };
+            }
+            return msg;
+          });
+
+          return {
+            ...state,
+            messages: updatedMessages,
+            isLoading: false,
+          };
+        });
+
+      } catch (err) {
+        console.error('Translation error:', err);
+        const errorMessage = getErrorMessage(err);
+
+        // Update error message in chat
+        update((state) => {
+          const updatedMessages = state.messages.map((msg) => {
+            if (msg.id === assistantMsgId) {
+              return {
+                ...msg,
+                content: createErrorMessage(err).content,
+              };
+            }
+            return msg;
+          });
+
+          return {
+            ...state,
+            messages: updatedMessages,
+            isLoading: false,
+            error: errorMessage,
+          };
+        });
+      }
     },
 
     /**

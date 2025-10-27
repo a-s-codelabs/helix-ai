@@ -135,6 +135,8 @@ function openSidePanel(message: any, sender: any) {
           currentState: message.state.currentState || 'ask',
           timestamp: Date.now(),
           source: message.state.source || 'move',
+          actionSource: message.state.actionSource,
+          targetLanguage: message.state.targetLanguage,
         },
       });
   }

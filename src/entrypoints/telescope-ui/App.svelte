@@ -14,7 +14,7 @@
   let messages: Message[] = $state([]);
   let isStreaming = $state(false);
   let streamingMessageId = $state<number | null>(null);
-  let source = $state<'append' | 'move'>('append');
+  let source = $state<'append' | 'move' | 'translate'>('append');
 
   // Subscribe to chat store
   $effect(() => {
@@ -88,8 +88,10 @@
           source = storedState.source
           const lastUserMessage = messages.filter(msg => msg.type === 'user').pop();
           console.log('App: Source:', source);
-          if (lastUserMessage && source !== 'addtochat') {
+          if (lastUserMessage && source === 'append' && storedState.actionSource === 'summarise') {
             chatStore.summarise(lastUserMessage.content);
+          } else if (lastUserMessage && source === 'translate' && storedState.targetLanguage) {
+            chatStore.translate(lastUserMessage.content, storedState.targetLanguage);
           }
         }
       };
