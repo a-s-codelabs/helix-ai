@@ -53,8 +53,27 @@
   let isInputExpanded = $derived(
     inputValue.length > CHAR_EXPAND_LIMIT ||
       inputValue.includes("\n") ||
+      quotedContent.length > 0 ||
       inputImageAttached.length > 0
   );
+
+  // Track quoted content as an array to support multiple attachments
+  let quotedContent = $state<string[]>([]);
+
+  // Detect when inputValue is set from outside (like add to chat)
+  $effect(() => {
+    // If inputValue has content, it might be from add to chat
+    // Store it as quoted content and clear inputValue
+    if (inputValue && inputValue.trim()) {
+      // Check if this looks like content that should be quoted (not user input)
+      // We'll use a simple heuristic: if it's longer than 20 chars, it's probably quoted content
+      if (inputValue.length > 20) {
+        // Add to array instead of replacing
+        quotedContent = [...quotedContent, inputValue];
+        inputValue = '';
+      }
+    }
+  });
 
   // Focus the input when the component becomes visible
   $effect(() => {
@@ -77,13 +96,23 @@
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      onAsk?.({ value: inputValue, images: inputImageAttached });
+      // Prepend quoted content if it exists
+      const quotedText = quotedContent.length > 0
+        ? quotedContent.join('\n\n---\n\n') + '\n\n'
+        : '';
+      const finalMessage = quotedText + inputValue;
+      onAsk?.({ value: finalMessage, images: inputImageAttached });
       resetInput();
     }
   }
 
   function handleAsk() {
-    onAsk?.({ value: inputValue, images: inputImageAttached });
+    // Prepend quoted content if it exists
+    const quotedText = quotedContent.length > 0
+      ? quotedContent.join('\n\n---\n\n') + '\n\n'
+      : '';
+    const finalMessage = quotedText + inputValue;
+    onAsk?.({ value: finalMessage, images: inputImageAttached });
     resetInput();
   }
 
@@ -135,11 +164,16 @@
     onStop?.();
   }
 
+  function handleClearQuoted(index: number) {
+    quotedContent = quotedContent.filter((_, i) => i !== index);
+  }
+
   // Reusable function to reset input state - following DRY principles
   function resetInput() {
     inputValue = "";
     inputElement.value = "";
     inputImageAttached = [];
+    quotedContent = '';
   }
 </script>
 
@@ -169,6 +203,25 @@
             </button>
           </div>
         {/each}
+      </div>
+    {/if}
+
+    {#if quotedContent.length > 0}
+      <div class="quoted-content-container">
+        <div class="quoted-content-list">
+          {#each quotedContent as content, index}
+            <div class="quoted-content-item">
+              <div class="quoted-text">{content}</div>
+              <button
+                class="quoted-close-icon"
+                onclick={() => handleClearQuoted(index)}
+                title="Remove quoted content"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+          {/each}
+        </div>
       </div>
     {/if}
 
@@ -497,6 +550,87 @@
 
   .image-close-icon:hover {
     color: white;
+  }
+
+  .quoted-content-container {
+    margin: 8px 0;
+    padding: 0 16px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    width: 90%;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.05);
+  }
+
+  .quoted-content-list {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    padding-bottom: 4px;
+    width: max-content;
+    min-width: 100%;
+  }
+
+  .quoted-content-item {
+    flex-shrink: 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(59, 130, 246, 0.15);
+    border-left: 3px solid rgba(59, 130, 246, 0.5);
+    border-radius: 6px;
+    position: relative;
+    color: #e5e7eb;
+    font-size: 14px;
+    line-height: 1.4;
+    max-width: 300px;
+    min-width: 200px;
+  }
+
+  .quoted-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    word-wrap: break-word;
+  }
+
+  .quoted-close-icon {
+    background: none;
+    border: none;
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 18px;
+    height: 18px;
+    color: #9ca3af;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .quoted-close-icon:hover {
+    color: white;
+  }
+
+  /* Thin scrollbar for quoted content */
+  .quoted-content-container::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .quoted-content-container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 2px;
+  }
+
+  .quoted-content-container::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+  }
+
+  .quoted-content-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
   }
 
   .expand-bar {
