@@ -50,7 +50,8 @@ export default defineContentScript({
           },
           onRemove: (app) => {
             unmount(app as any);
-            ui = undefined; // Reset ui after unmounting
+            ui = null; // Reset ui after unmounting
+            isVisible = false; // Reset visibility flag
           },
         });
 
@@ -508,39 +509,54 @@ export default defineContentScript({
       if ((event.metaKey || event.ctrlKey) && event.key === 'e') {
         event.preventDefault();
 
-        if (!isVisible) {
+        if (!isVisible || !ui) {
+          console.log('Opening telescope from keyboard...');
           await createUI();
           ui.mount();
           isVisible = true;
-        } else {
+        } else if (isVisible && ui) {
+          console.log('Closing telescope from keyboard...');
           ui.remove();
           isVisible = false;
+          ui = null;
         }
       }
 
       // Handle Escape key
-      if (event.key === 'Escape' && isVisible) {
+      if (event.key === 'Escape' && isVisible && ui) {
+        console.log('Closing telescope from Escape key...');
         ui.remove();
         isVisible = false;
+        ui = null;
       }
     };
 
     // Listen for keyboard events
     document.addEventListener('keydown', handleKeyDown);
 
+    // Listen for custom close event from telescope UI
+    const handleTelescopeClose = () => {
+      console.log('Received telescope close event...');
+      if (isVisible && ui) {
+        ui.remove();
+        isVisible = false;
+        ui = null;
+      }
+    };
+
+    window.addEventListener('telescope-close', handleTelescopeClose);
+
     // Listen for messages from popup and background
     const handleMessage = (message: any, sender: any, sendResponse: any) => {
+      console.log('Content script received message:', message);
+
       if (message.action === 'openTelescope') {
+        console.log('Opening telescope from message...');
         (async () => {
           try {
-            // If already visible, hide it first, then show it again
-            if (isVisible) {
-              ui.remove();
-              isVisible = false;
-            }
-
             // Wait for the page to be ready
             if (document.readyState === 'loading') {
+              console.log('Waiting for DOM to load...');
               await new Promise((resolve) => {
                 document.addEventListener('DOMContentLoaded', resolve, {
                   once: true,
@@ -548,11 +564,24 @@ export default defineContentScript({
               });
             }
 
-            await createUI();
-            ui.mount();
-            isVisible = true;
+            // If not visible or no UI, create and mount
+            if (!isVisible || !ui) {
+              console.log('Creating telescope UI...');
+              await createUI();
+              console.log('Mounting telescope UI...');
+              ui.mount();
+              isVisible = true;
+              console.log('Telescope opened successfully!');
+            } else {
+              console.log('Telescope already visible, no action needed');
+            }
+            sendResponse({ success: true });
           } catch (error) {
             console.error('Failed to open telescope:', error);
+            sendResponse({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            });
           }
         })();
         return true; // Indicate we will send a response asynchronously
@@ -629,6 +658,7 @@ ${document.body.textContent || 'No content available'}`,
       document.removeEventListener('focusin', handleTextareaFocus, true);
       document.removeEventListener('focusout', handleTextareaBlur, true);
       document.removeEventListener('click', handleTextareaClick, true);
+      window.removeEventListener('telescope-close', handleTelescopeClose);
       chrome.runtime.onMessage.removeListener(handleMessage);
 
       if (ui && isVisible) {
