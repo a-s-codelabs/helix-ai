@@ -4,6 +4,7 @@
   import Summarise from '../telescope-ui/icons/Summarise.svelte';
   import Translate from '../telescope-ui/icons/Translate.svelte';
   import AddToChat from '../telescope-ui/icons/AddToChat.svelte';
+  import Down from '../telescope-ui/icons/Down.svelte';
   import { sidePanelUtils } from '../../lib/sidePanelStore';
 
   interface Props {
@@ -20,6 +21,16 @@
     { id: 'addToChat', icon: AddToChat, label: 'Add to Chat' },
     { id: 'summarise', icon: Summarise, label: 'Summarise' },
     { id: 'translate', icon: Translate, label: 'Translate' },
+  ];
+
+  let showLanguageDropdown = $state(false);
+
+  const languages = [
+    { code: 'en', name: 'English' },
+    { code: 'es', name: 'Spanish' },
+    { code: 'fr', name: 'French' },
+    { code: 'ja', name: 'Japanese' },
+    { code: 'pt', name: 'Portuguese' },
   ];
 
   // Helper to grab selected text from the document
@@ -61,11 +72,19 @@
         break;
       }
       case 'translate':
-        // Pass action to parent handler which will add the text from store
-        onAction(action);
-        onClose?.();
+        // Toggle language dropdown
+        showLanguageDropdown = !showLanguageDropdown;
         break;
     }
+  }
+
+  async function handleLanguageSelection(languageCode: string) {
+    const selectedText = getSelectedText();
+    // Pass action with language code to parent handler
+    // You may need to update the onAction signature to accept language
+    onAction('translate');
+    showLanguageDropdown = false;
+    onClose?.();
   }
   //   onAction(action);
   //   onClose?.();
@@ -73,12 +92,23 @@
 
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
-      onClose?.();
+      if (showLanguageDropdown) {
+        showLanguageDropdown = false;
+      } else {
+        onClose?.();
+      }
+    }
+  }
+
+  function handleClickOutside(event: MouseEvent) {
+    // Close language dropdown when clicking outside
+    if (showLanguageDropdown) {
+      showLanguageDropdown = false;
     }
   }
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} onmousedown={handleClickOutside} />
 
 <div
   class="selection-popup"
@@ -96,18 +126,47 @@
   {/if}
   <div class="popup-content">
     {#each actions as action (action.id)}
-      <button
-        class="action-button"
-        onclick={() => handleAction(action.id)}
-        type="button"
-        aria-label={action.label}
+      <div
+        class="action-wrapper"
+        class:active={action.id === 'translate' && showLanguageDropdown}
+        onmousedown={(e) => e.stopPropagation()}
       >
-        <span class="action-icon">
-          <!-- svelte-ignore svelte_component_deprecated -->
-          <svelte:component this={action.icon} />
-        </span>
-        <span class="action-label">{action.label}</span>
-      </button>
+        <button
+          class="action-button"
+          onclick={() => handleAction(action.id)}
+          type="button"
+          aria-label={action.label}
+        >
+          <span class="action-icon">
+            <!-- svelte-ignore svelte_component_deprecated -->
+            <svelte:component this={action.icon} />
+          </span>
+          <span class="action-label">{action.label}</span>
+          {#if action.id === 'translate'}
+            <span class="dropdown-icon">
+              <svelte:component this={Down} />
+            </span>
+          {/if}
+        </button>
+        {#if action.id === 'translate' && showLanguageDropdown}
+          <div
+            class="language-dropdown"
+            class:dropdown-at-top={isAtTop}
+            transition:scale={{ duration: 150, start: 0.9 }}
+            onmousedown={(e) => e.stopPropagation()}
+          >
+            {#each languages as language (language.code)}
+              <button
+                class="language-option"
+                onclick={() => handleLanguageSelection(language.code)}
+                type="button"
+              >
+                {language.name}
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
     {/each}
   </div>
 </div>
@@ -160,6 +219,15 @@
     backdrop-filter: blur(10px);
   }
 
+  .action-wrapper {
+    position: relative;
+  }
+
+  .action-wrapper.active .action-button {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+  }
+
   .action-button {
     display: flex;
     align-items: center;
@@ -207,6 +275,61 @@
 
   .action-label {
     line-height: 1;
+  }
+
+  .dropdown-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-left: 4px;
+  }
+
+  .language-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    min-width: 140px;
+    background: rgba(17, 24, 39, 0.95);
+    border-radius: 8px;
+    box-shadow:
+      0 10px 25px -5px rgba(0, 0, 0, 0.3),
+      0 8px 10px -6px rgba(0, 0, 0, 0.2),
+      0 0 0 1px rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    overflow: hidden;
+  }
+
+  .language-dropdown.dropdown-at-top {
+    top: auto;
+    bottom: calc(100% + 8px);
+  }
+
+  .language-option {
+    display: block;
+    width: 100%;
+    padding: 10px 14px;
+    background: transparent;
+    color: #ffffff;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-size: 13px;
+    font-weight: 500;
+    outline: none;
+  }
+
+  .language-option:hover {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+  }
+
+  .language-option:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: -2px;
   }
 
   @media (max-width: 640px) {
