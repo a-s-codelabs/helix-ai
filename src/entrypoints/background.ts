@@ -1,34 +1,27 @@
-import { globalStorage } from "@/lib/globalStorage";
-
 export default defineBackground(() => {
-  globalStorage().onBoard({ force: true });
-
-  globalStorage().get("config").then((config) => {
-    console.log("Background: Config:", config);
-  });
-
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    console.log(`BACKGROUND: MESSAGE`, message.type)
     if (message.type === 'OPEN_TO_SIDE_PANEL') {
       openSidePanel(message, sender);
       return true;
     }
 
-    if (message.type === 'GET_TELESCOPE_STATE') {
-      try {
-        chrome.storage?.local.get(['telescopeState'], (result) => {
-          console.log(
-            'Background: Retrieved telescope state:',
-            result.telescopeState
-          );
-          sendResponse({ state: result.telescopeState || null });
-        });
-      } catch (error) {
-        console.error('Background: Error in GET_TELESCOPE_STATE:', error);
-        sendResponse({ state: null });
-      }
+    // if (message.type === 'GET_TELESCOPE_STATE') {
+    //   try {
+    //     chrome.storage?.local.get(['telescopeState'], (result) => {
+    //       console.log(
+    //         'Background: Retrieved telescope state:',
+    //         result.telescopeState
+    //       );
+    //       sendResponse({ state: result.telescopeState || null });
+    //     });
+    //   } catch (error) {
+    //     console.error('Background: Error in GET_TELESCOPE_STATE:', error);
+    //     sendResponse({ state: null });
+    //   }
 
-      return true;
-    }
+    //   return true;
+    // }
 
     if (message.type === 'CLEAR_TELESCOPE_STATE') {
       console.log('Background: Received CLEAR_TELESCOPE_STATE message');
@@ -130,22 +123,22 @@ function openSidePanel(message: any, sender: any) {
     .catch((error) => {
       console.error('Error opening side panel:', error);
     });
-  if (message.state && chrome.storage) {
-    chrome.storage.local.set({
-      telescopeState: {
-        messages: message.state.messages || [],
-        isStreaming: message.state.isStreaming || false,
-        streamingMessageId: message.state.streamingMessageId || null,
-        inputValue: message.state.inputValue || '',
-        inputImageAttached: message.state.inputImageAttached || [],
-        searchIndex: message.state.searchIndex || 1,
-        totalResults: message.state.totalResults || 0,
-        currentState: message.state.currentState || 'ask',
-        timestamp: Date.now(),
-        source: message.state.source || 'move',
-        actionSource: message.state.actionSource,
-        targetLanguage: message.state.targetLanguage,
-      },
-    });
-  }
+  // if (message.state && chrome.storage) {
+  //   chrome.storage.local.set({
+  //     telescopeState: {
+  //       messages: message.state.messages || [],
+  //       isStreaming: message.state.isStreaming || false,
+  //       streamingMessageId: message.state.streamingMessageId || null,
+  //       inputValue: message.state.inputValue || '',
+  //       inputImageAttached: message.state.inputImageAttached || [],
+  //       searchIndex: message.state.searchIndex || 1,
+  //       totalResults: message.state.totalResults || 0,
+  //       currentState: message.state.currentState || 'ask',
+  //       timestamp: Date.now(),
+  //       source: message.state.source || 'move',
+  //       actionSource: message.state.actionSource,
+  //       targetLanguage: message.state.targetLanguage,
+  //     },
+  //   //   });
+  // }
 }

@@ -41,6 +41,35 @@ export const DB_SCHEMA = {
         actionSource: "summarise" | "translate" | "prompt";
       }[];
     }>,
+  },
+  action_state: {
+    storageKey: 'local:global:action_state' as const,
+    default: {} as {
+      // isStreaming: boolean;
+      // streamingId: number | null;
+    } & ({
+      actionSource: "summarise";
+      content: string;
+    } | {
+      actionSource: "translate";
+      content: string;
+      targetLanguage: string | null;
+    } | {
+      actionSource: "float";
+      messages: {
+        id: number;
+        role: "user" | "assistant" | "system";
+        content: string;
+        timestamp: number;
+        source: "append" | "move" | "addtochat";
+        actionSource: "summarise" | "translate" | "prompt";
+      }[];
+    } | {
+      actionSource: "popup";
+    } | {
+      actionSource: "addToChat";
+      content: string;
+    }),
   }
 }
 export type DBStorageKey = keyof typeof DB_SCHEMA;

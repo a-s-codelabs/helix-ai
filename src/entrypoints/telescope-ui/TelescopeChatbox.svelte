@@ -1,9 +1,9 @@
 <script lang="ts">
-  import MessageContainer from './TelescopeMessageContainer.svelte';
-  import Close from './icons/Close.svelte';
-  import RightSidePanel from './icons/RightSidePanel.svelte';
-  import { sidePanelUtils } from '../../lib/sidePanelStore';
-  import type { Message, ChatboxProps } from './type';
+  import MessageContainer from "./TelescopeMessageContainer.svelte";
+  import Close from "./icons/Close.svelte";
+  import RightSidePanel from "./icons/RightSidePanel.svelte";
+  import { sidePanelUtils } from "../../lib/sidePanelStore";
+  import type { Message, ChatboxProps } from "./type";
 
   let {
     input,
@@ -14,11 +14,9 @@
     isStreaming = false,
     streamingMessageId = null,
     // Additional props for side panel functionality
-    inputValue = '',
+    inputValue = "",
     inputImageAttached = [],
-    searchIndex = 1,
-    totalResults = 0,
-    currentState = 'ask',
+    currentState = "ask",
     onDragStart,
   }: ChatboxProps = $props();
 
@@ -27,61 +25,60 @@
 
   // Handle move to side panel
   async function handleMoveToSidePanel() {
-    console.log('RightSidePanel clicked - attempting to move to side panel');
-
+    console.log("RightSidePanel clicked - attempting to move to side panel");
 
     try {
       const success = await sidePanelUtils.moveToSidePanel({
-      messages,
-      isStreaming,
-      streamingMessageId,
-      inputValue,
-      inputImageAttached,
-      searchIndex,
-      totalResults,
-      currentState,
-      timestamp: Date.now(),
-      source: 'append',
-    });
-      console.log('Move to side panel result:', success);
+        messages,
+        isStreaming,
+        streamingMessageId,
+        inputValue,
+        inputImageAttached,
+        currentState,
+        timestamp: Date.now(),
+        source: "append",
+        actionSource: "popup",
+        targetLanguage: null,
+      });
+      console.log("Move to side panel result:", success);
 
       if (success) {
         // Hide the floating telescope UI after successful move
         onClose?.();
       } else {
-        console.error('Failed to move to side panel');
+        console.error("Failed to move to side panel");
         // Try direct approach as fallback
         try {
-          if (typeof chrome !== 'undefined' && chrome.sidePanel) {
+          if (typeof chrome !== "undefined" && chrome.sidePanel) {
             await chrome.sidePanel.open({});
-            console.log('Side panel opened directly as fallback');
+            console.log("Side panel opened directly as fallback");
             onClose?.();
           } else {
             alert(
-              'Failed to open side panel. Please try clicking the extension icon in the toolbar.'
+              "Failed to open side panel. Please try clicking the extension icon in the toolbar."
             );
           }
         } catch (directError) {
-          console.error('Direct side panel open also failed:', directError);
+          console.error("Direct side panel open also failed:", directError);
           alert(
-            'Failed to open side panel. Please try clicking the extension icon in the toolbar.'
+            "Failed to open side panel. Please try clicking the extension icon in the toolbar."
           );
         }
       }
     } catch (error) {
-      console.error('Error in handleMoveToSidePanel:', error);
+      console.error("Error in handleMoveToSidePanel:", error);
       // Try direct approach as fallback
       try {
-        if (typeof chrome !== 'undefined' && chrome.sidePanel) {
+        if (typeof chrome !== "undefined" && chrome.sidePanel) {
           await chrome.sidePanel.open({});
-          console.log('Side panel opened directly as fallback after error');
+          console.log("Side panel opened directly as fallback after error");
           onClose?.();
         } else {
-          alert('Error opening side panel: ' + (error as Error).message);
+          alert("Error opening side panel: " + (error as Error).message);
         }
       } catch (directError) {
-        console.error('Direct side panel open also failed:', directError);
-        alert('Error opening side panel: ' + (error as Error).message);
+        console.error("Direct side panel open also failed:", directError);
+        alert("Error opening side panel: " + (error as Error).message);
       }
     }
   }
@@ -89,13 +86,13 @@
   $effect(() => {
     // Check if we're in a side panel context
     isInSidePanel =
-      window.location.pathname.includes('sidepanel') ||
-      window.location.href.includes('sidepanel') ||
-      document.title.includes('Side Panel');
+      window.location.pathname.includes("sidepanel") ||
+      window.location.href.includes("sidepanel") ||
+      document.title.includes("Side Panel");
   });
 
   function handleDragKeyDown(event: KeyboardEvent) {
-    if (event.key === 'Enter' || event.key === ' ') {
+    if (event.key === "Enter" || event.key === " ") {
       // Keyboard users can't drag, so we just acknowledge the interaction
       event.preventDefault();
     }

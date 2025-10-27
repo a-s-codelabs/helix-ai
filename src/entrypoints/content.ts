@@ -10,6 +10,7 @@ import { selectionPopupStore } from '../lib/selectionPopupStore';
 import { writerPopupStore } from '../lib/writerPopupStore';
 import { sidePanelUtils } from '../lib/sidePanelStore';
 import type { SelectionAction } from './selection-popup/types';
+import { globalStorage } from '@/lib/globalStorage';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -18,6 +19,7 @@ export default defineContentScript({
   async main(ctx) {
     let ui: any = null;
     let isVisible = false;
+    globalStorage().onBoard();
 
     // Selection popup state
     let selectionPopupUI: any = null;
@@ -83,7 +85,6 @@ export default defineContentScript({
             const app = mount(SelectionPopupContainer, {
               target: container,
               props: {
-                onAction: handleSelectionAction,
                 onClose: hideSelectionPopup,
               },
             });
@@ -214,45 +215,6 @@ export default defineContentScript({
       selectionPopupStore.hide();
       // Keep the UI mounted but hidden for better performance
       // Only remove it when the content script is invalidated
-    };
-
-    // Handle selection action
-    const handleSelectionAction = async (
-      action: SelectionAction,
-      text: string
-    ) => {
-      console.log(`Action: ${action}, Text: ${text}`);
-
-      // TODO: Implement action handlers
-      switch (action) {
-        case 'summarise':
-          console.log('Summarising:', text);
-          // TODO: Send to AI for summarization
-          break;
-        case 'translate':
-          console.log('Translating:', text);
-          // TODO: Send to AI for translation
-          break;
-        case 'addToChat':
-          console.log('Adding to chat:', text);
-          // Open side panel with selected text in input field
-          const success = await sidePanelUtils.moveToSidePanel({
-            messages: [],
-            isStreaming: false,
-            streamingMessageId: null,
-            inputValue: text,
-            inputImageAttached: [],
-            searchIndex: 1,
-            totalResults: 0,
-            currentState: 'ask',
-            source: 'addtochat',
-            timestamp: Date.now(),
-          });
-          if (success) {
-            console.log('Side panel opened successfully');
-          }
-          break;
-      }
     };
 
     // Helper to check if the selection popup is currently visible
@@ -618,7 +580,7 @@ export default defineContentScript({
             const pageContext =
               finalContent.length > maxLength
                 ? finalContent.substring(0, maxLength) +
-                  '\n\n... [Content truncated for AI context]'
+                '\n\n... [Content truncated for AI context]'
                 : finalContent;
 
             console.log('Content script: Extracted page context, sending back');

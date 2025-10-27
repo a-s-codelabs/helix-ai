@@ -1,20 +1,17 @@
 <script lang="ts">
-  import Telescope from './Telescope.svelte';
-  import { chatStore } from '../../lib/chatStore';
-  import { sidePanelUtils, sidePanelStore } from '../../lib/sidePanelStore';
-  import type { Direction, State, Message } from './type';
+  import Telescope from "./Telescope.svelte";
+  import { chatStore } from "../../lib/chatStore";
+  import { sidePanelUtils, sidePanelStore } from "../../lib/sidePanelStore";
+  import { globalStorage } from "@/lib/globalStorage";
 
-  let currentState: State = $state('ask');
-  let inputValue = $state('');
+  let currentState: State = $state("ask");
+  let inputValue = $state("");
   let inputImageAttached = $state<string[]>([]);
-  let searchIndex = $state(1);
-  let totalResults = $state(19);
   let isVisible = $state(false);
-  let aiResponse = $state('');
   let messages: Message[] = $state([]);
   let isStreaming = $state(false);
   let streamingMessageId = $state<number | null>(null);
-  let source = $state<'append' | 'move' | 'translate'>('append');
+  let quotedContent = $state<string[]>([]);
 
   // Subscribe to chat store
   $effect(() => {
@@ -26,20 +23,18 @@
     return unsubscribe;
   });
 
-  // Initialize chat store when visible
   $effect(() => {
     if (isVisible) {
-      // If we're in side panel mode, fetch page content first
       if (isInSidePanel) {
         (async () => {
-          console.log('App: In side panel mode, fetching page content...');
+          console.log("App: In side panel mode, fetching page content...");
           const pageContext = await sidePanelUtils.getPageContent();
           if (pageContext) {
-            console.log('App: Received page content, initializing chat store');
+            console.log("App: Received page content, initializing chat store");
             await chatStore.init(pageContext);
           } else {
             console.warn(
-              'App: Failed to get page content, initializing without context'
+              "App: Failed to get page content, initializing without context"
             );
             await chatStore.init();
           }
@@ -58,64 +53,54 @@
   $effect(() => {
     // Check if we're in a side panel context
     isInSidePanel =
-      window.location.pathname.includes('sidepanel') ||
-      window.location.href.includes('sidepanel') ||
-      document.title.includes('Side Panel');
+      window.location.pathname.includes("sidepanel") ||
+      window.location.href.includes("sidepanel") ||
+      document.title.includes("Side Panel");
 
     // Always show the UI (for both side panel and content script mode)
     isVisible = true;
   });
 
+  const updateStateFromStorage = async () => {
+    if (!isInSidePanel) return;
+    const storedState = await globalStorage().get("action_state");
+    console.log("event", storedState);
+    if (storedState) {
+      globalStorage().delete("action_state");
+      console.log("App: Updating state from storage:", storedState);
+
+      if (storedState.actionSource === "addToChat") {
+        quotedContent = [...quotedContent, storedState.content];
+      }
+
+      if (storedState.actionSource === "summarise") {
+        chatStore.summarise(storedState.content);
+      } else if (
+        // lastUserMessage &&
+        storedState.actionSource === "translate" &&
+        storedState.targetLanguage
+      ) {
+        chatStore.translate(storedState.content, storedState.targetLanguage);
+      }
+    }
+  };
+
   // Check for side panel state restoration
   $effect(() => {
     if (isInSidePanel) {
-      // Function to update state from storage
-      const updateStateFromStorage = async () => {
-        const storedState = await sidePanelUtils.getTelescopeState();
-        if (storedState) {
-          console.log('App: Updating state from storage:', storedState);
-
-
-          // Update local state
-          messages = storedState.source === 'addtochat' ? messages : storedState.messages;
-          isStreaming = storedState.isStreaming;
-          streamingMessageId = storedState.streamingMessageId;
-          inputValue = storedState.inputValue;
-          inputImageAttached = storedState.inputImageAttached;
-          searchIndex = storedState.searchIndex;
-          totalResults = storedState.totalResults;
-          currentState = storedState.currentState;
-          source = storedState.source
-          const lastUserMessage = messages.filter(msg => msg.type === 'user').pop();
-          console.log('App: Source:', source);
-          if (lastUserMessage && source === 'append' && storedState.actionSource === 'summarise') {
-            chatStore.summarise(lastUserMessage.content);
-          } else if (lastUserMessage && source === 'translate' && storedState.targetLanguage) {
-            chatStore.translate(lastUserMessage.content, storedState.targetLanguage);
-          }
-        }
+      globalStorage().watch(
+        globalStorage().ACTION_STATE_EVENT,
+        updateStateFromStorage
+      );
+      return () => {
+        globalStorage().unwatch();
       };
+    }
+  });
 
-      // Initial state restoration
+  $effect(() => {
+    if (isInSidePanel) {
       updateStateFromStorage();
-
-      // Listen for Chrome storage changes
-      const handleStorageChange = (changes: { [key: string]: any }, areaName: string) => {
-        if (areaName === 'local' && changes.telescopeState) {
-          console.log('App: Storage changed, updating state');
-          updateStateFromStorage();
-        }
-      };
-
-      // Add the storage change listener
-      if (typeof chrome !== 'undefined' && chrome.storage) {
-        (chrome.storage as any).onChanged.addListener(handleStorageChange);
-
-        // Cleanup function
-        return () => {
-          (chrome.storage as any).onChanged.removeListener(handleStorageChange);
-        };
-      }
     }
   });
 
@@ -129,7 +114,7 @@
 
   function handleAsk({ value, images }: { value: string; images?: string[] }) {
     if (value.trim()) {
-       chatStore.sendMessageStreaming(value, images);
+      chatStore.sendMessageStreaming(value, images);
     }
   }
 
@@ -139,11 +124,11 @@
   }
 
   function handleVoiceInput() {
-    console.log('Voice input clicked');
+    console.log("Voice input clicked");
   }
 
   function handleAttachment() {
-    console.log('Attachment clicked');
+    console.log("Attachment clicked");
   }
 
   function handleClearChat() {
@@ -155,14 +140,14 @@
 
     // If not in side panel, close the telescope UI
     if (!isInSidePanel) {
-      console.log('Closing telescope from close button...');
+      console.log("Closing telescope from close button...");
       // Send message to parent window to close telescope
       if (window.parent && window.parent !== window) {
-        window.parent.postMessage({ action: 'closeTelescope' }, '*');
+        window.parent.postMessage({ action: "closeTelescope" }, "*");
       } else {
         // For content script, we need to communicate differently
         // Dispatch a custom event that the content script can listen to
-        window.dispatchEvent(new CustomEvent('telescope-close'));
+        window.dispatchEvent(new CustomEvent("telescope-close"));
       }
     }
   }
@@ -203,9 +188,9 @@
         )
       );
 
-      telescopeContainer.style.left = newLeft + 'px';
-      telescopeContainer.style.top = newTop + 'px';
-      telescopeContainer.style.transform = 'none'; // Remove centering transform when dragging
+      telescopeContainer.style.left = newLeft + "px";
+      telescopeContainer.style.top = newTop + "px";
+      telescopeContainer.style.transform = "none"; // Remove centering transform when dragging
     }
   }
 
@@ -218,23 +203,23 @@
   $effect(() => {
     if (isVisible) {
       if (telescopeContainer) {
-        telescopeContainer.style.left = '50%';
-        telescopeContainer.style.top = '20px';
-        telescopeContainer.style.transform = 'translateX(-50%)';
+        telescopeContainer.style.left = "50%";
+        telescopeContainer.style.top = "20px";
+        telescopeContainer.style.transform = "translateX(-50%)";
       }
 
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
 
       return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
       };
     }
   });
 
   function handleMessage(event: MessageEvent) {
-    console.log({ event })
+    console.log({ event });
   }
 </script>
 
@@ -249,8 +234,7 @@
       inputState={currentState}
       bind:inputValue
       bind:inputImageAttached
-      {searchIndex}
-      {totalResults}
+      bind:quotedContent
       {messages}
       {isStreaming}
       {streamingMessageId}

@@ -1,8 +1,11 @@
 import { storage } from 'wxt/utils/storage';
 import { DB_SCHEMA, DBStorageKey, ExtractColumnType } from './db_schema';
 
-const getGS = async <K extends DBStorageKey>(key: K): Promise<ExtractColumnType<K> | null> => {
+const getGS = async <K extends DBStorageKey>(key: K, { whereKey }: { whereKey?: string } = {}): Promise<ExtractColumnType<K> | null> => {
   const value = await storage.getItem<ExtractColumnType<K>>(DB_SCHEMA[key].storageKey);
+  if (whereKey && typeof value === 'object' && value !== null) {
+    return value?.[whereKey as keyof typeof value] as ExtractColumnType<K> | null ?? null;
+  }
   return value;
 };
 
@@ -59,5 +62,8 @@ export function globalStorage() {
     append: appendGS,
     keys: Object.keys(DB_SCHEMA) as DBStorageKey[],
     onBoard: onBoardGS,
+    ACTION_STATE_EVENT: DB_SCHEMA.action_state.storageKey,
+    watch: storage.watch,
+    unwatch: storage.unwatch,
   };
 }
