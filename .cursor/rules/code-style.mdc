@@ -1,11 +1,15 @@
 ---
-alwaysApply: false
+alwaysApply: true
 ---
-
 simple, understandable code is better than clever code
+write code that are direct and easy to understand
 ok with iterative and declarative style
+
 use best practice
 when writing fn - create input and output types
-write code that are direct and easy to understand
+avoid unnecessary abstraction
+
+comment only when necessary example why this code is needed
+don't create unnecessary docs
 
 do only necessary changes

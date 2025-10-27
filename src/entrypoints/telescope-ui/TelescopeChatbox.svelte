@@ -168,6 +168,11 @@
     position: relative;
     padding-top: 30px;
   }
+
+  /* Override for side panel to allow full width */
+  .default-chat-box.sidepanel-layout {
+    width: 100%;
+  }
   .chat-box {
     background: #131723;
     padding: 12px 12px 12px 16px;
@@ -240,17 +245,17 @@
 
   /* Webkit scrollbar styling for thin appearance */
   .suggested-questions::-webkit-scrollbar {
-    height: 6px;
+    height: 4px;
   }
 
   .suggested-questions::-webkit-scrollbar-track {
     background: #2a2a2a;
-    border-radius: 3px;
+    border-radius: 2px;
   }
 
   .suggested-questions::-webkit-scrollbar-thumb {
     background: #555;
-    border-radius: 3px;
+    border-radius: 2px;
   }
 
   .suggested-questions::-webkit-scrollbar-thumb:hover {
@@ -319,17 +324,38 @@
   .sidepanel-layout .messages-container {
     flex: 1;
     overflow-y: auto;
-
     min-height: 0; /* Allow container to shrink */
     display: flex;
     flex-direction: column;
+    /* Thin scrollbar styling */
+    scrollbar-width: thin;
+    scrollbar-color: #555 #2a2a2a;
+  }
+
+  /* Webkit scrollbar styling for messages container */
+  .sidepanel-layout .messages-container::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .sidepanel-layout .messages-container::-webkit-scrollbar-track {
+    background: #2a2a2a;
+    border-radius: 2px;
+  }
+
+  .sidepanel-layout .messages-container::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 2px;
+  }
+
+  .sidepanel-layout .messages-container::-webkit-scrollbar-thumb:hover {
+    background: #666;
   }
 
   .sidepanel-layout .input {
     flex-shrink: 0;
     margin-top: auto;
     padding: 12px;
-    width: calc(100% - 32px);
+    width: 100%;
     box-sizing: border-box;
   }
 

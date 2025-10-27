@@ -32,10 +32,12 @@
 
     switch (action) {
       case 'addToChat':
+        // Pass action to parent handler which will add the text from store
         onAction(action);
         onClose?.();
         break;
       case 'summarise': {
+        // Handle summarise directly with the selected text
         const success = await sidePanelUtils.moveToSidePanel({
           messages: [
             {
@@ -59,6 +61,7 @@
         break;
       }
       case 'translate':
+        // Pass action to parent handler which will add the text from store
         onAction(action);
         onClose?.();
         break;

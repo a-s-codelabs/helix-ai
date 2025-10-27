@@ -134,7 +134,7 @@ function openSidePanel(message: any, sender: any) {
           totalResults: message.state.totalResults || 0,
           currentState: message.state.currentState || 'ask',
           timestamp: Date.now(),
-          source: 'move',
+          source: message.state.source || 'move',
         },
       });
   }

@@ -1,0 +1,15 @@
+---
+alwaysApply: true
+---
+
+## API
+
+### Translation and Language Detection
+
+- Official demo code:
+  - https://raw.githubusercontent.com/GoogleChromeLabs/web-ai-demos/refs/heads/main/translation-language-detection-api-playground/script.js
+
+### Summarizer
+
+- Official demo code:
+  - https://raw.githubusercontent.com/GoogleChromeLabs/web-ai-demos/refs/heads/main/summarization-api-playground/src/main.ts
