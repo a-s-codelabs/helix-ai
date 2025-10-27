@@ -56,10 +56,13 @@
   }
 
   function openTelescopeSearch() {
+    console.log("openTelescopeSearch called");
     // Send message to content script to open telescope
     if (typeof chrome !== "undefined" && chrome.tabs) {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        console.log("Active tab:", tabs[0]);
         if (tabs[0]?.id) {
+          console.log("Sending message to tab:", tabs[0].id);
           chrome.tabs.sendMessage(
             tabs[0].id,
             { action: "openTelescope" },
@@ -69,15 +72,22 @@
                   "Error sending message:",
                   chrome.runtime.lastError
                 );
+                // Don't close popup on error - let user try again
               } else {
-                console.log("Message sent successfully");
+                console.log("Message sent successfully, response:", response);
+                // Close the popup after message is sent successfully
+                setTimeout(() => {
+                  window.close();
+                }, 100);
               }
             }
           );
-          // Close the popup after opening telescope
-          window.close();
+        } else {
+          console.error("No active tab ID found");
         }
       });
+    } else {
+      console.error("Chrome API not available");
     }
   }
 
@@ -100,12 +110,23 @@
     }
   }
 
+  // Handle keyboard shortcuts
+  function handleKeyDown(event: KeyboardEvent) {
+    // Check for Cmd+E (Mac) or Ctrl+E (Windows/Linux)
+    if ((event.metaKey || event.ctrlKey) && event.key === 'e') {
+      event.preventDefault();
+      openTelescopeSearch();
+    }
+  }
+
   // Set up event listeners
   onMount(() => {
     document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   });
 </script>
@@ -621,3 +642,4 @@
     transform: translateY(0);
   }
 </style>
+

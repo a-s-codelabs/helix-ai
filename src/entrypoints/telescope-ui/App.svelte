@@ -62,10 +62,8 @@
       window.location.href.includes('sidepanel') ||
       document.title.includes('Side Panel');
 
-    // If we're in side panel mode, automatically show the UI
-    if (isInSidePanel) {
-      isVisible = true;
-    }
+    // Always show the UI (for both side panel and content script mode)
+    isVisible = true;
   });
 
   // Check for side panel state restoration
@@ -152,6 +150,19 @@
 
   function handleClose() {
     chatStore.clear();
+
+    // If not in side panel, close the telescope UI
+    if (!isInSidePanel) {
+      console.log('Closing telescope from close button...');
+      // Send message to parent window to close telescope
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ action: 'closeTelescope' }, '*');
+      } else {
+        // For content script, we need to communicate differently
+        // Dispatch a custom event that the content script can listen to
+        window.dispatchEvent(new CustomEvent('telescope-close'));
+      }
+    }
   }
 
   function handleStop() {

@@ -687,7 +687,7 @@
     color: #ffffff;
     font-size: 16px;
     font-weight: 500;
-    min-width: 80px;
+    min-width: 200px;
     min-height: 24px;
     max-height: 240px;
     line-height: 1.4;
