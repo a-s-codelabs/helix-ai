@@ -267,7 +267,7 @@
         </div>
 
         {#if inputState === "ask"}
-          <button class="ask-button" onclick={handleAsk}> Ask </button>
+          <button class="ask-button" onclick={handleAsk}>Ask</button>
         {/if}
 
         {#if inputState === "chat"}
@@ -282,7 +282,7 @@
               <SendIcon />
             {/if}
           </button>
-        {:else}
+        <!-- {:else}
           <button
             class="close-button"
             onclick={handleClose}
@@ -290,7 +290,7 @@
             aria-label="Close"
           >
             <CloseIcon />
-          </button>
+          </button> -->
         {/if}
       {/if}
 

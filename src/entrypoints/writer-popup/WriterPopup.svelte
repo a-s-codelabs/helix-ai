@@ -2,6 +2,8 @@
   import { scale, slide } from 'svelte/transition';
   /*@ts-ignore */
   import Sparkles from '../telescope-ui/icons/Sparkles.svelte';
+  /*@ts-ignore */
+  import Settings from '../telescope-ui/icons/Settings.svelte';
   import {
     writeContentStreaming,
     checkWriterAvailability,
@@ -109,7 +111,7 @@
     if (mode === 'rewriter' && targetElement) {
       const start = targetElement.selectionStart || 0;
       const end = targetElement.selectionEnd || 0;
-      
+
       if (start !== end) {
         // User has selected text
         const selectedText = targetElement.value.substring(start, end);
@@ -259,7 +261,7 @@
             if (selectionStart !== null && selectionEnd !== null) {
               // Replace only selected text
               targetElement.value = textBeforeSelection + streamedContent + textAfterSelection;
-              
+
               // Set cursor at the end of the rewritten content
               const newCursorPosition = textBeforeSelection.length + streamedContent.length;
               targetElement.setSelectionRange(newCursorPosition, newCursorPosition);
@@ -285,7 +287,7 @@
           // Supports rewriting only selected text or entire content
           targetElement.dispatchEvent(new Event('change', { bubbles: true }));
         }
-        
+
         targetElement.focus();
         console.log(`[${mode === 'writer' ? 'Writer' : 'Rewriter'} API] Final value set:`, targetElement.value);
       }
@@ -465,19 +467,20 @@
       >
         {mode === 'writer' ? '✍️ Writer' : '🔄 Rewriter'}
       </button>
-      <button
+      <!-- <button
         class="header-btn"
         onclick={() => (showOptions = !showOptions)}
         type="button"
         aria-label="Options"
       >
         Options
-      </button>
+      </button> -->
       <button
         class="header-btn close"
         onclick={() => onClose?.()}
         type="button"
         aria-label="Close"
+        title="Close"
       >
         ×
       </button>
@@ -491,28 +494,31 @@
   <div class="content">
     <!-- Prompt input -->
     <div class="input-wrapper">
-      {#if mode === 'writer'}
-        <input
-          type="text"
-          bind:value={prompt}
-          placeholder="Add prompt here..."
-          class="prompt-input"
-          disabled={isGenerating}
-        />
-      {:else}
-        <textarea
-          bind:value={prompt}
-          placeholder="Add text to rewrite here..."
-          class="prompt-textarea"
-          rows="3"
-          disabled={isGenerating}
-        ></textarea>
-        {#if selectionStart !== null && selectionEnd !== null}
-          <div class="selection-info">
-            ✓ Rewriting selected text only ({selectionEnd - selectionStart} chars)
-          </div>
-        {/if}
+      <textarea
+        type="text"
+        bind:value={prompt}
+        placeholder={`Add prompt to ${
+          mode === 'writer' ? 'write' : 'rewrite'
+        } here...`}
+        class="prompt-textarea"
+        rows="3"
+        disabled={isGenerating}
+      />
+      {#if selectionStart !== null && selectionEnd !== null}
+        <div class="selection-info">
+          ✓ Rewriting selected text only ({selectionEnd - selectionStart} chars)
+        </div>
       {/if}
+
+      <button
+        class="prompt-settings-btn"
+        type="button"
+        aria-label="Prompt options"
+        onclick={() => (showOptions = !showOptions)}
+        title="Options"
+      >
+        <Settings />
+      </button>
     </div>
 
     <!-- Options panel (expandable) -->
@@ -527,7 +533,7 @@
             placeholder="Add background information... e.g., I'm a long-standing customer..."
             rows="3"
             disabled={isGenerating}
-          ></textarea>
+          />
         </div>
 
         <!-- Tone, Length, Format -->
@@ -541,7 +547,11 @@
                 <option value="casual">Casual</option>
               </select>
             {:else}
-              <select id="tone" bind:value={rewriterTone} disabled={isGenerating}>
+              <select
+                id="tone"
+                bind:value={rewriterTone}
+                disabled={isGenerating}
+              >
                 <option value="as-is">As-Is</option>
                 <option value="more-formal">More Formal</option>
                 <option value="more-casual">More Casual</option>
@@ -552,13 +562,21 @@
           <div class="field">
             <label for="length">Length</label>
             {#if mode === 'writer'}
-              <select id="length" bind:value={writerLength} disabled={isGenerating}>
+              <select
+                id="length"
+                bind:value={writerLength}
+                disabled={isGenerating}
+              >
                 <option value="short">Short</option>
                 <option value="medium">Medium</option>
                 <option value="long">Long</option>
               </select>
             {:else}
-              <select id="length" bind:value={rewriterLength} disabled={isGenerating}>
+              <select
+                id="length"
+                bind:value={rewriterLength}
+                disabled={isGenerating}
+              >
                 <option value="as-is">As-Is</option>
                 <option value="shorter">Shorter</option>
                 <option value="longer">Longer</option>
@@ -569,12 +587,20 @@
           <div class="field">
             <label for="format">Format</label>
             {#if mode === 'writer'}
-              <select id="format" bind:value={writerFormat} disabled={isGenerating}>
+              <select
+                id="format"
+                bind:value={writerFormat}
+                disabled={isGenerating}
+              >
                 <option value="plain-text">Plain Text</option>
                 <option value="markdown">Markdown</option>
               </select>
             {:else}
-              <select id="format" bind:value={rewriterFormat} disabled={isGenerating}>
+              <select
+                id="format"
+                bind:value={rewriterFormat}
+                disabled={isGenerating}
+              >
                 <option value="as-is">As-Is</option>
                 <option value="plain-text">Plain Text</option>
                 <option value="markdown">Markdown</option>
@@ -583,42 +609,43 @@
           </div>
         </div>
 
-        <!-- Input Quota Info -->
-        <div class="info-section">
-          <span class="info-label">Input Quota:</span>
-          <span class="info-value">~6000 characters</span>
+        <div class="field">
+          <!-- Output Language -->
+          <label for="outputLanguage">Output Language</label>
+          <select
+            id="outputLanguage"
+            bind:value={outputLanguage}
+            disabled={isGenerating}
+          >
+            <option value="en">English</option>
+            <option value="fr">French</option>
+            <option value="ja">Japanese</option>
+            <option value="pt">Portuguese</option>
+            <option value="es">Spanish</option>
+          </select>
         </div>
 
+        <!-- Input Quota Info -->
+        <!-- <div class="info-section">
+          <span class="info-label">Input Quota:</span>
+          <span class="info-value">~6000 characters</span>
+        </div> -->
+
         <!-- Languages Section (Collapsible) -->
-        <button
+        <!-- <button
           type="button"
           class="section-toggle"
           onclick={() => (showLanguages = !showLanguages)}
         >
           <span class="toggle-icon">{showLanguages ? '▼' : '▶'}</span>
           Languages (optional)
-        </button>
+        </button> -->
 
-        {#if showLanguages}
-          <div class="languages-panel" transition:slide={{ duration: 200 }}>
-            <!-- Output Language -->
-            <div class="field">
-              <label for="outputLanguage">Output Language</label>
-              <select
-                id="outputLanguage"
-                bind:value={outputLanguage}
-                disabled={isGenerating}
-              >
-                <option value="en">English</option>
-                <option value="fr">French</option>
-                <option value="ja">Japanese</option>
-                <option value="pt">Portuguese</option>
-                <option value="es">Spanish</option>
-              </select>
-            </div>
+        <!-- {#if showLanguages}
+          <div class="languages-panel" transition:slide={{ duration: 200 }}> -->
 
-            <!-- Expected Input Languages -->
-            <div class="field">
+        <!-- Expected Input Languages -->
+        <!-- <div class="field">
               <fieldset class="checkbox-fieldset">
                 <legend>Expected Input Languages</legend>
                 <div class="checkbox-group">
@@ -664,10 +691,10 @@
                 </label>
               </div>
               </fieldset>
-            </div>
+            </div> -->
 
-            <!-- Expected Context Languages -->
-            <div class="field">
+        <!-- Expected Context Languages -->
+        <!-- <div class="field">
               <fieldset class="checkbox-fieldset">
                 <legend>Expected Context Languages</legend>
                 <div class="checkbox-group">
@@ -713,27 +740,27 @@
                 </label>
               </div>
               </fieldset>
-            </div>
-          </div>
-        {/if}
+            </div> -->
+        <!-- </div> -->
+        <!-- {/if} -->
 
         <!-- Reset Button -->
-        <button
+        <!-- <button
           type="button"
           class="reset-btn"
           onclick={handleResetOptions}
           disabled={isGenerating}
         >
           Reset Options
-        </button>
+        </button> -->
 
         <!-- Keyboard shortcuts hint -->
-        <div class="shortcuts-hint">
+        <!-- <div class="shortcuts-hint">
           <span class="shortcut"
             ><kbd>Ctrl</kbd>+<kbd>Enter</kbd> to generate</span
           >
           <span class="shortcut"><kbd>Esc</kbd> to exit</span>
-        </div>
+        </div> -->
       </div>
     {/if}
   </div>
@@ -744,9 +771,8 @@
     position: fixed;
     width: 360px;
     background: #18181b;
-    border-radius: 12px;
-    box-shadow:
-      0 20px 25px -5px rgba(0, 0, 0, 0.3),
+    border-radius: 8px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3),
       0 8px 10px -6px rgba(0, 0, 0, 0.2);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
       Ubuntu, Cantarell, sans-serif;
@@ -779,13 +805,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #a78bfa;
+    color: #3b82f6;
   }
 
   .header-action-btn {
     padding: 6px 16px;
     border: none;
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
@@ -798,12 +824,23 @@
   }
 
   .header-action-btn.generate {
-    background: #a78bfa;
-    color: #18181b;
+    background: #3b82f6;
+    color: white;
+    /* Match TelescopeInput .ask-button styles */
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    white-space: nowrap;
+    height: fit-content;
+    align-self: center;
   }
 
   .header-action-btn.generate:hover:not(:disabled) {
-    background: #c4b5fd;
+    /* Use a faded version of #3b82f6 (blue-500), e.g. 80% opacity */
+    background: #3b82f6cc;
   }
 
   .header-action-btn.generate:active:not(:disabled) {
@@ -833,9 +870,10 @@
     background: transparent;
     border: none;
     color: #a1a1aa;
-    font-size: 13px;
+    font-size: 14px;
+    font-weight: 600;
     padding: 4px 8px;
-    border-radius: 4px;
+    border-radius: 8px;
     cursor: pointer;
     transition: all 0.15s ease;
   }
@@ -876,10 +914,16 @@
 
   /* Content */
   .content {
+    overflow: auto;
+    overscroll-behavior: none;
+    max-height: 50vh;
     padding: 12px;
     display: flex;
     flex-direction: column;
     gap: 12px;
+    /* Make scrollbar thin in Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: #52525b transparent;
   }
 
   /* Prompt input */
@@ -888,16 +932,48 @@
     flex-direction: column;
   }
 
+  .prompt-input-container {
+    position: relative;
+    width: 100%;
+  }
+
   .prompt-input {
     width: 94%;
     padding: 8px 10px;
     background: #27272a;
     border: 1px solid #3f3f46;
-    border-radius: 6px;
+    border-radius: 4px;
     color: #e4e4e7;
     font-size: 13px;
     font-family: inherit;
     transition: all 0.15s ease;
+  }
+
+  /* .prompt-input.has-icon {
+    padding-right: 36px;
+  } */
+
+  .prompt-settings-btn {
+    position: absolute;
+    right: 20px;
+    top: 85px;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: #a1a1aa;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: color 0.15s ease, background 0.15s ease;
+  }
+
+  .prompt-settings-btn:hover {
+    background: #3f3f46;
+    color: #e4e4e7;
   }
 
   .prompt-input::placeholder {
@@ -906,7 +982,7 @@
 
   .prompt-input:focus {
     outline: none;
-    border-color: #a78bfa;
+    border-color: #3b82f6;
     background: #18181b;
   }
 
@@ -982,7 +1058,7 @@
     gap: 12px;
     padding: 12px;
     background: #27272a;
-    border-radius: 6px;
+    border-radius: 8px;
     border: 1px solid #3f3f46;
   }
 
@@ -1013,9 +1089,9 @@
   input[type='text'] {
     width: 94%;
     padding: 8px 10px;
-    background: #18181b;
+    background: #262832;
     border: 1px solid #3f3f46;
-    border-radius: 4px;
+    border-radius: 48px;
     color: #e4e4e7;
     font-size: 13px;
     font-family: inherit;
@@ -1028,7 +1104,7 @@
 
   input[type='text']:focus {
     outline: none;
-    border-color: #a78bfa;
+    border-color: #3b82f6;
   }
 
   input[type='text']:disabled {
@@ -1042,7 +1118,7 @@
     padding: 8px 10px;
     background: #18181b;
     border: 1px solid #3f3f46;
-    border-radius: 4px;
+    border-radius: 8px;
     color: #e4e4e7;
     font-size: 13px;
     font-family: inherit;
@@ -1056,7 +1132,7 @@
   textarea:focus,
   select:focus {
     outline: none;
-    border-color: #a78bfa;
+    border-color: #3b82f6;
   }
 
   textarea:disabled,
@@ -1083,10 +1159,28 @@
 
   textarea::-webkit-scrollbar-thumb {
     background: #3f3f46;
-    border-radius: 3px;
+    border-radius: 8px;
   }
 
   textarea::-webkit-scrollbar-thumb:hover {
+    background: #52525b;
+  }
+
+  /* Thin scrollbar for content container (WebKit) */
+  .content::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .content::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .content::-webkit-scrollbar-thumb {
+    background: #3f3f46;
+    border-radius: 8px;
+  }
+
+  .content::-webkit-scrollbar-thumb:hover {
     background: #52525b;
   }
 
@@ -1103,8 +1197,8 @@
     padding: 8px 10px;
     background: #27272a;
     border: 1px solid #3f3f46;
-    border-radius: 6px;
-    color: #a78bfa;
+    border-radius: 8px;
+    color: #3b82f6;
     font-size: 12px;
     font-weight: 600;
     font-family: inherit;
@@ -1134,7 +1228,7 @@
     gap: 12px;
     padding: 12px;
     background: #27272a;
-    border-radius: 6px;
+    border-radius: 8px;
     border: 1px solid #3f3f46;
     margin-top: 8px;
   }
@@ -1146,7 +1240,7 @@
     justify-content: space-between;
     padding: 8px 10px;
     background: #18181b;
-    border-radius: 4px;
+    border-radius: 8px;
     border: 1px solid #3f3f46;
     font-size: 12px;
   }
@@ -1183,7 +1277,7 @@
     gap: 8px;
     padding: 8px;
     background: #18181b;
-    border-radius: 4px;
+    border-radius: 8px;
     border: 1px solid #3f3f46;
   }
 
@@ -1195,7 +1289,7 @@
     color: #e4e4e7;
     cursor: pointer;
     padding: 4px 6px;
-    border-radius: 4px;
+    border-radius: 8px;
     transition: background 0.15s ease;
   }
 
@@ -1207,7 +1301,7 @@
     width: 16px;
     height: 16px;
     cursor: pointer;
-    accent-color: #a78bfa;
+    accent-color: #3b82f6;
   }
 
   .checkbox-label input[type='checkbox']:disabled {
@@ -1225,7 +1319,7 @@
     padding: 8px 12px;
     background: #27272a;
     border: 1px solid #3f3f46;
-    border-radius: 6px;
+    border-radius: 8px;
     color: #a1a1aa;
     font-size: 13px;
     font-weight: 500;
@@ -1272,7 +1366,7 @@
     padding: 2px 6px;
     background: #18181b;
     border: 1px solid #3f3f46;
-    border-radius: 3px;
+    border-radius: 8px;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
       monospace;
     font-size: 10px;

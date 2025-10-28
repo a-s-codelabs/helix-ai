@@ -1,6 +1,65 @@
+import { globalStorage } from '@/lib/globalStorage';
+
 export default defineBackground(() => {
+  // Setup context menu for images: Helix AI -> Add to chat
+  const PARENT_ID = 'helix_ai_menu';
+  const ADD_TO_CHAT_ID = 'helix_ai_add_to_chat';
+
+  async function createContextMenus() {
+    try {
+      const ctx = (chrome as any).contextMenus;
+      if (!ctx) return;
+      await ctx.removeAll().catch(() => void 0);
+      ctx.create({
+        id: PARENT_ID,
+        title: 'Helix AI',
+        contexts: ['image'],
+      });
+      ctx.create({
+        id: ADD_TO_CHAT_ID,
+        parentId: PARENT_ID,
+        title: 'Add to chat',
+        contexts: ['image'],
+      });
+    } catch (err) {
+      console.error('Failed to create context menus', err);
+    }
+  }
+
+  if (chrome.runtime && (chrome.runtime as any).onInstalled) {
+    (chrome.runtime as any).onInstalled.addListener(() => {
+      createContextMenus();
+    });
+  }
+  if (chrome.runtime && (chrome.runtime as any).onStartup) {
+    (chrome.runtime as any).onStartup.addListener(() => {
+      createContextMenus();
+    });
+  }
+
+  const ctx = (chrome as any).contextMenus;
+  if (ctx && ctx.onClicked) {
+    ctx.onClicked.addListener(async (info: any, tab: any) => {
+      if (info.menuItemId !== ADD_TO_CHAT_ID) return;
+      const imageUrl = info.srcUrl || '';
+      try {
+        // Open side panel on the current window
+        if (tab && tab.windowId !== undefined && chrome.sidePanel) {
+          await chrome.sidePanel.open({ windowId: tab.windowId });
+        }
+
+        // Store action for the side panel to pick up
+        await globalStorage().set('action_state', {
+          actionSource: 'context-image',
+          content: imageUrl,
+        } as any);
+      } catch (e) {
+        console.error('Error handling Helix AI -> Add to chat', e);
+      }
+    });
+  }
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    console.log(`BACKGROUND: MESSAGE`, message.type)
+    console.log(`BACKGROUND: MESSAGE`, message.type);
     if (message.type === 'OPEN_TO_SIDE_PANEL') {
       openSidePanel(message, sender);
       return true;
