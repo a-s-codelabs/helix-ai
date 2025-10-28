@@ -1,9 +1,10 @@
 <script lang="ts">
   import Telescope from "./Telescope.svelte";
-  import { chatStore } from "../../lib/chatStore";
-  import { sidePanelUtils, sidePanelStore } from "../../lib/sidePanelStore";
+  import { chatStore } from "@/lib/chatStore";
+  import { sidePanelUtils, sidePanelStore } from "@/lib/sidePanelStore";
   import { globalStorage } from "@/lib/globalStorage";
   import { Message, State } from "./type";
+  import TelescopeSidepanelHeader from "./TelescopeSidepanelHeader.svelte";
 
   let currentState: State = $state("ask");
   let inputValue = $state("");
@@ -77,7 +78,7 @@
         const isImageUrl =
           /^data:image\//i.test(content) ||
           /\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?(#.*)?$/i.test(content);
-          inputImageAttached = [...inputImageAttached, content];
+        inputImageAttached = [...inputImageAttached, content];
       }
 
       if (storedState.actionSource === "addToChat") {
@@ -243,6 +244,9 @@
     class:draggable={!isInSidePanel}
     bind:this={telescopeContainer}
   >
+    {#if isInSidePanel}
+      <TelescopeSidepanelHeader />
+    {/if}
     <Telescope
       inputState={currentState}
       bind:inputValue

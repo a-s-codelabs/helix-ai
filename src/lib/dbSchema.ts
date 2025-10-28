@@ -1,5 +1,8 @@
 type TabId = `tab_id_${number}`;
 
+
+export type Source = "translator" | "summarize" | "prompt" | "writer" | "rewriter" | "language-detector";
+
 export const DB_SCHEMA = {
   config: {
     storageKey: 'local:global:config' as const,
@@ -16,13 +19,14 @@ export const DB_SCHEMA = {
   },
   downloadStatus: {
     storageKey: 'local:global:downloadStatus' as const,
-    default: [] as {
+    default: {} as Record<string, {
       isDownloading: boolean | undefined;
-      progress: number | undefined;
-      total: number | undefined;
-      uniqueKey: `${"translate" | "summarize" | "prompt"}-${string}`;
+      loaded: number | undefined;
+      // total: number | undefined;
+      uniqueKey: `${Source}-${string}`;
       source: string;
-    }[],
+      createdAt: number;
+    }>,
   },
   pageMarkdown: {
     storageKey: 'local:global:pageMarkdown' as const,
