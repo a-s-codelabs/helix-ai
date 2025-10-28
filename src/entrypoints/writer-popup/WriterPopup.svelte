@@ -575,7 +575,7 @@
     position: fixed;
     width: 360px;
     background: #18181b;
-    border-radius: 12px;
+    border-radius: 8px;
     box-shadow:
       0 20px 25px -5px rgba(0, 0, 0, 0.3),
       0 8px 10px -6px rgba(0, 0, 0, 0.2);
@@ -616,7 +616,7 @@
   .header-action-btn {
     padding: 6px 16px;
     border: none;
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
@@ -631,6 +631,16 @@
   .header-action-btn.generate {
     background: #3b82f6;
     color: white;
+    /* Match TelescopeInput .ask-button styles */
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    white-space: nowrap;
+    height: fit-content;
+    align-self: center;
   }
 
   .header-action-btn.generate:hover:not(:disabled) {
@@ -666,9 +676,10 @@
     background: transparent;
     border: none;
     color: #a1a1aa;
-    font-size: 13px;
+    font-size: 14px;
+    font-weight: 600;
     padding: 4px 8px;
-    border-radius: 4px;
+    border-radius: 8px;
     cursor: pointer;
     transition: all 0.15s ease;
   }
@@ -713,7 +724,7 @@
     padding: 8px 10px;
     background: #27272a;
     border: 1px solid #3f3f46;
-    border-radius: 6px;
+    border-radius: 4px;
     color: #e4e4e7;
     font-size: 13px;
     font-family: inherit;
@@ -726,7 +737,7 @@
 
   .prompt-input:focus {
     outline: none;
-    border-color: #a78bfa;
+    border-color: #3b82f6;
     background: #18181b;
   }
 
@@ -742,7 +753,7 @@
     gap: 12px;
     padding: 12px;
     background: #27272a;
-    border-radius: 6px;
+    border-radius: 8px;
     border: 1px solid #3f3f46;
   }
 
@@ -773,9 +784,9 @@
   input[type='text'] {
     width: 94%;
     padding: 8px 10px;
-    background: #18181b;
+    background: #262832;
     border: 1px solid #3f3f46;
-    border-radius: 4px;
+    border-radius: 48px;
     color: #e4e4e7;
     font-size: 13px;
     font-family: inherit;
@@ -802,7 +813,7 @@
     padding: 8px 10px;
     background: #18181b;
     border: 1px solid #3f3f46;
-    border-radius: 4px;
+    border-radius: 8px;
     color: #e4e4e7;
     font-size: 13px;
     font-family: inherit;
@@ -843,7 +854,7 @@
 
   textarea::-webkit-scrollbar-thumb {
     background: #3f3f46;
-    border-radius: 3px;
+    border-radius: 8px;
   }
 
   textarea::-webkit-scrollbar-thumb:hover {
@@ -863,7 +874,7 @@
     padding: 8px 10px;
     background: #27272a;
     border: 1px solid #3f3f46;
-    border-radius: 6px;
+    border-radius: 8px;
     color: #3b82f6;
     font-size: 12px;
     font-weight: 600;
@@ -894,7 +905,7 @@
     gap: 12px;
     padding: 12px;
     background: #27272a;
-    border-radius: 6px;
+    border-radius: 8px;
     border: 1px solid #3f3f46;
     margin-top: 8px;
   }
@@ -906,7 +917,7 @@
     justify-content: space-between;
     padding: 8px 10px;
     background: #18181b;
-    border-radius: 4px;
+    border-radius: 8px;
     border: 1px solid #3f3f46;
     font-size: 12px;
   }
@@ -943,7 +954,7 @@
     gap: 8px;
     padding: 8px;
     background: #18181b;
-    border-radius: 4px;
+    border-radius: 8px;
     border: 1px solid #3f3f46;
   }
 
@@ -955,7 +966,7 @@
     color: #e4e4e7;
     cursor: pointer;
     padding: 4px 6px;
-    border-radius: 4px;
+    border-radius: 8px;
     transition: background 0.15s ease;
   }
 
@@ -985,7 +996,7 @@
     padding: 8px 12px;
     background: #27272a;
     border: 1px solid #3f3f46;
-    border-radius: 6px;
+    border-radius: 8px;
     color: #a1a1aa;
     font-size: 13px;
     font-weight: 500;
@@ -1032,7 +1043,7 @@
     padding: 2px 6px;
     background: #18181b;
     border: 1px solid #3f3f46;
-    border-radius: 3px;
+    border-radius: 8px;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
       monospace;
     font-size: 10px;
