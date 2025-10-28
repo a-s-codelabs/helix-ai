@@ -9,7 +9,7 @@ import {
   base64ToFile as utilsBase64ToFile,
   ensurePngFile,
 } from './utils/file';
-import { storage } from 'wxt/utils/storage';
+// import { storage } from 'wxt/utils/storage';
 import { globalStorage } from './globalStorage';
 
 export type ChatMessage = {

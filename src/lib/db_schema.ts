@@ -69,6 +69,9 @@ export const DB_SCHEMA = {
     } | {
       actionSource: "addToChat";
       content: string;
+    } | {
+      actionSource: "context-image";
+      content: string;
     }),
   }
 }
