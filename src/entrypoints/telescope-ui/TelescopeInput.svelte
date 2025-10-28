@@ -1,9 +1,6 @@
 <script lang="ts">
   import MicIcon from "./icons/Mic.svelte";
   import AttachmentIcon from "./icons/Attachment.svelte";
-  import UpIcon from "./icons/Up.svelte";
-  import DownIcon from "./icons/Down.svelte";
-  import SearchIcon from "./icons/Search.svelte";
   import SearchAiIcon from "./icons/SearchAi.svelte";
   import CloseIcon from "./icons/Close.svelte";
   import type { InputProps, State } from "./type";
@@ -15,12 +12,10 @@
     inputState = $bindable("ask" as State),
     inputValue = $bindable(""),
     placeholder = "Summarize this site...",
-    searchIndex = 0,
-    totalResults = 0,
     isExpanded = false,
+    quotedContent = $bindable([]),
     disabled = false,
     inputImageAttached = $bindable([] as string[]),
-    suggestedQuestions = [] as string[],
     isStreaming = false,
     onInput,
     onStateChange,
@@ -28,16 +23,13 @@
     onVoiceInput,
     onAttachment,
     onClear,
-    onSuggestedQuestion,
     onClose,
     onStop,
   }: InputProps = $props();
 
-  // Check if we're in side panel mode
   let isInSidePanel = $state(false);
 
   $effect(() => {
-    // Check if we're in a side panel context
     isInSidePanel =
       window.location.pathname.includes("sidepanel") ||
       window.location.href.includes("sidepanel") ||
@@ -50,6 +42,7 @@
   let inputElement: HTMLTextAreaElement;
   let inputBarElement: HTMLDivElement;
   const CHAR_EXPAND_LIMIT = 28;
+  // let quotedContent = $state<string[]>([]);
   let isInputExpanded = $derived(
     inputValue.length > CHAR_EXPAND_LIMIT ||
       inputValue.includes("\n") ||
@@ -57,23 +50,20 @@
       inputImageAttached.length > 0
   );
 
-  // Track quoted content as an array to support multiple attachments
-  let quotedContent = $state<string[]>([]);
-
   // Detect when inputValue is set from outside (like add to chat)
-  $effect(() => {
-    // If inputValue has content, it might be from add to chat
-    // Store it as quoted content and clear inputValue
-    if (inputValue && inputValue.trim()) {
-      // Check if this looks like content that should be quoted (not user input)
-      // We'll use a simple heuristic: if it's longer than 20 chars, it's probably quoted content
-      if (inputValue.length > 20) {
-        // Add to array instead of replacing
-        quotedContent = [...quotedContent, inputValue];
-        inputValue = '';
-      }
-    }
-  });
+  // $effect(() => {
+  //   // If inputValue has content, it might be from add to chat
+  //   // Store it as quoted content and clear inputValue
+  //   if (inputValue && inputValue.trim()) {
+  //     // Check if this looks like content that should be quoted (not user input)
+  //     // We'll use a simple heuristic: if it's longer than 20 chars, it's probably quoted content
+  //     if (inputValue.length > 20) {
+  //       // Add to array instead of replacing
+  //       quotedContent = [...quotedContent, inputValue];
+  //       inputValue = "";
+  //     }
+  //   }
+  // });
 
   // Focus the input when the component becomes visible
   $effect(() => {
@@ -97,9 +87,10 @@
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       // Prepend quoted content if it exists
-      const quotedText = quotedContent.length > 0
-        ? quotedContent.join('\n\n---\n\n') + '\n\n'
-        : '';
+      const quotedText =
+        quotedContent.length > 0
+          ? quotedContent.join("\n\n---\n\n") + "\n\n"
+          : "";
       const finalMessage = quotedText + inputValue;
       onAsk?.({ value: finalMessage, images: inputImageAttached });
       resetInput();
@@ -108,9 +99,10 @@
 
   function handleAsk() {
     // Prepend quoted content if it exists
-    const quotedText = quotedContent.length > 0
-      ? quotedContent.join('\n\n---\n\n') + '\n\n'
-      : '';
+    const quotedText =
+      quotedContent.length > 0
+        ? quotedContent.join("\n\n---\n\n") + "\n\n"
+        : "";
     const finalMessage = quotedText + inputValue;
     onAsk?.({ value: finalMessage, images: inputImageAttached });
     resetInput();
@@ -173,7 +165,7 @@
     inputValue = "";
     inputElement.value = "";
     inputImageAttached = [];
-    quotedContent = '';
+    quotedContent = [];
   }
 </script>
 
@@ -687,7 +679,7 @@
     color: #ffffff;
     font-size: 16px;
     font-weight: 500;
-    min-width: 80px;
+    min-width: 200px;
     min-height: 24px;
     max-height: 240px;
     line-height: 1.4;

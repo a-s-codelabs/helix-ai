@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { globalStorage } from './globalStorage';
 
 export interface TelescopeState {
   messages: any[];
@@ -9,7 +10,9 @@ export interface TelescopeState {
   searchIndex: number;
   totalResults: number;
   currentState: 'ask' | 'chat';
-  source: 'append' | 'move' | 'addtochat';
+  source: 'append' | 'move' | 'translate' | "addtochat";
+  actionSource: "summarise" | "translate" | "prompt" | "popup";
+  targetLanguage: string | null;
   timestamp: number;
 }
 
@@ -69,101 +72,63 @@ export const sidePanelUtils = {
   },
 
   // Get telescope state from storage
-  async getTelescopeState(): Promise<TelescopeState | null> {
-    try {
-      return new Promise((resolve) => {
-        // Check if Chrome runtime is available
-        if (typeof chrome === 'undefined' || !chrome.runtime) {
-          console.error('Chrome runtime not available');
-          resolve(null);
-          return;
-        }
+  // async getTelescopeState(): Promise<TelescopeState | null> {
+  //   return globalStorage().get("action_state");
+  // },
 
-        // Set a timeout to prevent hanging
-        const timeout = setTimeout(() => {
-          console.error('Timeout: No response from service worker');
-          resolve(null);
-        }, 5000); // 5 second timeout
+  // // Clear telescope state
+  // async clearTelescopeState(): Promise<boolean> {
+  //   try {
+  //     return new Promise((resolve) => {
+  //       // Check if Chrome runtime is available
+  //       if (typeof chrome === 'undefined' || !chrome.runtime) {
+  //         console.error('Chrome runtime not available');
+  //         resolve(false);
+  //         return;
+  //       }
 
-        chrome.runtime.sendMessage(
-          {
-            type: 'GET_TELESCOPE_STATE',
-          },
-          (response) => {
-            clearTimeout(timeout);
+  //       // Set a timeout to prevent hanging
+  //       const timeout = setTimeout(() => {
+  //         console.error('Timeout: No response from service worker');
+  //         resolve(false);
+  //       }, 5000); // 5 second timeout
 
-            // Check for runtime errors
-            if (chrome.runtime.lastError) {
-              console.error(
-                'Chrome runtime error:',
-                chrome.runtime.lastError.message
-              );
-              resolve(null);
-              return;
-            }
-            resolve(response?.state || null);
-          }
-        );
-      });
-    } catch (error) {
-      console.error('Error getting telescope state:', error);
-      return null;
-    }
-  },
+  //       chrome.runtime.sendMessage(
+  //         {
+  //           type: 'CLEAR_TELESCOPE_STATE',
+  //         },
+  //         (response) => {
+  //           clearTimeout(timeout);
 
-  // Clear telescope state
-  async clearTelescopeState(): Promise<boolean> {
-    try {
-      return new Promise((resolve) => {
-        // Check if Chrome runtime is available
-        if (typeof chrome === 'undefined' || !chrome.runtime) {
-          console.error('Chrome runtime not available');
-          resolve(false);
-          return;
-        }
+  //           // Check for runtime errors
+  //           if (chrome.runtime.lastError) {
+  //             console.error(
+  //               'Chrome runtime error:',
+  //               chrome.runtime.lastError.message
+  //             );
+  //             resolve(false);
+  //             return;
+  //           }
 
-        // Set a timeout to prevent hanging
-        const timeout = setTimeout(() => {
-          console.error('Timeout: No response from service worker');
-          resolve(false);
-        }, 5000); // 5 second timeout
-
-        chrome.runtime.sendMessage(
-          {
-            type: 'CLEAR_TELESCOPE_STATE',
-          },
-          (response) => {
-            clearTimeout(timeout);
-
-            // Check for runtime errors
-            if (chrome.runtime.lastError) {
-              console.error(
-                'Chrome runtime error:',
-                chrome.runtime.lastError.message
-              );
-              resolve(false);
-              return;
-            }
-
-            if (response?.success) {
-              sidePanelStore.update((store) => ({
-                ...store,
-                isInSidePanel: false,
-                telescopeState: null,
-              }));
-              resolve(true);
-            } else {
-              console.error('Failed to clear telescope state:', response);
-              resolve(false);
-            }
-          }
-        );
-      });
-    } catch (error) {
-      console.error('Error clearing telescope state:', error);
-      return false;
-    }
-  },
+  //           if (response?.success) {
+  //             sidePanelStore.update((store) => ({
+  //               ...store,
+  //               isInSidePanel: false,
+  //               telescopeState: null,
+  //             }));
+  //             resolve(true);
+  //           } else {
+  //             console.error('Failed to clear telescope state:', response);
+  //             resolve(false);
+  //           }
+  //         }
+  //       );
+  //     });
+  //   } catch (error) {
+  //     console.error('Error clearing telescope state:', error);
+  //     return false;
+  //   }
+  // },
 
   // Check if we're in side panel mode
   isInSidePanelMode(): boolean {

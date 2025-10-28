@@ -15,6 +15,7 @@ export type InputProps = {
   disabled?: boolean;
   inputImageAttached?: string[];
   messages?: Message[];
+  quotedContent: string[];
   onInput?: ({ value }: { value: string }) => void;
   onStateChange?: ({ state }: { state: State }) => void;
   onAsk?: ({ value, images }: { value: string; images?: string[] }) => void;

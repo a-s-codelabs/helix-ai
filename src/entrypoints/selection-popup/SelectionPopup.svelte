@@ -1,27 +1,27 @@
 <script lang="ts">
-  import { scale } from 'svelte/transition';
-  import type { SelectionAction } from './types';
-  import Summarise from '../telescope-ui/icons/Summarise.svelte';
-  import Translate from '../telescope-ui/icons/Translate.svelte';
-  import AddToChat from '../telescope-ui/icons/AddToChat.svelte';
-  import Down from '../telescope-ui/icons/Down.svelte';
-  import { sidePanelUtils } from '../../lib/sidePanelStore';
-  import { SUPPORTED_LANGUAGES } from '../../lib/languageHelper';
+  import { scale } from "svelte/transition";
+  import type { SelectionAction } from "./types";
+  import Summarise from "../telescope-ui/icons/Summarise.svelte";
+  import Translate from "../telescope-ui/icons/Translate.svelte";
+  import AddToChat from "../telescope-ui/icons/AddToChat.svelte";
+  import Down from "../telescope-ui/icons/Down.svelte";
+  import { sidePanelUtils } from "../../lib/sidePanelStore";
+  import { SUPPORTED_LANGUAGES } from "../../lib/languageHelper";
+  import { globalStorage } from "@/lib/globalStorage";
 
   interface Props {
     x: number;
     y: number;
     isAtTop?: boolean;
-    onAction: (action: SelectionAction) => void;
     onClose?: () => void;
   }
 
-  let { x, y, isAtTop = false, onAction, onClose }: Props = $props();
+  let { x, y, isAtTop = false, onClose }: Props = $props();
 
   const actions: Array<{ id: SelectionAction; icon: any; label: string }> = [
-    { id: 'addToChat', icon: AddToChat, label: 'Add to Chat' },
-    { id: 'summarise', icon: Summarise, label: 'Summarise' },
-    { id: 'translate', icon: Translate, label: 'Translate' },
+    { id: "addToChat", icon: AddToChat, label: "Add to Chat" },
+    { id: "summarise", icon: Summarise, label: "Summarise" },
+    { id: "translate", icon: Translate, label: "Translate" },
   ];
 
   let showLanguageDropdown = $state(false);
@@ -33,7 +33,9 @@
 
   // Helper to grab selected text from the document
   function getSelectedText(): string {
-    return (window.getSelection?.() || document.getSelection?.())?.toString() || '';
+    return (
+      (window.getSelection?.() || document.getSelection?.())?.toString() || ""
+    );
   }
 
   // Check dropdown position and adjust if it hits the top
@@ -65,19 +67,19 @@
 
       observer.observe(dropdownElement, {
         attributes: true,
-        attributeFilter: ['style', 'class'],
+        attributeFilter: ["style", "class"],
         childList: true,
         subtree: true,
       });
 
       // Also check on scroll and resize
-      window.addEventListener('scroll', checkDropdownPosition, true);
-      window.addEventListener('resize', checkDropdownPosition);
+      window.addEventListener("scroll", checkDropdownPosition, true);
+      window.addEventListener("resize", checkDropdownPosition);
 
       return () => {
         observer?.disconnect();
-        window.removeEventListener('scroll', checkDropdownPosition, true);
-        window.removeEventListener('resize', checkDropdownPosition);
+        window.removeEventListener("scroll", checkDropdownPosition, true);
+        window.removeEventListener("resize", checkDropdownPosition);
       };
     } else {
       dropdownShouldBeAtTop = false;
@@ -87,41 +89,31 @@
   async function handleAction(action: SelectionAction) {
     const selectedText = getSelectedText();
 
-    switch (action) {
-      case 'addToChat':
-        // Pass action to parent handler which will add the text from store
-        onAction(action);
-        onClose?.();
-        break;
-      case 'summarise': {
-        // Handle summarise directly with the selected text
-        const success = await sidePanelUtils.moveToSidePanel({
-          messages: [
-            {
-              id: Date.now(),
-              type: 'user',
-              content: selectedText,
-              timestamp: new Date(),
-            },
-          ],
-          isStreaming: false,
-          streamingMessageId: null,
-          inputValue: "",
-          inputImageAttached: [],
-          searchIndex: 1,
-          totalResults: 0,
-          currentState: 'ask',
-          source: 'append',
-          actionSource: 'summarise',
-          timestamp: Date.now(),
-        });
-        onClose?.();
-        break;
-      }
-      case 'translate':
-        // Toggle language dropdown
-        showLanguageDropdown = !showLanguageDropdown;
-        break;
+    chrome.runtime.sendMessage({
+      type: "OPEN_TO_SIDE_PANEL",
+    });
+    if (action === "addToChat") {
+      globalStorage().set("action_state", {
+        actionSource: "addToChat",
+        content: selectedText,
+      });
+      onClose?.();
+      return;
+    } else if (action === "summarise") {
+      globalStorage().set("action_state", {
+        actionSource: "summarise",
+        content: selectedText,
+      });
+      onClose?.();
+      return;
+    } else if (action === "translate") {
+      globalStorage().set("action_state", {
+        actionSource: "translate",
+        content: selectedText,
+        targetLanguage: null,
+      });
+      onClose?.();
+      return;
     }
   }
 
@@ -133,7 +125,7 @@
       messages: [
         {
           id: Date.now(),
-          type: 'user',
+          type: "user",
           content: selectedText,
           timestamp: new Date(),
         },
@@ -144,9 +136,9 @@
       inputImageAttached: [],
       searchIndex: 1,
       totalResults: 0,
-      currentState: 'ask',
-      source: 'translate',
-      actionSource: 'translate',
+      currentState: "ask",
+      source: "translate",
+      actionSource: "translate",
       targetLanguage: languageCode,
       timestamp: Date.now(),
     });
@@ -156,7 +148,7 @@
   }
 
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape') {
+    if (event.key === "Escape") {
       if (showLanguageDropdown) {
         showLanguageDropdown = false;
       } else {
@@ -193,7 +185,7 @@
     {#each actions as action (action.id)}
       <div
         class="action-wrapper"
-        class:active={action.id === 'translate' && showLanguageDropdown}
+        class:active={action.id === "translate" && showLanguageDropdown}
         onmousedown={(e) => e.stopPropagation()}
       >
         <button
@@ -207,13 +199,13 @@
             <svelte:component this={action.icon} />
           </span>
           <span class="action-label">{action.label}</span>
-          {#if action.id === 'translate'}
+          {#if action.id === "translate"}
             <span class="dropdown-icon">
               <svelte:component this={Down} />
             </span>
           {/if}
         </button>
-        {#if action.id === 'translate' && showLanguageDropdown}
+        {#if action.id === "translate" && showLanguageDropdown}
           <div
             bind:this={dropdownElement}
             class="language-dropdown"
@@ -244,7 +236,7 @@
     z-index: 2147483647;
     transform: translate(-50%, -100%);
     margin-top: -12px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
       Ubuntu, Cantarell, sans-serif;
     font-size: 14px;
   }
@@ -335,7 +327,7 @@
     justify-content: center;
     width: 32px;
     height: 32px;
-    background: #2B2E39;
+    background: #2b2e39;
     border-radius: 50%;
     padding: 4px;
   }

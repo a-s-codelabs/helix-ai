@@ -10,6 +10,7 @@ import { selectionPopupStore } from '../lib/selectionPopupStore';
 import { writerPopupStore } from '../lib/writerPopupStore';
 import { sidePanelUtils } from '../lib/sidePanelStore';
 import type { SelectionAction } from './selection-popup/types';
+import { globalStorage } from '@/lib/globalStorage';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -18,6 +19,7 @@ export default defineContentScript({
   async main(ctx) {
     let ui: any = null;
     let isVisible = false;
+    globalStorage().onBoard();
 
     // Selection popup state
     let selectionPopupUI: any = null;
@@ -50,7 +52,8 @@ export default defineContentScript({
           },
           onRemove: (app) => {
             unmount(app as any);
-            ui = undefined; // Reset ui after unmounting
+            ui = null; // Reset ui after unmounting
+            isVisible = false; // Reset visibility flag
           },
         });
 
@@ -82,7 +85,6 @@ export default defineContentScript({
             const app = mount(SelectionPopupContainer, {
               target: container,
               props: {
-                onAction: handleSelectionAction,
                 onClose: hideSelectionPopup,
               },
             });
@@ -213,45 +215,6 @@ export default defineContentScript({
       selectionPopupStore.hide();
       // Keep the UI mounted but hidden for better performance
       // Only remove it when the content script is invalidated
-    };
-
-    // Handle selection action
-    const handleSelectionAction = async (
-      action: SelectionAction,
-      text: string
-    ) => {
-      console.log(`Action: ${action}, Text: ${text}`);
-
-      // TODO: Implement action handlers
-      switch (action) {
-        case 'summarise':
-          console.log('Summarising:', text);
-          // TODO: Send to AI for summarization
-          break;
-        case 'translate':
-          console.log('Translating:', text);
-          // TODO: Send to AI for translation
-          break;
-        case 'addToChat':
-          console.log('Adding to chat:', text);
-          // Open side panel with selected text in input field
-          const success = await sidePanelUtils.moveToSidePanel({
-            messages: [],
-            isStreaming: false,
-            streamingMessageId: null,
-            inputValue: text,
-            inputImageAttached: [],
-            searchIndex: 1,
-            totalResults: 0,
-            currentState: 'ask',
-            source: 'addtochat',
-            timestamp: Date.now(),
-          });
-          if (success) {
-            console.log('Side panel opened successfully');
-          }
-          break;
-      }
     };
 
     // Helper to check if the selection popup is currently visible
@@ -508,39 +471,54 @@ export default defineContentScript({
       if ((event.metaKey || event.ctrlKey) && event.key === 'e') {
         event.preventDefault();
 
-        if (!isVisible) {
+        if (!isVisible || !ui) {
+          console.log('Opening telescope from keyboard...');
           await createUI();
           ui.mount();
           isVisible = true;
-        } else {
+        } else if (isVisible && ui) {
+          console.log('Closing telescope from keyboard...');
           ui.remove();
           isVisible = false;
+          ui = null;
         }
       }
 
       // Handle Escape key
-      if (event.key === 'Escape' && isVisible) {
+      if (event.key === 'Escape' && isVisible && ui) {
+        console.log('Closing telescope from Escape key...');
         ui.remove();
         isVisible = false;
+        ui = null;
       }
     };
 
     // Listen for keyboard events
     document.addEventListener('keydown', handleKeyDown);
 
+    // Listen for custom close event from telescope UI
+    const handleTelescopeClose = () => {
+      console.log('Received telescope close event...');
+      if (isVisible && ui) {
+        ui.remove();
+        isVisible = false;
+        ui = null;
+      }
+    };
+
+    window.addEventListener('telescope-close', handleTelescopeClose);
+
     // Listen for messages from popup and background
     const handleMessage = (message: any, sender: any, sendResponse: any) => {
+      console.log('Content script received message:', message);
+
       if (message.action === 'openTelescope') {
+        console.log('Opening telescope from message...');
         (async () => {
           try {
-            // If already visible, hide it first, then show it again
-            if (isVisible) {
-              ui.remove();
-              isVisible = false;
-            }
-
             // Wait for the page to be ready
             if (document.readyState === 'loading') {
+              console.log('Waiting for DOM to load...');
               await new Promise((resolve) => {
                 document.addEventListener('DOMContentLoaded', resolve, {
                   once: true,
@@ -548,11 +526,24 @@ export default defineContentScript({
               });
             }
 
-            await createUI();
-            ui.mount();
-            isVisible = true;
+            // If not visible or no UI, create and mount
+            if (!isVisible || !ui) {
+              console.log('Creating telescope UI...');
+              await createUI();
+              console.log('Mounting telescope UI...');
+              ui.mount();
+              isVisible = true;
+              console.log('Telescope opened successfully!');
+            } else {
+              console.log('Telescope already visible, no action needed');
+            }
+            sendResponse({ success: true });
           } catch (error) {
             console.error('Failed to open telescope:', error);
+            sendResponse({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            });
           }
         })();
         return true; // Indicate we will send a response asynchronously
@@ -589,7 +580,7 @@ export default defineContentScript({
             const pageContext =
               finalContent.length > maxLength
                 ? finalContent.substring(0, maxLength) +
-                  '\n\n... [Content truncated for AI context]'
+                '\n\n... [Content truncated for AI context]'
                 : finalContent;
 
             console.log('Content script: Extracted page context, sending back');
@@ -629,6 +620,7 @@ ${document.body.textContent || 'No content available'}`,
       document.removeEventListener('focusin', handleTextareaFocus, true);
       document.removeEventListener('focusout', handleTextareaBlur, true);
       document.removeEventListener('click', handleTextareaClick, true);
+      window.removeEventListener('telescope-close', handleTelescopeClose);
       chrome.runtime.onMessage.removeListener(handleMessage);
 
       if (ui && isVisible) {

@@ -5,6 +5,7 @@ import {
   processTextForLLM,
 } from './utils/converters';
 import { storage } from 'wxt/utils/storage';
+import { globalStorage } from './globalStorage';
 
 export type ChatMessage = {
   id: number;
@@ -202,17 +203,8 @@ function createErrorMessage(error: unknown): ChatMessage {
   };
 }
 
-/**
- * Extract page content for AI context using JavaScript markdown converter
- * Based on script/index.js implementation
- */
-async function extractPageContent(): Promise<string> {
+async function extractPageContent({ tabId }: { tabId: number }): Promise<string> {
   try {
-    // Load script functions
-    // const functions = await loadScriptFunctions();
-
-    // Call the functions from script/index.js in the right order
-    // 1. Get HTML content
     const html = (
       document.querySelector("article") ||
       document.querySelector("main") ||
@@ -245,13 +237,15 @@ async function extractPageContent(): Promise<string> {
 `;
 
     // 6. Truncate for AI context
-    const maxLength = 6_000;
+    const maxLength = 60_000;
     const finalContent = metadata + processedMarkdown;
 
-    return finalContent.length > maxLength
+    const data = finalContent.length > maxLength
       ? finalContent.substring(0, maxLength) +
       '\n\n... [Content truncated for AI context]'
       : finalContent;
+    globalStorage().append("pageMarkdown", { [`tab_id_${tabId}`]: data });
+    return data;
   } catch (err) {
     console.error('Error extracting page content:', err);
     return `# ${document.title || 'Web Page'}
@@ -541,6 +535,7 @@ function createChatStore() {
     window.sessionStorage.setItem('debug_chat_store', JSON.stringify(state));
   });
 
+  console.log({ chrome })
   return {
     subscribe,
 
@@ -556,13 +551,16 @@ function createChatStore() {
         aiStatus: status.message,
       }));
 
+      const tabId = await getActiveTabId();
+
       // Extract page content or use provided context
       if (providedPageContext) {
         pageContext = providedPageContext;
-        console.log('##HELIX pageContext (provided)', pageContext);
+        // console.log('##HELIX pageContext (provided)', pageContext);
       } else {
-        pageContext = await extractPageContent();
-        console.log('##HELIX pageContext (extracted)', pageContext);
+        globalStorage().get("pageMarkdown", { whereKey: tabId.toString() })
+        pageContext = await extractPageContent({ tabId });
+        // console.log('##HELIX pageContext (extracted)', pageContext);
       }
     },
 
@@ -1317,6 +1315,19 @@ function createChatStore() {
       session = null;
     },
   };
+}
+
+
+function getActiveTabId() {
+  return new Promise<number>((resolve, reject) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs.length > 0 && tabs[0].id) {
+        resolve(tabs[0].id);
+      } else {
+        reject(new Error('No active tab found'));
+      }
+    });
+  });
 }
 
 export const chatStore = createChatStore();

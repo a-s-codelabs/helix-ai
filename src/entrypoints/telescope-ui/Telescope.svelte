@@ -7,12 +7,11 @@
     inputState = $bindable(),
     inputValue = $bindable(),
     placeholder,
-    searchIndex,
-    totalResults,
     isExpanded,
     suggestedQuestions,
     disabled,
     inputImageAttached = $bindable(),
+    quotedContent = $bindable(),
     onInput,
     onStateChange,
     onAsk,
@@ -31,28 +30,17 @@
   }: InputProps = $props();
 
   $effect(() => {
-    if ((messages ?? []).length > 0) {
-      inputState = "chat";
-      return;
-    }
-    if (
-      (inputValue ?? "").includes("\n") ||
-      (inputImageAttached ?? []).length > 0 ||
-      totalResults === 0
-    ) {
-      inputState = "ask";
-    } else {
-      inputState = "ask";
-    }
-
-
+    // if ((messages ?? []).length > 0) {
+    //   inputState = "chat";
+    //   return;
+    // }
+    // if (
+    //   (inputValue ?? "").includes("\n") ||
+    //   (inputImageAttached ?? []).length > 0
+    // ) {
+    //   inputState = "ask";
+    // }
   });
-
-  // function onInput({ value }: { value: string }) {
-  //   console.log("onInput", value);
-  //   // inputValue = value;
-  //   // onInput?.({ value });
-  // }
 </script>
 
 <TelescopeChatBox
@@ -64,8 +52,6 @@
   {streamingMessageId}
   {inputValue}
   {inputImageAttached}
-  {searchIndex}
-  {totalResults}
   currentState={inputState}
   {onDragStart}
 >
@@ -74,13 +60,12 @@
       {inputState}
       {inputValue}
       {placeholder}
-      {searchIndex}
-      {totalResults}
       {isExpanded}
       {suggestedQuestions}
       {disabled}
       bind:inputImageAttached
       {isStreaming}
+      {quotedContent}
       {onInput}
       {onStateChange}
       {onAsk}
