@@ -25,7 +25,7 @@ export const sidePanelStore = writable<{
 });
 
 export const sidePanelUtils = {
-  async moveToSidePanel(state: TelescopeState): Promise<boolean> {
+  async moveToSidePanel(state?: TelescopeState): Promise<boolean> {
     return new Promise((resolve) => {
       if (typeof chrome === 'undefined' || !chrome.runtime) {
         console.error('Chrome runtime not available');
@@ -52,7 +52,7 @@ export const sidePanelUtils = {
             return;
           }
 
-          if (response?.success) {
+          if (response?.success && state) {
             sidePanelStore.update((store) => ({
               ...store,
               isInSidePanel: true,

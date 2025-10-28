@@ -17,6 +17,7 @@
     disabled = false,
     inputImageAttached = $bindable([] as string[]),
     isStreaming = false,
+    hasChatBox = false,
     onInput,
     onStateChange,
     onAsk,
@@ -172,11 +173,13 @@
 <div
   class="telescope-container"
   class:expanded={isExpanded}
-  class:reached-min-chars={inputValue.length >= 15 || isInputExpanded}
+  class:reached-min-chars={true}
   class:sidepanel-mode={isInSidePanel}
 >
   <div
     class="input-bar-container"
+    class:is-in-sidepanel={isInSidePanel}
+    class:has-chat-box={hasChatBox}
     class:is-expanded={isExpanded}
     class:input-expanded={isInputExpanded}
   >
@@ -282,7 +285,7 @@
               <SendIcon />
             {/if}
           </button>
-        <!-- {:else}
+          <!-- {:else}
           <button
             class="close-button"
             onclick={handleClose}
@@ -484,6 +487,13 @@
     padding: 12px 16px;
   }
 
+  .input-bar-container.is-in-sidepanel {
+    margin: auto;
+    width: calc(100% - 64px);
+  }
+  .input-bar-container.is-in-sidepanel.has-chat-box {
+    margin: 0;
+  }
   .input-bar-container.input-expanded {
     border-radius: 28px;
   }

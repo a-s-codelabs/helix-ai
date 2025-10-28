@@ -26,60 +26,13 @@
   // Handle move to side panel
   async function handleMoveToSidePanel() {
     console.log("RightSidePanel clicked - attempting to move to side panel");
-
     try {
-      const success = await sidePanelUtils.moveToSidePanel({
-        messages,
-        isStreaming,
-        streamingMessageId,
-        inputValue,
-        inputImageAttached,
-        currentState,
-        timestamp: Date.now(),
-        source: "append",
-        actionSource: "popup",
-        targetLanguage: null,
-      });
-      console.log("Move to side panel result:", success);
-
-      if (success) {
-        // Hide the floating telescope UI after successful move
-        onClose?.();
-      } else {
-        console.error("Failed to move to side panel");
-        // Try direct approach as fallback
-        try {
-          if (typeof chrome !== "undefined" && chrome.sidePanel) {
-            await chrome.sidePanel.open({});
-            console.log("Side panel opened directly as fallback");
-            onClose?.();
-          } else {
-            alert(
-              "Failed to open side panel. Please try clicking the extension icon in the toolbar."
-            );
-          }
-        } catch (directError) {
-          console.error("Direct side panel open also failed:", directError);
-          alert(
-            "Failed to open side panel. Please try clicking the extension icon in the toolbar."
-          );
-        }
-      }
+      sidePanelUtils.moveToSidePanel();
+      // await chrome.sidePanel.open({});
+      onClose?.();
     } catch (error) {
-      console.error("Error in handleMoveToSidePanel:", error);
-      // Try direct approach as fallback
-      try {
-        if (typeof chrome !== "undefined" && chrome.sidePanel) {
-          await chrome.sidePanel.open({});
-          console.log("Side panel opened directly as fallback after error");
-          onClose?.();
-        } else {
-          alert("Error opening side panel: " + (error as Error).message);
-        }
-      } catch (directError) {
-        console.error("Direct side panel open also failed:", directError);
-        alert("Error opening side panel: " + (error as Error).message);
-      }
+      console.error("Error moving to side panel:", error);
+      onClose?.();
     }
   }
 
@@ -312,8 +265,8 @@
   .sidepanel-layout {
     display: flex;
     flex-direction: column;
-    height: 100vh;
-    width: 100%;
+    height: calc(100vh - 40px);
+    width: calc(100% - 40px);
     min-width: 0; /* Allow flex items to shrink below content size */
     position: relative;
   }
@@ -351,7 +304,7 @@
   .sidepanel-layout .input {
     flex-shrink: 0;
     margin-top: auto;
-    padding: 12px;
+    /* padding: 12px; */
     /* width: calc(100% - 24px); */
     box-sizing: border-box;
   }

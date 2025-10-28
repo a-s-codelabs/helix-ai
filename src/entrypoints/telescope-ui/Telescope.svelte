@@ -63,6 +63,7 @@
       {isExpanded}
       {suggestedQuestions}
       {disabled}
+      hasChatBox={(messages ?? []).length > 0}
       bind:inputImageAttached
       {isStreaming}
       {quotedContent}

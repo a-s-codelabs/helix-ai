@@ -5,6 +5,7 @@ export type State = (typeof StateValues)[number];
 export type Direction = (typeof DirectionValues)[number];
 
 export type InputProps = {
+  hasChatBox?: boolean;
   inputState?: State;
   inputValue?: string;
   placeholder?: string;
