@@ -1,17 +1,22 @@
-import { writable } from 'svelte/store';
+import { writable } from "svelte/store";
 import {
   imageStringToFile,
   base64ToFile as utilsBase64ToFile,
   ensurePngFile,
-} from '../utils/file';
-import { globalStorage } from '../globalStorage';
-import { createErrorMessage, getErrorDetails, getErrorMessage, safeDestroySession } from './helper';
-import { extractPageContent } from './extract-helper';
-import { monitorHelperSync } from './monitor-helper';
+} from "../utils/file";
+import { globalStorage } from "../globalStorage";
+import {
+  createErrorMessage,
+  getErrorDetails,
+  getErrorMessage,
+  safeDestroySession,
+} from "./helper";
+import { extractPageContent } from "./extract-helper";
+import { monitorHelperSync } from "./monitor-helper";
 
 export type ChatMessage = {
   id: number;
-  type: 'user' | 'assistant';
+  type: "user" | "assistant";
   content: string;
   images?: string[];
   timestamp: Date;
@@ -38,7 +43,7 @@ declare global {
   };
 
   type AICapabilities = {
-    available: 'readily' | 'after-download' | 'no';
+    available: "readily" | "after-download" | "no";
     defaultTemperature?: number;
     defaultTopK?: number;
     maxTopK?: number;
@@ -46,10 +51,7 @@ declare global {
 
   type AILanguageModelCreateOptions = {
     monitor?: (monitor: {
-      addEventListener: (
-        type: string,
-        listener: (e: any) => void
-      ) => void;
+      addEventListener: (type: string, listener: (e: any) => void) => void;
     }) => void;
     systemPrompt?: string;
     temperature?: number;
@@ -74,7 +76,7 @@ declare global {
   var LanguageModel:
     | {
       availability(): Promise<
-        'readily' | 'available' | 'no' | 'downloadable'
+        "readily" | "available" | "no" | "downloadable"
       >;
       create(
         options?: AILanguageModelCreateOptions
@@ -84,12 +86,12 @@ declare global {
 
   var Summarizer:
     | {
-      availability(): Promise<'readily' | 'available' | 'unavailable'>;
+      availability(): Promise<"readily" | "available" | "unavailable">;
       create(options?: {
         sharedContext?: string;
-        type?: 'key-points' | 'tldr' | 'teaser' | 'headline';
-        format?: 'markdown' | 'plain-text';
-        length?: 'short' | 'medium' | 'long';
+        type?: "key-points" | "tldr" | "teaser" | "headline";
+        format?: "markdown" | "plain-text";
+        length?: "short" | "medium" | "long";
         signal?: AbortSignal;
         monitor?: (monitor: {
           addEventListener: (
@@ -115,7 +117,7 @@ declare global {
 
   var LanguageDetector:
     | {
-      availability(): Promise<'readily' | 'available' | 'unavailable'>;
+      availability(): Promise<"readily" | "available" | "unavailable">;
       create(options?: {
         signal?: AbortSignal;
         monitor?: (monitor: {
@@ -140,7 +142,7 @@ declare global {
       availability(options: {
         sourceLanguage: string;
         targetLanguage: string;
-      }): Promise<'readily' | 'available' | 'unavailable'>;
+      }): Promise<"readily" | "available" | "unavailable">;
       create(options: {
         sourceLanguage: string;
         targetLanguage: string;
@@ -157,6 +159,7 @@ declare global {
 
   type AITranslator = {
     translate(text: string): Promise<string>;
+    translateStreaming(text: string): ReadableStream<string>;
     destroy(): void;
   };
 }
@@ -189,63 +192,73 @@ async function createAISession(pageContext: string): Promise<AILanguageModel> {
 
   `;
 
-  if (typeof LanguageModel !== 'undefined') {
+  if (typeof LanguageModel !== "undefined") {
     const config = {
       systemPrompt: systemPrompt(2),
-      language: 'en',
-      outputLanguage: 'en',
-      output: { language: 'en' },
-      expectedInputs: [{ type: 'image' }],
+      language: "en",
+      outputLanguage: "en",
+      output: { language: "en" },
+      expectedInputs: [{ type: "image" }],
       temperature,
       topK,
       initialPrompts: [
         {
-          role: 'system',
+          role: "system",
           content: systemPrompt(6),
         },
       ],
     };
     try {
       const availability = await LanguageModel.availability();
-      if (availability === 'readily' || availability === 'available') {
+      if (availability === "readily" || availability === "available") {
         const session = await LanguageModel.create({
           ...config,
           monitor(m) {
-            const createdAt = Date.now()
-            m.addEventListener('downloadprogress', (e) => {
-              monitorHelperSync({ source: 'prompt', loaded: e.loaded, createdAt, options: {} });
+            const createdAt = Date.now();
+            m.addEventListener("downloadprogress", (e) => {
+              monitorHelperSync({
+                source: "prompt",
+                loaded: e.loaded,
+                createdAt,
+                options: {},
+              });
             });
           },
         });
         return session;
       }
-      if (availability === 'downloadable') {
+      if (availability === "downloadable") {
         const session = await LanguageModel.create({
           ...config,
           monitor(m) {
-            const createdAt = Date.now()
-            m.addEventListener('downloadprogress', (e) => {
-              monitorHelperSync({ source: 'prompt', loaded: e.loaded, createdAt, options: {} });
+            const createdAt = Date.now();
+            m.addEventListener("downloadprogress", (e) => {
+              monitorHelperSync({
+                source: "prompt",
+                loaded: e.loaded,
+                createdAt,
+                options: {},
+              });
             });
           },
         });
 
         throw new Error(
-          'AI model is downloading. Check progress at chrome://components'
+          "AI model is downloading. Check progress at chrome://components"
         );
       }
     } catch (err) {
-      console.error('Global LanguageModel failed, trying window.ai...', err);
+      console.error("Global LanguageModel failed, trying window.ai...", err);
     }
   }
 
   throw new Error(
-    'Chrome Built-in AI not available.\n\n' +
-    'Please ensure:\n' +
-    '1. You are using Chrome 138+ (Dev/Canary/Beta)\n' +
-    '2. Flags are enabled at chrome:flags for Built-in AI\n' +
-    '3. Chrome has been fully restarted\n' +
-    '4. Model is downloaded at chrome://components'
+    "Chrome Built-in AI not available.\n\n" +
+    "Please ensure:\n" +
+    "1. You are using Chrome 138+ (Dev/Canary/Beta)\n" +
+    "2. Flags are enabled at chrome:flags for Built-in AI\n" +
+    "3. Chrome has been fully restarted\n" +
+    "4. Model is downloaded at chrome://components"
   );
 }
 
@@ -257,43 +270,43 @@ async function checkAPIStatus(): Promise<{
   message: string;
 }> {
   try {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       return {
         available: false,
-        message: '❌ Window object not available',
+        message: "❌ Window object not available",
       };
     }
 
-    if (typeof LanguageModel !== 'undefined') {
+    if (typeof LanguageModel !== "undefined") {
       try {
         const availability = await LanguageModel.availability();
-        if (availability === 'readily' || availability === 'available') {
+        if (availability === "readily" || availability === "available") {
           return {
             available: true,
-            message: '✅ Chrome AI is ready!',
+            message: "✅ Chrome AI is ready!",
           };
         }
-        if (availability === 'downloadable') {
+        if (availability === "downloadable") {
           return {
             available: false,
-            message: '⏬ Downloading AI model...',
+            message: "⏬ Downloading AI model...",
           };
         }
       } catch (err) {
-        console.error('Global LanguageModel check failed', err);
+        console.error("Global LanguageModel check failed", err);
       }
     }
 
     return {
       available: false,
       message:
-        '❌ Chrome Built-in AI not found. Enable flags at chrome://flags',
+        "❌ Chrome Built-in AI not found. Enable flags at chrome://flags",
     };
   } catch (err) {
-    console.error('Error checking Chrome AI status:', err);
+    console.error("Error checking Chrome AI status:", err);
     return {
       available: false,
-      message: '❌ Error checking API status',
+      message: "❌ Error checking API status",
     };
   }
 }
@@ -307,18 +320,14 @@ function createChatStore() {
     isLoading: false,
     error: null,
     aiAvailable: false,
-    aiStatus: 'Checking...',
+    aiStatus: "Checking...",
     isStreaming: false,
     streamingMessageId: null,
     abortController: null,
   });
 
   let session: AILanguageModel | null = null;
-  let pageContext = '';
-
-  subscribe((state) => {
-    window.sessionStorage.setItem('debug_chat_store', JSON.stringify(state));
-  });
+  let pageContext = "";
 
   return {
     subscribe,
@@ -339,7 +348,7 @@ function createChatStore() {
       if (providedPageContext) {
         pageContext = providedPageContext;
       } else {
-        globalStorage().get('pageMarkdown', { whereKey: tabId.toString() });
+        globalStorage().get("pageMarkdown", { whereKey: tabId.toString() });
         pageContext = await extractPageContent({ tabId });
       }
     },
@@ -359,7 +368,7 @@ function createChatStore() {
 
       const userMsg: ChatMessage = {
         id: Date.now(),
-        type: 'user',
+        type: "user",
         content: userMessage,
         images: images,
         timestamp: new Date(),
@@ -377,16 +386,15 @@ function createChatStore() {
           session = await createAISession(pageContext);
         }
 
-
         const aiResponse = await session.prompt(userMessage);
 
-        if (!aiResponse || typeof aiResponse !== 'string') {
-          throw new Error('Invalid response from AI model');
+        if (!aiResponse || typeof aiResponse !== "string") {
+          throw new Error("Invalid response from AI model");
         }
 
         const assistantMsg: ChatMessage = {
           id: Date.now() + 1,
-          type: 'assistant',
+          type: "assistant",
           content: aiResponse.trim(),
           timestamp: new Date(),
         };
@@ -420,7 +428,7 @@ function createChatStore() {
 
       const userMsg: ChatMessage = {
         id: Date.now(),
-        type: 'user',
+        type: "user",
         content: userMessage,
         images: [],
         timestamp: new Date(),
@@ -429,8 +437,8 @@ function createChatStore() {
       const assistantMsgId = Date.now() + 1;
       const assistantMsg: ChatMessage = {
         id: assistantMsgId,
-        type: 'assistant',
-        content: '',
+        type: "assistant",
+        content: "",
         timestamp: new Date(),
       };
 
@@ -442,22 +450,27 @@ function createChatStore() {
         streamingMessageId: assistantMsgId,
         abortController,
         error: null,
-        inputValue: '',
+        inputValue: "",
       }));
 
-      if (typeof Summarizer === 'undefined') {
-        throw new Error('Summarizer API not available');
+      if (typeof Summarizer === "undefined") {
+        throw new Error("Summarizer API not available");
       }
 
       const summarizer = await Summarizer.create({
         sharedContext: userMessage,
-        type: 'tldr',
-        format: 'markdown',
-        length: 'short',
+        type: "tldr",
+        format: "markdown",
+        length: "short",
         monitor(m) {
-          const createdAt = Date.now()
-          m.addEventListener('downloadprogress', (e) => {
-            monitorHelperSync({ source: 'summarize', loaded: e.loaded, createdAt, options: { type: 'tldr', format: 'markdown', length: 'short' } });
+          const createdAt = Date.now();
+          m.addEventListener("downloadprogress", (e) => {
+            monitorHelperSync({
+              source: "summarize",
+              loaded: e.loaded,
+              createdAt,
+              options: { type: "tldr", format: "markdown", length: "short" },
+            });
           });
         },
       });
@@ -468,8 +481,8 @@ function createChatStore() {
 
       try {
         const streamTimeout = setTimeout(() => {
-          console.warn('Stream timeout - falling back to regular prompt');
-          throw new Error('Stream timeout');
+          console.warn("Stream timeout - falling back to regular prompt");
+          throw new Error("Stream timeout");
         }, 30000); // 30 second timeout
 
         let hasReceivedChunks = false;
@@ -485,7 +498,7 @@ function createChatStore() {
             hasReceivedChunks = true;
             chunkCount++;
 
-            if (chunk && typeof chunk === 'string') {
+            if (chunk && typeof chunk === "string") {
               update((state) => {
                 const updatedMessages = state.messages.map((msg) => {
                   if (msg.id === assistantMsgId) {
@@ -505,7 +518,7 @@ function createChatStore() {
             }
           }
         } catch (iterationError) {
-          console.error('Error during stream iteration:', iterationError);
+          console.error("Error during stream iteration:", iterationError);
           if (hasReceivedChunks) {
             console.log(
               `Stream failed after ${chunkCount} chunks, but we have content`
@@ -519,13 +532,13 @@ function createChatStore() {
 
         if (!hasReceivedChunks) {
           console.warn(
-            'No chunks received from stream - falling back to regular prompt'
+            "No chunks received from stream - falling back to regular prompt"
           );
-          throw new Error('No chunks received from stream');
+          throw new Error("No chunks received from stream");
         }
       } catch (streamError) {
-        console.error('Error processing stream chunks:', streamError);
-        console.error('Stream error details:', getErrorDetails(streamError));
+        console.error("Error processing stream chunks:", streamError);
+        console.error("Stream error details:", getErrorDetails(streamError));
         throw streamError;
       }
 
@@ -544,7 +557,7 @@ function createChatStore() {
 
       const userMsg: ChatMessage = {
         id: Date.now(),
-        type: 'user',
+        type: "user",
         content: userMessage,
         images: [],
         timestamp: new Date(),
@@ -553,8 +566,8 @@ function createChatStore() {
       const assistantMsgId = Date.now() + 1;
       const assistantMsg: ChatMessage = {
         id: assistantMsgId,
-        type: 'assistant',
-        content: '',
+        type: "assistant",
+        content: "",
         timestamp: new Date(),
       };
 
@@ -566,28 +579,34 @@ function createChatStore() {
         streamingMessageId: assistantMsgId,
         abortController,
         error: null,
-        inputValue: '',
+        inputValue: "",
       }));
 
-      let detectedLanguage = 'en'; // Default fallback
+      let detectedLanguage = "en"; // Default fallback
+      let translator: AITranslator | null = null;
 
       try {
-        if (typeof LanguageDetector === 'undefined') {
-          throw new Error('LanguageDetector API not available');
+        if (typeof LanguageDetector === "undefined") {
+          throw new Error("LanguageDetector API not available");
         }
 
         const detectorAvailability = await LanguageDetector.availability();
-        if (detectorAvailability === 'unavailable') {
+        if (detectorAvailability === "unavailable") {
           throw new Error(
-            'Language Detector is not available. Please enable it in Chrome flags.'
+            "Language Detector is not available. Please enable it in Chrome flags."
           );
         }
 
         const detector = await LanguageDetector.create({
           monitor(m) {
-            const createdAt = Date.now()
-            m.addEventListener('downloadprogress', (e) => {
-              monitorHelperSync({ source: 'language-detector', loaded: e.loaded, createdAt, options: { sourceLanguage: detectedLanguage, targetLanguage } });
+            const createdAt = Date.now();
+            m.addEventListener("downloadprogress", (e) => {
+              monitorHelperSync({
+                source: "language-detector",
+                loaded: e.loaded,
+                createdAt,
+                options: { sourceLanguage: detectedLanguage, targetLanguage },
+              });
             });
           },
         });
@@ -623,8 +642,8 @@ function createChatStore() {
           return;
         }
 
-        if (typeof Translator === 'undefined') {
-          throw new Error('Translator API not available');
+        if (typeof Translator === "undefined") {
+          throw new Error("Translator API not available");
         }
 
         const translatorAvailability = await Translator.availability({
@@ -632,66 +651,103 @@ function createChatStore() {
           targetLanguage,
         });
 
-        if (translatorAvailability === 'unavailable') {
+        if (translatorAvailability === "unavailable") {
           throw new Error(
             `Translation from ${detectedLanguage} to ${targetLanguage} is not available. Please enable it in Chrome flags.`
           );
         }
 
-        const translator = await Translator.create({
+        translator = await Translator.create({
           sourceLanguage: detectedLanguage,
           targetLanguage,
           signal: abortController.signal,
           monitor(m) {
-            const createdAt = Date.now()
-            m.addEventListener('downloadprogress', (e) => {
-              monitorHelperSync({ source: 'translator', loaded: e.loaded, createdAt, options: { sourceLanguage: detectedLanguage, targetLanguage } });
+            const createdAt = Date.now();
+            m.addEventListener("downloadprogress", (e) => {
+              monitorHelperSync({
+                source: "translator",
+                loaded: e.loaded,
+                createdAt,
+                options: { sourceLanguage: detectedLanguage, targetLanguage },
+              });
             });
           },
         });
 
-        const translatedText = await translator.translate(userMessage);
+        // Using proper streaming via ReadableStream<string>
+        const stream = translator.translateStreaming(userMessage);
 
-        translator.destroy();
+        try {
+          const streamTimeout = setTimeout(() => {
+            console.warn("Translation stream timeout");
+            throw new Error("Translation stream timeout");
+          }, 30000); // 30 second timeout
 
-        const words = translatedText.split(' ');
-        const chunkSize = Math.max(1, Math.ceil(words.length / 10));
+          let hasReceivedChunks = false;
+          let chunkCount = 0;
 
-        for (let i = 0; i < words.length; i += chunkSize) {
-          if (abortController.signal.aborted) {
-            break;
+          try {
+            for await (const chunk of stream) {
+              if (abortController.signal.aborted) {
+                break;
+              }
+
+              clearTimeout(streamTimeout);
+              hasReceivedChunks = true;
+              chunkCount++;
+
+              if (chunk && typeof chunk === "string") {
+                update((state) => {
+                  const updatedMessages = state.messages.map((msg) => {
+                    if (msg.id === assistantMsgId) {
+                      return {
+                        ...msg,
+                        content: msg.content + chunk,
+                      };
+                    }
+                    return msg;
+                  });
+
+                  return {
+                    ...state,
+                    messages: updatedMessages,
+                  };
+                });
+              }
+            }
+          } catch (iterationError) {
+            console.error("Error during translation stream iteration:", iterationError);
+            if (hasReceivedChunks) {
+              console.log(
+                `Translation stream failed after ${chunkCount} chunks, but we have content`
+              );
+            } else {
+              throw iterationError;
+            }
           }
 
-          const chunk = words.slice(i, i + chunkSize).join(' ');
+          clearTimeout(streamTimeout);
 
-          update((state) => {
-            const updatedMessages = state.messages.map((msg) => {
-              if (msg.id === assistantMsgId) {
-                return {
-                  ...msg,
-                  content: msg.content + (msg.content ? ' ' : '') + chunk,
-                };
-              }
-              return msg;
-            });
+          if (!hasReceivedChunks) {
+            console.warn(
+              "No chunks received from translation stream - falling back to regular translation"
+            );
+            throw new Error("No chunks received from translation stream");
+          }
 
-            return {
-              ...state,
-              messages: updatedMessages,
-            };
-          });
-
-          await new Promise((resolve) => setTimeout(resolve, 200));
+          update((state) => ({
+            ...state,
+            isStreaming: false,
+            streamingMessageId: null,
+            abortController: null,
+          }));
+        } catch (streamError) {
+          console.error("Error processing translation stream chunks:", streamError);
+          console.error("Translation stream error details:", getErrorDetails(streamError));
+          throw streamError;
         }
-
-        update((state) => ({
-          ...state,
-          isStreaming: false,
-          streamingMessageId: null,
-          abortController: null,
-        }));
       } catch (err) {
-        console.error('Translation error:', err);
+        console.error("Translation error:", err);
         const errorMessage = getErrorMessage(err);
 
         update((state) => {
@@ -715,6 +771,15 @@ function createChatStore() {
             error: errorMessage,
           };
         });
+      } finally {
+        // Clean up translator instance
+        if (translator) {
+          try {
+            translator.destroy();
+          } catch (cleanupError) {
+            console.warn("Error destroying translator:", cleanupError);
+          }
+        }
       }
     },
 
@@ -728,7 +793,7 @@ function createChatStore() {
 
       const userMsg: ChatMessage = {
         id: Date.now(),
-        type: 'user',
+        type: "user",
         content: userMessage,
         images: images,
         timestamp: new Date(),
@@ -737,8 +802,8 @@ function createChatStore() {
       const assistantMsgId = Date.now() + 1;
       const assistantMsg: ChatMessage = {
         id: assistantMsgId,
-        type: 'assistant',
-        content: '',
+        type: "assistant",
+        content: "",
         timestamp: new Date(),
       };
 
@@ -757,7 +822,7 @@ function createChatStore() {
           try {
             session = await createAISession(pageContext);
           } catch (sessionError) {
-            console.error('Failed to create AI session:', sessionError);
+            console.error("Failed to create AI session:", sessionError);
             throw new Error(
               `Failed to create AI session: ${getErrorMessage(sessionError)}`
             );
@@ -766,13 +831,13 @@ function createChatStore() {
 
         if (images && images.length > 0 && session) {
           for await (const image of images) {
-            const rawFile = await imageStringToFile(image, 'image');
-            const file = await ensurePngFile(rawFile, 'image.png');
+            const rawFile = await imageStringToFile(image, "image");
+            const file = await ensurePngFile(rawFile, "image.png");
 
             await session?.append([
               {
-                role: 'user',
-                content: [{ type: 'image', value: file }],
+                role: "user",
+                content: [{ type: "image", value: file }],
               },
             ]);
           }
@@ -781,9 +846,8 @@ function createChatStore() {
         let stream;
         try {
           stream = session.promptStreaming(userMessage);
-
         } catch (streamCreationError) {
-          console.error('Failed to create stream:', streamCreationError);
+          console.error("Failed to create stream:", streamCreationError);
           throw new Error(
             `Failed to create stream: ${getErrorMessage(streamCreationError)}`
           );
@@ -791,8 +855,8 @@ function createChatStore() {
 
         try {
           const streamTimeout = setTimeout(() => {
-            console.warn('Stream timeout - falling back to regular prompt');
-            throw new Error('Stream timeout');
+            console.warn("Stream timeout - falling back to regular prompt");
+            throw new Error("Stream timeout");
           }, 30000); // 30 second timeout
 
           let hasReceivedChunks = false;
@@ -808,7 +872,7 @@ function createChatStore() {
               hasReceivedChunks = true;
               chunkCount++;
 
-              if (chunk && typeof chunk === 'string') {
+              if (chunk && typeof chunk === "string") {
                 update((state) => {
                   const updatedMessages = state.messages.map((msg) => {
                     if (msg.id === assistantMsgId) {
@@ -828,7 +892,7 @@ function createChatStore() {
               }
             }
           } catch (iterationError) {
-            console.error('Error during stream iteration:', iterationError);
+            console.error("Error during stream iteration:", iterationError);
             if (hasReceivedChunks) {
               console.log(
                 `Stream failed after ${chunkCount} chunks, but we have content`
@@ -842,13 +906,13 @@ function createChatStore() {
 
           if (!hasReceivedChunks) {
             console.warn(
-              'No chunks received from stream - falling back to regular prompt'
+              "No chunks received from stream - falling back to regular prompt"
             );
-            throw new Error('No chunks received from stream');
+            throw new Error("No chunks received from stream");
           }
         } catch (streamError) {
-          console.error('Error processing stream chunks:', streamError);
-          console.error('Stream error details:', getErrorDetails(streamError));
+          console.error("Error processing stream chunks:", streamError);
+          console.error("Stream error details:", getErrorDetails(streamError));
           throw streamError;
         }
 
@@ -859,7 +923,7 @@ function createChatStore() {
           abortController: null,
         }));
       } catch (err) {
-        console.error('Streaming error:', err);
+        console.error("Streaming error:", err);
         const errorMessage = getErrorMessage(err);
 
         update((state) => {
@@ -927,29 +991,29 @@ function createChatStore() {
       safeDestroySession(session);
       session = null;
       if (
-        typeof chrome !== 'undefined' &&
+        typeof chrome !== "undefined" &&
         chrome.runtime &&
         chrome.runtime.sendMessage
       ) {
         try {
           chrome.runtime.sendMessage(
-            { type: 'CLEAR_TELESCOPE_STATE' },
+            { type: "CLEAR_TELESCOPE_STATE" },
             (response) => {
               if (chrome.runtime.lastError) {
                 console.warn(
-                  'CLEAR_TELESCOPE_STATE: chrome error',
+                  "CLEAR_TELESCOPE_STATE: chrome error",
                   chrome.runtime.lastError.message
                 );
               } else if (!response?.success) {
                 console.warn(
-                  'CLEAR_TELESCOPE_STATE: failed to clear state',
+                  "CLEAR_TELESCOPE_STATE: failed to clear state",
                   response?.error
                 );
               }
             }
           );
         } catch (error) {
-          console.warn('Exception during CLEAR_TELESCOPE_STATE:', error);
+          console.warn("Exception during CLEAR_TELESCOPE_STATE:", error);
         }
       }
 
@@ -980,7 +1044,7 @@ function getActiveTabId() {
       if (tabs.length > 0 && tabs[0].id) {
         resolve(tabs[0].id);
       } else {
-        reject(new Error('No active tab found'));
+        reject(new Error("No active tab found"));
       }
     });
   });
