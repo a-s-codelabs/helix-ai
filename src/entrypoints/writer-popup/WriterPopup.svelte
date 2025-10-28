@@ -5,7 +5,10 @@
   import {
     writeContentStreaming,
     checkWriterAvailability,
+    rewriteContentStreaming,
+    checkRewriterAvailability,
     type WriterOptions,
+    type RewriterOptions,
   } from '../../lib/writerApiHelper';
 
   interface Props {
@@ -15,6 +18,10 @@
   }
 
   let { targetElement, onClose, onDragStart }: Props = $props();
+
+  // Mode
+  type Mode = 'writer' | 'rewriter';
+  let mode = $state<Mode>('writer');
 
   // State
   let prompt = $state('');
@@ -28,9 +35,16 @@
   );
 
   // Writer options
-  let tone = $state<'formal' | 'neutral' | 'casual'>('neutral');
-  let length = $state<'short' | 'medium' | 'long'>('medium');
-  let format = $state<'markdown' | 'plain-text'>('plain-text');
+  let writerTone = $state<'formal' | 'neutral' | 'casual'>('neutral');
+  let writerLength = $state<'short' | 'medium' | 'long'>('medium');
+  let writerFormat = $state<'markdown' | 'plain-text'>('plain-text');
+
+  // Rewriter options
+  let rewriterTone = $state<'as-is' | 'more-formal' | 'more-casual'>('as-is');
+  let rewriterLength = $state<'as-is' | 'shorter' | 'longer'>('as-is');
+  let rewriterFormat = $state<'as-is' | 'markdown' | 'plain-text'>('as-is');
+
+  // Common options
   let outputLanguage = $state('en');
 
   // Language checkboxes
@@ -54,21 +68,28 @@
   let abortController: AbortController | null = null;
   let streamedContent = $state('');
 
-  // Input ref for auto-focus
-  let promptInput: HTMLInputElement | null = null;
-
-  // Check API availability on mount
+  // Check API availability based on mode
   $effect(() => {
-    checkWriterAvailability().then((availability) => {
+    const checkAvailability = async () => {
+      const availability =
+        mode === 'writer'
+          ? await checkWriterAvailability()
+          : await checkRewriterAvailability();
+
       apiAvailable = availability;
+
+      const apiName = mode === 'writer' ? 'Writer' : 'Rewriter';
+
       if (availability === 'unavailable') {
-        error =
-          'Writer API is not available. Please use Chrome 129+ with Built-in AI enabled.';
+        error = `${apiName} API is not available. Please use Chrome 129+ with Built-in AI enabled.`;
       } else if (availability === 'after-download') {
-        error =
-          'Writer API is downloading. Please wait and try again in a few moments.';
+        error = `${apiName} API is downloading. Please wait and try again in a few moments.`;
+      } else {
+        error = '';
       }
-    });
+    };
+
+    checkAvailability();
   });
 
   // Get context from existing text in the textarea
@@ -78,16 +99,22 @@
     }
   });
 
-  // Auto-focus prompt input on mount
+  // Auto-focus prompt input on mount and mode change
   $effect(() => {
-    if (promptInput) {
-      promptInput.focus();
-    }
+    setTimeout(() => {
+      const input = document.querySelector('.prompt-input') as HTMLInputElement;
+      const textarea = document.querySelector('.prompt-textarea') as HTMLTextAreaElement;
+      if (mode === 'writer' && input) {
+        input.focus();
+      } else if (mode === 'rewriter' && textarea) {
+        textarea.focus();
+      }
+    }, 0);
   });
 
   async function handleGenerate() {
     if (!prompt.trim()) {
-      error = 'Please enter a prompt';
+      error = mode === 'writer' ? 'Please enter a prompt' : 'Please enter text to rewrite';
       return;
     }
 
@@ -108,77 +135,123 @@
         .filter(([_, checked]) => checked)
         .map(([lang]) => lang);
 
-      const options: WriterOptions = {
-        tone,
-        length,
-        format,
-        ...(context.trim() && { sharedContext: context.trim() }),
-        ...(outputLanguage && outputLanguage !== '' && { outputLanguage }),
-        ...(selectedInputLangs.length > 0 && {
-          expectedInputLanguages: selectedInputLangs,
-        }),
-        ...(selectedContextLangs.length > 0 && {
-          expectedContextLanguages: selectedContextLangs,
-        }),
-      };
+      if (mode === 'writer') {
+        // Writer mode
+        const options: WriterOptions = {
+          tone: writerTone,
+          length: writerLength,
+          format: writerFormat,
+          ...(context.trim() && { sharedContext: context.trim() }),
+          ...(outputLanguage && outputLanguage !== '' && { outputLanguage }),
+          ...(selectedInputLangs.length > 0 && {
+            expectedInputLanguages: selectedInputLangs,
+          }),
+          ...(selectedContextLangs.length > 0 && {
+            expectedContextLanguages: selectedContextLangs,
+          }),
+        };
 
-      console.log('[Writer API] Generating with streaming:', {
-        prompt: prompt.trim(),
-        options,
-      });
-
-      // Stream the content
-      const stream = writeContentStreaming(
-        {
+        console.log('[Writer API] Generating with streaming:', {
           prompt: prompt.trim(),
-        },
-        options
-      );
+          options,
+        });
 
-      // Save initial value before generation
-      const initialValue = targetElement?.value || '';
-      const separator = initialValue ? '\n\n' : '';
+        // Stream the content
+        const stream = writeContentStreaming(
+          {
+            prompt: prompt.trim(),
+          },
+          options
+        );
 
-      for await (const chunk of stream) {
-        if (abortController?.signal.aborted) {
-          console.log('[Writer API] Generation stopped by user');
-          break;
+        // Save initial value before generation
+        const initialValue = targetElement?.value || '';
+        const separator = initialValue ? '\n\n' : '';
+
+        for await (const chunk of stream) {
+          if (abortController?.signal.aborted) {
+            console.log('[Writer API] Generation stopped by user');
+            break;
+          }
+
+          // Handle both Chrome Stable (full text each time) and Canary (incremental chunks)
+          // @ts-ignore - Check if Writer API exists to determine behavior
+          streamedContent = 'Writer' in self ? streamedContent + chunk : chunk;
+
+          // Update target element in real-time
+          if (targetElement) {
+            targetElement.value = initialValue + separator + streamedContent;
+            targetElement.dispatchEvent(new Event('input', { bubbles: true }));
+          }
         }
 
-        // Handle both Chrome Stable (full text each time) and Canary (incremental chunks)
-        // In Chrome stable, the writer always returns the entire text, so we replace.
-        // In Canary, only the newly generated content is returned, so we accumulate.
-        // @ts-ignore - Check if Writer API exists to determine behavior
-        streamedContent = 'Writer' in self ? streamedContent + chunk : chunk;
+        console.log('[Writer API] Generated text:', streamedContent);
+      } else {
+        // Rewriter mode
+        const options: RewriterOptions = {
+          tone: rewriterTone,
+          length: rewriterLength,
+          format: rewriterFormat,
+          ...(context.trim() && { sharedContext: context.trim() }),
+          ...(outputLanguage && outputLanguage !== '' && { outputLanguage }),
+          ...(selectedInputLangs.length > 0 && {
+            expectedInputLanguages: selectedInputLangs,
+          }),
+          ...(selectedContextLangs.length > 0 && {
+            expectedContextLanguages: selectedContextLangs,
+          }),
+        };
 
-        // Update target element in real-time
-        if (targetElement) {
-          // Combine initial value with accumulated streamed content
-          targetElement.value = initialValue + separator + streamedContent;
+        console.log('[Rewriter API] Rewriting with streaming:', {
+          text: prompt.trim(),
+          options,
+        });
 
-          // Trigger input event so frameworks detect the change
-          targetElement.dispatchEvent(new Event('input', { bubbles: true }));
+        // Stream the content
+        const stream = rewriteContentStreaming(
+          {
+            text: prompt.trim(),
+          },
+          options
+        );
+
+        for await (const chunk of stream) {
+          if (abortController?.signal.aborted) {
+            console.log('[Rewriter API] Rewriting stopped by user');
+            break;
+          }
+
+          // Handle both Chrome Stable (full text each time) and Canary (incremental chunks)
+          // @ts-ignore - Check if Rewriter API exists to determine behavior
+          streamedContent = 'Rewriter' in self ? streamedContent + chunk : chunk;
         }
+
+        console.log('[Rewriter API] Rewritten text:', streamedContent);
       }
 
-      console.log('[Writer API] Generated text:', streamedContent);
-      console.log('[Writer API] Final textarea value:', targetElement?.value);
-
-      // Ensure final content is in the textarea
+      // Update target element with final content
       if (targetElement && streamedContent) {
-        // Make sure the final value is set
-        const finalValue = initialValue + separator + streamedContent;
-        targetElement.value = finalValue;
+        if (mode === 'writer') {
+          // For writer, append to existing content
+          const initialValue = targetElement.value || '';
+          const separator = initialValue ? '\n\n' : '';
+          const finalValue = initialValue + separator + streamedContent;
+          targetElement.value = finalValue;
+        } else {
+          // For rewriter, replace the content
+          targetElement.value = streamedContent;
+        }
+
         targetElement.dispatchEvent(new Event('input', { bubbles: true }));
         targetElement.dispatchEvent(new Event('change', { bubbles: true }));
         targetElement.focus();
 
-        console.log('[Writer API] Final value set:', finalValue);
+        console.log(`[${mode === 'writer' ? 'Writer' : 'Rewriter'} API] Final value set:`, targetElement.value);
       }
 
       // Show success notification if not aborted
       if (!abortController?.signal.aborted && streamedContent) {
-        showSuccessNotification();
+        showSuccessNotification(mode === 'writer' ? 'Content generated!' : 'Content rewritten!');
 
         // Close the popup
         setTimeout(() => {
@@ -187,9 +260,9 @@
       }
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
-        console.log('[Writer API] Generation aborted');
+        console.log(`[${mode === 'writer' ? 'Writer' : 'Rewriter'} API] Generation aborted`);
       } else {
-        console.error('[Writer API] Error generating content:', err);
+        console.error(`[${mode === 'writer' ? 'Writer' : 'Rewriter'} API] Error:`, err);
         error =
           err instanceof Error ? err.message : 'Failed to generate content';
       }
@@ -205,10 +278,10 @@
     }
   }
 
-  function showSuccessNotification() {
+  function showSuccessNotification(message: string = '✓ Content generated!') {
     // Create a temporary notification element
     const notification = document.createElement('div');
-    notification.textContent = '✓ Content generated!';
+    notification.textContent = message;
     notification.style.cssText = `
       position: fixed;
       top: 20px;
@@ -254,9 +327,17 @@
   }
 
   function handleResetOptions() {
-    tone = 'neutral';
-    length = 'medium';
-    format = 'plain-text';
+    // Reset writer options
+    writerTone = 'neutral';
+    writerLength = 'medium';
+    writerFormat = 'plain-text';
+
+    // Reset rewriter options
+    rewriterTone = 'as-is';
+    rewriterLength = 'as-is';
+    rewriterFormat = 'as-is';
+
+    // Reset common options
     outputLanguage = 'en';
     inputLangs = {
       en: false,
@@ -273,6 +354,10 @@
       es: false,
     };
     context = '';
+  }
+
+  function handleModeToggle() {
+    mode = mode === 'writer' ? 'rewriter' : 'writer';
   }
 
   function handleKeydown(event: KeyboardEvent) {
@@ -325,11 +410,20 @@
           onclick={handleGenerate}
           disabled={!prompt.trim()}
         >
-          Write
+          {mode === 'writer' ? 'Write' : 'Rewrite'}
         </button>
       {/if}
     </div>
     <div class="header-right">
+      <button
+        class="header-btn mode-toggle"
+        onclick={handleModeToggle}
+        type="button"
+        aria-label="Toggle mode"
+        disabled={isGenerating}
+      >
+        {mode === 'writer' ? '✍️ Writer' : '🔄 Rewriter'}
+      </button>
       <button
         class="header-btn"
         onclick={() => (showOptions = !showOptions)}
@@ -356,14 +450,23 @@
   <div class="content">
     <!-- Prompt input -->
     <div class="input-wrapper">
-      <input
-        type="text"
-        bind:this={promptInput}
-        bind:value={prompt}
-        placeholder="Add Prompt here..."
-        class="prompt-input"
-        disabled={isGenerating}
-      />
+      {#if mode === 'writer'}
+        <input
+          type="text"
+          bind:value={prompt}
+          placeholder="Add prompt here..."
+          class="prompt-input"
+          disabled={isGenerating}
+        />
+      {:else}
+        <textarea
+          bind:value={prompt}
+          placeholder="Add text to rewrite here..."
+          class="prompt-textarea"
+          rows="3"
+          disabled={isGenerating}
+        ></textarea>
+      {/if}
     </div>
 
     <!-- Options panel (expandable) -->
@@ -385,28 +488,52 @@
         <div class="field-row field-row-3">
           <div class="field">
             <label for="tone">Tone</label>
-            <select id="tone" bind:value={tone} disabled={isGenerating}>
-              <option value="formal">Formal</option>
-              <option value="neutral">Neutral</option>
-              <option value="casual">Casual</option>
-            </select>
+            {#if mode === 'writer'}
+              <select id="tone" bind:value={writerTone} disabled={isGenerating}>
+                <option value="formal">Formal</option>
+                <option value="neutral">Neutral</option>
+                <option value="casual">Casual</option>
+              </select>
+            {:else}
+              <select id="tone" bind:value={rewriterTone} disabled={isGenerating}>
+                <option value="as-is">As-Is</option>
+                <option value="more-formal">More Formal</option>
+                <option value="more-casual">More Casual</option>
+              </select>
+            {/if}
           </div>
 
           <div class="field">
             <label for="length">Length</label>
-            <select id="length" bind:value={length} disabled={isGenerating}>
-              <option value="short">Short</option>
-              <option value="medium">Medium</option>
-              <option value="long">Long</option>
-            </select>
+            {#if mode === 'writer'}
+              <select id="length" bind:value={writerLength} disabled={isGenerating}>
+                <option value="short">Short</option>
+                <option value="medium">Medium</option>
+                <option value="long">Long</option>
+              </select>
+            {:else}
+              <select id="length" bind:value={rewriterLength} disabled={isGenerating}>
+                <option value="as-is">As-Is</option>
+                <option value="shorter">Shorter</option>
+                <option value="longer">Longer</option>
+              </select>
+            {/if}
           </div>
 
           <div class="field">
             <label for="format">Format</label>
-            <select id="format" bind:value={format} disabled={isGenerating}>
-              <option value="plain-text">Plain Text</option>
-              <option value="markdown">Markdown</option>
-            </select>
+            {#if mode === 'writer'}
+              <select id="format" bind:value={writerFormat} disabled={isGenerating}>
+                <option value="plain-text">Plain Text</option>
+                <option value="markdown">Markdown</option>
+              </select>
+            {:else}
+              <select id="format" bind:value={rewriterFormat} disabled={isGenerating}>
+                <option value="as-is">As-Is</option>
+                <option value="plain-text">Plain Text</option>
+                <option value="markdown">Markdown</option>
+              </select>
+            {/if}
           </div>
         </div>
 
@@ -672,6 +799,21 @@
     color: #e4e4e7;
   }
 
+  .header-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .header-btn.mode-toggle {
+    background: #3f3f46;
+    color: #e4e4e7;
+    font-weight: 500;
+  }
+
+  .header-btn.mode-toggle:hover:not(:disabled) {
+    background: #52525b;
+  }
+
   .header-btn.close {
     font-size: 18px;
     padding: 2px 6px;
@@ -725,6 +867,53 @@
   .prompt-input:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .prompt-textarea {
+    width: 94%;
+    padding: 8px 10px;
+    background: #27272a;
+    border: 1px solid #3f3f46;
+    border-radius: 6px;
+    color: #e4e4e7;
+    font-size: 13px;
+    font-family: inherit;
+    transition: all 0.15s ease;
+    resize: none;
+    min-height: 60px;
+    overflow-y: auto;
+  }
+
+  .prompt-textarea::placeholder {
+    color: #71717a;
+  }
+
+  .prompt-textarea:focus {
+    outline: none;
+    border-color: #a78bfa;
+    background: #18181b;
+  }
+
+  .prompt-textarea:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .prompt-textarea::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .prompt-textarea::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .prompt-textarea::-webkit-scrollbar-thumb {
+    background: #3f3f46;
+    border-radius: 3px;
+  }
+
+  .prompt-textarea::-webkit-scrollbar-thumb:hover {
+    background: #52525b;
   }
 
   /* Options panel */
