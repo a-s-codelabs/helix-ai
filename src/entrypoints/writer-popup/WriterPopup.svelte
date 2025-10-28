@@ -34,6 +34,12 @@
     'unavailable'
   );
 
+  // Selection tracking for rewriter mode
+  let selectionStart = $state<number | null>(null);
+  let selectionEnd = $state<number | null>(null);
+  let textBeforeSelection = $state('');
+  let textAfterSelection = $state('');
+
   // Writer options
   let writerTone = $state<'formal' | 'neutral' | 'casual'>('neutral');
   let writerLength = $state<'short' | 'medium' | 'long'>('medium');
@@ -93,9 +99,32 @@
   });
 
   // Get context from existing text in the textarea
+  // For rewriter mode, also capture selected text if any
   $effect(() => {
     if (targetElement && targetElement.value) {
       context = targetElement.value;
+    }
+
+    // In rewriter mode, check for selected text
+    if (mode === 'rewriter' && targetElement) {
+      const start = targetElement.selectionStart || 0;
+      const end = targetElement.selectionEnd || 0;
+      
+      if (start !== end) {
+        // User has selected text
+        const selectedText = targetElement.value.substring(start, end);
+        prompt = selectedText;
+        selectionStart = start;
+        selectionEnd = end;
+        textBeforeSelection = targetElement.value.substring(0, start);
+        textAfterSelection = targetElement.value.substring(end);
+      } else {
+        // No selection, use entire text
+        selectionStart = null;
+        selectionEnd = null;
+        textBeforeSelection = '';
+        textAfterSelection = '';
+      }
     }
   });
 
@@ -227,7 +256,17 @@
 
           // Update target element in real-time
           if (targetElement) {
-            targetElement.value = streamedContent;
+            if (selectionStart !== null && selectionEnd !== null) {
+              // Replace only selected text
+              targetElement.value = textBeforeSelection + streamedContent + textAfterSelection;
+              
+              // Set cursor at the end of the rewritten content
+              const newCursorPosition = textBeforeSelection.length + streamedContent.length;
+              targetElement.setSelectionRange(newCursorPosition, newCursorPosition);
+            } else {
+              // Replace entire content
+              targetElement.value = streamedContent;
+            }
             targetElement.dispatchEvent(new Event('input', { bubbles: true }));
           }
         }
@@ -243,11 +282,10 @@
           targetElement.dispatchEvent(new Event('change', { bubbles: true }));
         } else {
           // For rewriter, the content is already replaced during streaming
-          // Just ensure the change event is dispatched
-          // Note: In future, this could support rewriting only selected text
+          // Supports rewriting only selected text or entire content
           targetElement.dispatchEvent(new Event('change', { bubbles: true }));
         }
-
+        
         targetElement.focus();
         console.log(`[${mode === 'writer' ? 'Writer' : 'Rewriter'} API] Final value set:`, targetElement.value);
       }
@@ -469,6 +507,11 @@
           rows="3"
           disabled={isGenerating}
         ></textarea>
+        {#if selectionStart !== null && selectionEnd !== null}
+          <div class="selection-info">
+            ✓ Rewriting selected text only ({selectionEnd - selectionStart} chars)
+          </div>
+        {/if}
       {/if}
     </div>
 
@@ -917,6 +960,19 @@
 
   .prompt-textarea::-webkit-scrollbar-thumb:hover {
     background: #52525b;
+  }
+
+  .selection-info {
+    margin-top: 6px;
+    padding: 6px 10px;
+    background: #1e3a8a;
+    border-radius: 4px;
+    color: #93c5fd;
+    font-size: 11px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
   }
 
   /* Options panel */
