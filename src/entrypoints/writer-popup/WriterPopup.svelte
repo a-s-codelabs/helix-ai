@@ -2,6 +2,8 @@
   import { scale, slide } from 'svelte/transition';
   /*@ts-ignore */
   import Sparkles from '../telescope-ui/icons/Sparkles.svelte';
+  /*@ts-ignore */
+  import Settings from '../telescope-ui/icons/Settings.svelte';
   import {
     writeContentStreaming,
     checkWriterAvailability,
@@ -330,14 +332,14 @@
       {/if}
     </div>
     <div class="header-right">
-      <button
+      <!-- <button
         class="header-btn"
         onclick={() => (showOptions = !showOptions)}
         type="button"
         aria-label="Options"
       >
         Options
-      </button>
+      </button> -->
       <button
         class="header-btn close"
         onclick={() => onClose?.()}
@@ -356,15 +358,30 @@
   <div class="content">
     <!-- Prompt input -->
     <div class="input-wrapper">
-      <input
-        type="text"
-        bind:this={promptInput}
-        bind:value={prompt}
-        placeholder="Add Prompt here..."
-        class="prompt-input"
-        disabled={isGenerating}
-      />
+      <div class="prompt-input-container">
+        <input
+          type="text"
+          bind:this={promptInput}
+          bind:value={prompt}
+          placeholder="Add Prompt here..."
+          class="prompt-input has-icon"
+          disabled={isGenerating}
+        />
+        <button
+          class="prompt-settings-btn"
+          type="button"
+          aria-label="Prompt options"
+          onclick={() => (showOptions = !showOptions)}
+          title="Options"
+        >
+          <Settings />
+        </button>
+      </div>
+
+
     </div>
+
+
 
     <!-- Options panel (expandable) -->
     {#if showOptions}
@@ -706,17 +723,26 @@
   /* Content */
   .content {
     overflow: auto;
+    overscroll-behavior: none;
     max-height: 50vh;
     padding: 12px;
     display: flex;
     flex-direction: column;
     gap: 12px;
+    /* Make scrollbar thin in Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: #52525b transparent;
   }
 
   /* Prompt input */
   .input-wrapper {
     display: flex;
     flex-direction: column;
+  }
+
+  .prompt-input-container {
+    position: relative;
+    width: 100%;
   }
 
   .prompt-input {
@@ -729,6 +755,33 @@
     font-size: 13px;
     font-family: inherit;
     transition: all 0.15s ease;
+  }
+
+  /* .prompt-input.has-icon {
+    padding-right: 36px;
+  } */
+
+  .prompt-settings-btn {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: #a1a1aa;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: color 0.15s ease, background 0.15s ease;
+  }
+
+  .prompt-settings-btn:hover {
+    background: #3f3f46;
+    color: #e4e4e7;
   }
 
   .prompt-input::placeholder {
@@ -858,6 +911,24 @@
   }
 
   textarea::-webkit-scrollbar-thumb:hover {
+    background: #52525b;
+  }
+
+  /* Thin scrollbar for content container (WebKit) */
+  .content::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .content::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .content::-webkit-scrollbar-thumb {
+    background: #3f3f46;
+    border-radius: 8px;
+  }
+
+  .content::-webkit-scrollbar-thumb:hover {
     background: #52525b;
   }
 
