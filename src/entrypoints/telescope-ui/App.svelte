@@ -70,21 +70,20 @@
       globalStorage().delete("action_state");
       console.log("App: Updating state from storage:", storedState);
 
-      if (storedState.actionSource === "addToChat") {
+      if (storedState.actionSource === "context-image") {
         // Prefer attaching image instead of quoting the URL text
         // Detect common image URL extensions or data URLs
         const content = String(storedState.content || "");
         const isImageUrl =
           /^data:image\//i.test(content) ||
           /\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?(#.*)?$/i.test(content);
-
-        if (isImageUrl) {
           inputImageAttached = [...inputImageAttached, content];
-        } else {
-          // Previous behavior retained for non-image content
-          // quotedContent = [...quotedContent, storedState.content];
-          quotedContent = [...quotedContent, content];
-        }
+      }
+
+      if (storedState.actionSource === "addToChat") {
+        // Previous behavior retained for non-image content
+        // quotedContent = [...quotedContent, storedState.content];
+        quotedContent = [...quotedContent, storedState.content];
       }
 
       if (storedState.actionSource === "summarise") {

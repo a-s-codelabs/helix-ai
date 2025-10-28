@@ -50,7 +50,7 @@ export default defineBackground(() => {
 
         // Store action for the side panel to pick up
         await globalStorage().set('action_state', {
-          actionSource: 'addToChat',
+          actionSource: 'context-image',
           content: imageUrl,
         } as any);
       } catch (e) {
