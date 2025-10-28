@@ -14,6 +14,171 @@ import {
 import { extractPageContent } from "./extract-helper";
 import { monitorHelperSync } from "./monitor-helper";
 
+// Helper function for streaming operations
+async function processStream<T>(
+  stream: ReadableStream<T>,
+  abortController: AbortController,
+  onChunk: (chunk: T) => void,
+  timeoutMs: number = 30000,
+  operationName: string = "stream"
+): Promise<void> {
+  const streamTimeout = setTimeout(() => {
+    console.warn(`${operationName} timeout`);
+    throw new Error(`${operationName} timeout`);
+  }, timeoutMs);
+
+  let hasReceivedChunks = false;
+  let chunkCount = 0;
+
+  try {
+    for await (const chunk of stream) {
+      if (abortController.signal.aborted) {
+        break;
+      }
+
+      clearTimeout(streamTimeout);
+      hasReceivedChunks = true;
+      chunkCount++;
+
+      onChunk(chunk);
+    }
+  } catch (iterationError) {
+    console.error(`Error during ${operationName} iteration:`, iterationError);
+    if (hasReceivedChunks) {
+      console.log(
+        `${operationName} failed after ${chunkCount} chunks, but we have content`
+      );
+    } else {
+      throw iterationError;
+    }
+  }
+
+  clearTimeout(streamTimeout);
+
+  if (!hasReceivedChunks) {
+    console.warn(`No chunks received from ${operationName}`);
+    throw new Error(`No chunks received from ${operationName}`);
+  }
+}
+
+// Helper function to create AI sessions with monitoring
+async function createAISessionWithMonitor(
+  sessionType: "summarizer" | "languageDetector" | "translator",
+  options: any = {},
+  monitorOptions: any = {}
+): Promise<any> {
+  const monitor = (m: any) => {
+    const createdAt = Date.now();
+    m.addEventListener("downloadprogress", (e: any) => {
+      monitorHelperSync({
+        source: sessionType === "summarizer" ? "summarize" :
+          sessionType === "languageDetector" ? "language-detector" :
+            "translator",
+        loaded: e.loaded,
+        createdAt,
+        options: monitorOptions,
+      });
+    });
+  };
+
+  switch (sessionType) {
+    case "summarizer":
+      if (typeof Summarizer === "undefined") {
+        throw new Error("Summarizer API not available");
+      }
+      return await Summarizer.create({ ...options, monitor });
+
+    case "languageDetector":
+      if (typeof LanguageDetector === "undefined") {
+        throw new Error("LanguageDetector API not available");
+      }
+      return await LanguageDetector.create({ ...options, monitor });
+
+    case "translator":
+      if (typeof Translator === "undefined") {
+        throw new Error("Translator API not available");
+      }
+      return await Translator.create({ ...options, monitor });
+
+    default:
+      throw new Error(`Unknown session type: ${sessionType}`);
+  }
+}
+
+// Helper function to create message objects
+function createChatMessage(
+  type: "user" | "assistant",
+  content: string,
+  images?: string[]
+): ChatMessage {
+  return {
+    id: Date.now() + (type === "assistant" ? 1 : 0),
+    type,
+    content,
+    images: images || [],
+    timestamp: new Date(),
+  };
+}
+
+// Helper function to update streaming state
+function updateStreamingState(
+  update: (fn: (state: ChatState) => ChatState) => void,
+  assistantMsgId: number,
+  abortController: AbortController,
+  isStreaming: boolean = true
+) {
+  update((state) => ({
+    ...state,
+    isStreaming,
+    streamingMessageId: isStreaming ? assistantMsgId : null,
+    abortController: isStreaming ? abortController : null,
+  }));
+}
+
+// Helper function to update message content
+function updateMessageContent(
+  update: (fn: (state: ChatState) => ChatState) => void,
+  messageId: number,
+  content: string,
+  additionalStateUpdates: Partial<ChatState> = {}
+) {
+  update((state) => {
+    const updatedMessages = state.messages.map((msg) => {
+      if (msg.id === messageId) {
+        return { ...msg, content };
+      }
+      return msg;
+    });
+
+    return {
+      ...state,
+      messages: updatedMessages,
+      ...additionalStateUpdates,
+    };
+  });
+}
+
+// Helper function to append content to a streaming message
+function appendToStreamingMessage(
+  update: (fn: (state: ChatState) => ChatState) => void,
+  messageId: number,
+  chunk: string
+) {
+  update((state) => {
+    const updatedMessages = state.messages.map((msg) => {
+      if (msg.id === messageId) {
+        return { ...msg, content: msg.content + chunk };
+      }
+      return msg;
+    });
+
+    return {
+      ...state,
+      messages: updatedMessages,
+    };
+  });
+}
+
 export type ChatMessage = {
   id: number;
   type: "user" | "assistant";
@@ -207,42 +372,25 @@ async function createAISession(pageContext: string): Promise<AILanguageModel> {
           content: systemPrompt(6),
         },
       ],
+      monitor(m: any) {
+        const createdAt = Date.now();
+        m.addEventListener("downloadprogress", (e: any) => {
+          monitorHelperSync({
+            source: "prompt",
+            loaded: e.loaded,
+            createdAt,
+            options: {},
+          });
+        });
+      },
     };
     try {
       const availability = await LanguageModel.availability();
       if (availability === "readily" || availability === "available") {
-        const session = await LanguageModel.create({
-          ...config,
-          monitor(m) {
-            const createdAt = Date.now();
-            m.addEventListener("downloadprogress", (e) => {
-              monitorHelperSync({
-                source: "prompt",
-                loaded: e.loaded,
-                createdAt,
-                options: {},
-              });
-            });
-          },
-        });
-        return session;
+        return await LanguageModel.create(config);
       }
       if (availability === "downloadable") {
-        const session = await LanguageModel.create({
-          ...config,
-          monitor(m) {
-            const createdAt = Date.now();
-            m.addEventListener("downloadprogress", (e) => {
-              monitorHelperSync({
-                source: "prompt",
-                loaded: e.loaded,
-                createdAt,
-                options: {},
-              });
-            });
-          },
-        });
-
+        await LanguageModel.create(config);
         throw new Error(
           "AI model is downloading. Check progress at chrome://components"
         );
@@ -366,13 +514,7 @@ function createChatStore() {
     async sendMessage(userMessage: string, images?: string[]) {
       if (!userMessage.trim()) return;
 
-      const userMsg: ChatMessage = {
-        id: Date.now(),
-        type: "user",
-        content: userMessage,
-        images: images,
-        timestamp: new Date(),
-      };
+      const userMsg = createChatMessage("user", userMessage, images);
 
       update((state) => ({
         ...state,
@@ -392,12 +534,7 @@ function createChatStore() {
           throw new Error("Invalid response from AI model");
         }
 
-        const assistantMsg: ChatMessage = {
-          id: Date.now() + 1,
-          type: "assistant",
-          content: aiResponse.trim(),
-          timestamp: new Date(),
-        };
+        const assistantMsg = createChatMessage("assistant", aiResponse.trim());
 
         update((state) => ({
           ...state,
@@ -406,7 +543,6 @@ function createChatStore() {
         }));
       } catch (err) {
         const errorMessage = getErrorMessage(err);
-
         const errorMsg = createErrorMessage(err);
 
         update((state) => ({
@@ -425,164 +561,93 @@ function createChatStore() {
       if (!userMessage.trim()) return;
 
       const abortController = new AbortController();
-
-      const userMsg: ChatMessage = {
-        id: Date.now(),
-        type: "user",
-        content: userMessage,
-        images: [],
-        timestamp: new Date(),
-      };
-
-      const assistantMsgId = Date.now() + 1;
-      const assistantMsg: ChatMessage = {
-        id: assistantMsgId,
-        type: "assistant",
-        content: "",
-        timestamp: new Date(),
-      };
+      const userMsg = createChatMessage("user", userMessage);
+      const assistantMsg = createChatMessage("assistant", "");
+      const assistantMsgId = assistantMsg.id;
 
       update((state) => ({
         ...state,
         messages: [...state.messages, userMsg, assistantMsg],
         isLoading: false,
-        isStreaming: true,
-        streamingMessageId: assistantMsgId,
-        abortController,
         error: null,
         inputValue: "",
       }));
 
-      if (typeof Summarizer === "undefined") {
-        throw new Error("Summarizer API not available");
-      }
+      updateStreamingState(update, assistantMsgId, abortController, true);
 
-      const summarizer = await Summarizer.create({
-        sharedContext: userMessage,
-        type: "tldr",
-        format: "markdown",
-        length: "short",
-        monitor(m) {
-          const createdAt = Date.now();
-          m.addEventListener("downloadprogress", (e) => {
-            monitorHelperSync({
-              source: "summarize",
-              loaded: e.loaded,
-              createdAt,
-              options: { type: "tldr", format: "markdown", length: "short" },
-            });
-          });
-        },
-      });
-
-      const stream = summarizer.summarizeStreaming(userMessage, {
-        signal: abortController.signal,
-      });
+      let summarizer: AISummarizer | null = null;
 
       try {
-        const streamTimeout = setTimeout(() => {
-          console.warn("Stream timeout - falling back to regular prompt");
-          throw new Error("Stream timeout");
-        }, 30000); // 30 second timeout
+        summarizer = await createAISessionWithMonitor(
+          "summarizer",
+          {
+            sharedContext: userMessage,
+            type: "tldr",
+            format: "markdown",
+            length: "short",
+          },
+          { type: "tldr", format: "markdown", length: "short" }
+        );
 
-        let hasReceivedChunks = false;
-        let chunkCount = 0;
+        const stream = summarizer!.summarizeStreaming(userMessage, {
+          signal: abortController.signal,
+        });
 
-        try {
-          for await (const chunk of stream) {
-            if (abortController.signal.aborted) {
-              break;
-            }
-
-            clearTimeout(streamTimeout);
-            hasReceivedChunks = true;
-            chunkCount++;
-
+        await processStream(
+          stream,
+          abortController,
+          (chunk: string) => {
             if (chunk && typeof chunk === "string") {
-              update((state) => {
-                const updatedMessages = state.messages.map((msg) => {
-                  if (msg.id === assistantMsgId) {
-                    return {
-                      ...msg,
-                      content: msg.content + chunk,
-                    };
-                  }
-                  return msg;
-                });
-
-                return {
-                  ...state,
-                  messages: updatedMessages,
-                };
-              });
+              appendToStreamingMessage(update, assistantMsgId, chunk);
             }
-          }
-        } catch (iterationError) {
-          console.error("Error during stream iteration:", iterationError);
-          if (hasReceivedChunks) {
-            console.log(
-              `Stream failed after ${chunkCount} chunks, but we have content`
-            );
-          } else {
-            throw iterationError;
+          },
+          30000,
+          "summarization stream"
+        );
+
+        updateStreamingState(update, assistantMsgId, abortController, false);
+      } catch (err) {
+        console.error("Summarization error:", err);
+        const errorMessage = getErrorMessage(err);
+
+        updateMessageContent(update, assistantMsgId, createErrorMessage(err).content, {
+          isLoading: false,
+          isStreaming: false,
+          streamingMessageId: null,
+          abortController: null,
+          error: errorMessage,
+        });
+      } finally {
+        if (summarizer) {
+          try {
+            summarizer.destroy();
+          } catch (cleanupError) {
+            console.warn("Error destroying summarizer:", cleanupError);
           }
         }
-
-        clearTimeout(streamTimeout);
-
-        if (!hasReceivedChunks) {
-          console.warn(
-            "No chunks received from stream - falling back to regular prompt"
-          );
-          throw new Error("No chunks received from stream");
-        }
-      } catch (streamError) {
-        console.error("Error processing stream chunks:", streamError);
-        console.error("Stream error details:", getErrorDetails(streamError));
-        throw streamError;
       }
-
-      update((state) => ({
-        ...state,
-        isStreaming: false,
-        streamingMessageId: null,
-        abortController: null,
-      }));
     },
 
     async translate(userMessage: string, targetLanguage: string) {
       if (!userMessage.trim()) return;
 
       const abortController = new AbortController();
-
-      const userMsg: ChatMessage = {
-        id: Date.now(),
-        type: "user",
-        content: userMessage,
-        images: [],
-        timestamp: new Date(),
-      };
-
-      const assistantMsgId = Date.now() + 1;
-      const assistantMsg: ChatMessage = {
-        id: assistantMsgId,
-        type: "assistant",
-        content: "",
-        timestamp: new Date(),
-      };
+      const userMsg = createChatMessage("user", userMessage);
+      const assistantMsg = createChatMessage("assistant", "");
+      const assistantMsgId = assistantMsg.id;
 
       update((state) => ({
         ...state,
         messages: [...state.messages, userMsg, assistantMsg],
         isLoading: false,
-        isStreaming: true,
-        streamingMessageId: assistantMsgId,
-        abortController,
         error: null,
         inputValue: "",
       }));
 
+      updateStreamingState(update, assistantMsgId, abortController, true);
+
       let detectedLanguage = "en"; // Default fallback
+      let detector: AILanguageDetector | null = null;
       let translator: AITranslator | null = null;
 
       try {
@@ -597,48 +662,32 @@ function createChatStore() {
           );
         }
 
-        const detector = await LanguageDetector.create({
-          monitor(m) {
-            const createdAt = Date.now();
-            m.addEventListener("downloadprogress", (e) => {
-              monitorHelperSync({
-                source: "language-detector",
-                loaded: e.loaded,
-                createdAt,
-                options: { sourceLanguage: detectedLanguage, targetLanguage },
-              });
-            });
-          },
-        });
+        detector = await createAISessionWithMonitor(
+          "languageDetector",
+          {},
+          { sourceLanguage: detectedLanguage, targetLanguage }
+        );
 
-        const detectionResults = await detector.detect(userMessage);
+        const detectionResults = await detector!.detect(userMessage);
         if (detectionResults && detectionResults.length > 0) {
           detectedLanguage = detectionResults[0].detectedLanguage;
         }
 
-        detector.destroy();
+        detector!.destroy();
+        detector = null;
 
         if (detectedLanguage === targetLanguage) {
-          update((state) => {
-            const updatedMessages = state.messages.map((msg) => {
-              if (msg.id === assistantMsgId) {
-                return {
-                  ...msg,
-                  content: `ℹ️ The text is already in ${targetLanguage}. No translation needed.`,
-                };
-              }
-              return msg;
-            });
-
-            return {
-              ...state,
-              messages: updatedMessages,
+          updateMessageContent(
+            update,
+            assistantMsgId,
+            `ℹ️ The text is already in ${targetLanguage}. No translation needed.`,
+            {
               isLoading: false,
               isStreaming: false,
               streamingMessageId: null,
               abortController: null,
-            };
-          });
+            }
+          );
           return;
         }
 
@@ -657,122 +706,51 @@ function createChatStore() {
           );
         }
 
-        translator = await Translator.create({
-          sourceLanguage: detectedLanguage,
-          targetLanguage,
-          signal: abortController.signal,
-          monitor(m) {
-            const createdAt = Date.now();
-            m.addEventListener("downloadprogress", (e) => {
-              monitorHelperSync({
-                source: "translator",
-                loaded: e.loaded,
-                createdAt,
-                options: { sourceLanguage: detectedLanguage, targetLanguage },
-              });
-            });
+        translator = await createAISessionWithMonitor(
+          "translator",
+          {
+            sourceLanguage: detectedLanguage,
+            targetLanguage,
+            signal: abortController.signal,
           },
-        });
+          { sourceLanguage: detectedLanguage, targetLanguage }
+        );
 
-        // Using proper streaming via ReadableStream<string>
-        const stream = translator.translateStreaming(userMessage);
+        const stream = translator!.translateStreaming(userMessage);
 
-        try {
-          const streamTimeout = setTimeout(() => {
-            console.warn("Translation stream timeout");
-            throw new Error("Translation stream timeout");
-          }, 30000); // 30 second timeout
-
-          let hasReceivedChunks = false;
-          let chunkCount = 0;
-
-          try {
-            for await (const chunk of stream) {
-              if (abortController.signal.aborted) {
-                break;
-              }
-
-              clearTimeout(streamTimeout);
-              hasReceivedChunks = true;
-              chunkCount++;
-
-              if (chunk && typeof chunk === "string") {
-                update((state) => {
-                  const updatedMessages = state.messages.map((msg) => {
-                    if (msg.id === assistantMsgId) {
-                      return {
-                        ...msg,
-                        content: msg.content + chunk,
-                      };
-                    }
-                    return msg;
-                  });
-
-                  return {
-                    ...state,
-                    messages: updatedMessages,
-                  };
-                });
-              }
+        await processStream(
+          stream,
+          abortController,
+          (chunk: string) => {
+            if (chunk && typeof chunk === "string") {
+              appendToStreamingMessage(update, assistantMsgId, chunk);
             }
-          } catch (iterationError) {
-            console.error("Error during translation stream iteration:", iterationError);
-            if (hasReceivedChunks) {
-              console.log(
-                `Translation stream failed after ${chunkCount} chunks, but we have content`
-              );
-            } else {
-              throw iterationError;
-            }
-          }
+          },
+          30000,
+          "translation stream"
+        );
 
-          clearTimeout(streamTimeout);
-
-          if (!hasReceivedChunks) {
-            console.warn(
-              "No chunks received from translation stream - falling back to regular translation"
-            );
-            throw new Error("No chunks received from translation stream");
-          }
-
-          update((state) => ({
-            ...state,
-            isStreaming: false,
-            streamingMessageId: null,
-            abortController: null,
-          }));
-        } catch (streamError) {
-          console.error("Error processing translation stream chunks:", streamError);
-          console.error("Translation stream error details:", getErrorDetails(streamError));
-          throw streamError;
-        }
+        updateStreamingState(update, assistantMsgId, abortController, false);
       } catch (err) {
         console.error("Translation error:", err);
         const errorMessage = getErrorMessage(err);
 
-        update((state) => {
-          const updatedMessages = state.messages.map((msg) => {
-            if (msg.id === assistantMsgId) {
-              return {
-                ...msg,
-                content: createErrorMessage(err).content,
-              };
-            }
-            return msg;
-          });
-
-          return {
-            ...state,
-            messages: updatedMessages,
-            isLoading: false,
-            isStreaming: false,
-            streamingMessageId: null,
-            abortController: null,
-            error: errorMessage,
-          };
+        updateMessageContent(update, assistantMsgId, createErrorMessage(err).content, {
+          isLoading: false,
+          isStreaming: false,
+          streamingMessageId: null,
+          abortController: null,
+          error: errorMessage,
         });
       } finally {
-        // Clean up translator instance
+        // Clean up instances
+        if (detector) {
+          try {
+            detector.destroy();
+          } catch (cleanupError) {
+            console.warn("Error destroying detector:", cleanupError);
+          }
+        }
         if (translator) {
           try {
             translator.destroy();
@@ -790,32 +768,18 @@ function createChatStore() {
       if (!userMessage.trim()) return;
 
       const abortController = new AbortController();
-
-      const userMsg: ChatMessage = {
-        id: Date.now(),
-        type: "user",
-        content: userMessage,
-        images: images,
-        timestamp: new Date(),
-      };
-
-      const assistantMsgId = Date.now() + 1;
-      const assistantMsg: ChatMessage = {
-        id: assistantMsgId,
-        type: "assistant",
-        content: "",
-        timestamp: new Date(),
-      };
+      const userMsg = createChatMessage("user", userMessage, images);
+      const assistantMsg = createChatMessage("assistant", "");
+      const assistantMsgId = assistantMsg.id;
 
       update((state) => ({
         ...state,
         messages: [...state.messages, userMsg, assistantMsg],
         isLoading: false,
-        isStreaming: true,
-        streamingMessageId: assistantMsgId,
-        abortController,
         error: null,
       }));
+
+      updateStreamingState(update, assistantMsgId, abortController, true);
 
       try {
         if (!session) {
@@ -853,98 +817,28 @@ function createChatStore() {
           );
         }
 
-        try {
-          const streamTimeout = setTimeout(() => {
-            console.warn("Stream timeout - falling back to regular prompt");
-            throw new Error("Stream timeout");
-          }, 30000); // 30 second timeout
-
-          let hasReceivedChunks = false;
-          let chunkCount = 0;
-
-          try {
-            for await (const chunk of stream) {
-              if (abortController.signal.aborted) {
-                break;
-              }
-
-              clearTimeout(streamTimeout);
-              hasReceivedChunks = true;
-              chunkCount++;
-
-              if (chunk && typeof chunk === "string") {
-                update((state) => {
-                  const updatedMessages = state.messages.map((msg) => {
-                    if (msg.id === assistantMsgId) {
-                      return {
-                        ...msg,
-                        content: msg.content + chunk,
-                      };
-                    }
-                    return msg;
-                  });
-
-                  return {
-                    ...state,
-                    messages: updatedMessages,
-                  };
-                });
-              }
+        await processStream(
+          stream,
+          abortController,
+          (chunk: string) => {
+            if (chunk && typeof chunk === "string") {
+              appendToStreamingMessage(update, assistantMsgId, chunk);
             }
-          } catch (iterationError) {
-            console.error("Error during stream iteration:", iterationError);
-            if (hasReceivedChunks) {
-              console.log(
-                `Stream failed after ${chunkCount} chunks, but we have content`
-              );
-            } else {
-              throw iterationError;
-            }
-          }
+          },
+          30000,
+          "AI prompt stream"
+        );
 
-          clearTimeout(streamTimeout);
-
-          if (!hasReceivedChunks) {
-            console.warn(
-              "No chunks received from stream - falling back to regular prompt"
-            );
-            throw new Error("No chunks received from stream");
-          }
-        } catch (streamError) {
-          console.error("Error processing stream chunks:", streamError);
-          console.error("Stream error details:", getErrorDetails(streamError));
-          throw streamError;
-        }
-
-        update((state) => ({
-          ...state,
-          isStreaming: false,
-          streamingMessageId: null,
-          abortController: null,
-        }));
+        updateStreamingState(update, assistantMsgId, abortController, false);
       } catch (err) {
         console.error("Streaming error:", err);
         const errorMessage = getErrorMessage(err);
 
-        update((state) => {
-          const updatedMessages = state.messages.map((msg) => {
-            if (msg.id === assistantMsgId) {
-              return {
-                ...msg,
-                content: createErrorMessage(err).content,
-              };
-            }
-            return msg;
-          });
-
-          return {
-            ...state,
-            messages: updatedMessages,
-            isStreaming: false,
-            streamingMessageId: null,
-            abortController: null,
-            error: errorMessage,
-          };
+        updateMessageContent(update, assistantMsgId, createErrorMessage(err).content, {
+          isStreaming: false,
+          streamingMessageId: null,
+          abortController: null,
+          error: errorMessage,
         });
 
         safeDestroySession(session);

@@ -23,6 +23,10 @@ export function safeDestroySession(session: AILanguageModel | null): void {
 }
 
 export function createErrorMessage(error: unknown): ChatMessage {
+  let msg = getErrorMessage(error)
+  if (msg.includes("Requires a user gesture when availability")) {
+    msg += " Please click here and try again."
+  }
   return {
     id: Date.now() + 1,
     type: 'assistant',
