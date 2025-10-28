@@ -67,7 +67,7 @@
     const storedState = await globalStorage().get("action_state");
     console.log("event", storedState);
     if (storedState) {
-      // globalStorage().delete("action_state");g
+      globalStorage().delete("action_state");
       console.log("App: Updating state from storage:", storedState);
 
       if (storedState.actionSource === "addToChat") {

@@ -352,7 +352,7 @@
     flex-shrink: 0;
     margin-top: auto;
     padding: 12px;
-    width: 100%;
+    width: calc(100% - 24px);
     box-sizing: border-box;
   }
 
@@ -368,20 +368,20 @@
   }
 
   /* Responsive breakpoints */
-  @media (max-width: 400px) {
+  /* @media (max-width: 400px) {
     .sidepanel-layout .messages-container {
       padding: 8px;
     }
 
     .sidepanel-layout .input {
-      padding: 8px;
+      padding: 4px 30px 25px 0px;
     }
 
     .sidepanel-layout .suggested-questions {
       padding: 16px 0px 0px 0px;
       gap: 6px;
     }
-  }
+  } */
 
   @media (max-width: 300px) {
     .sidepanel-layout .messages-container {
