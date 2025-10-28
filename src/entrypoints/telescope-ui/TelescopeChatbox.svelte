@@ -129,6 +129,9 @@
     border-radius: 35px;
   }
 
+  .sidepanel-layout.chat-box {
+    border-radius: 0;
+  }
   .close-icon {
     position: absolute;
     top: 12px;

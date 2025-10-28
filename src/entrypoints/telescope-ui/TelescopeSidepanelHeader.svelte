@@ -10,6 +10,7 @@
   let downloadHistory = $state<any[]>([]);
   let lastDownloadCount = $state(0);
 
+  let { hasChatBox = false } = $props();
   // Play completion sound
   function playCompletionSound() {
     try {
@@ -122,7 +123,7 @@
   }
 </script>
 
-<div class="sidepanel-header">
+<div class="sidepanel-header" class:has-chat-box={hasChatBox}>
   <p>Telescope</p>
   {#if showDownloadingDropdown}
     <div
@@ -203,9 +204,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: #0a0a0a;
+    background: transparent;
     user-select: none;
     padding: 0 0.7em;
+  }
+  .sidepanel-header.has-chat-box {
+    background: #131723;
   }
   .dropdown-container {
     position: relative;

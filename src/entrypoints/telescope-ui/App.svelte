@@ -246,7 +246,7 @@
     bind:this={telescopeContainer}
   >
     {#if isInSidePanel}
-      <TelescopeSidepanelHeader />
+      <TelescopeSidepanelHeader hasChatBox={(messages ?? []).length > 0} />
     {/if}
     <Telescope
       inputState={currentState}
