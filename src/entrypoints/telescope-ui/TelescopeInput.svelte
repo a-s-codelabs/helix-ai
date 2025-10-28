@@ -282,7 +282,7 @@
               <SendIcon />
             {/if}
           </button>
-        {:else}
+        <!-- {:else}
           <button
             class="close-button"
             onclick={handleClose}
@@ -290,7 +290,7 @@
             aria-label="Close"
           >
             <CloseIcon />
-          </button>
+          </button> -->
         {/if}
       {/if}
 
