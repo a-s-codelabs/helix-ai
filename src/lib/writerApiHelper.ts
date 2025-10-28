@@ -7,6 +7,10 @@ export type WriterTone = 'formal' | 'neutral' | 'casual';
 export type WriterFormat = 'markdown' | 'plain-text';
 export type WriterLength = 'short' | 'medium' | 'long';
 
+export type RewriterTone = 'as-is' | 'more-formal' | 'more-casual';
+export type RewriterFormat = 'as-is' | 'markdown' | 'plain-text';
+export type RewriterLength = 'as-is' | 'shorter' | 'longer';
+
 /**
  * Writer API Options
  *
@@ -42,6 +46,31 @@ export interface WriterOptions {
 
 export interface WriteRequest {
   prompt: string;
+  context?: string;
+}
+
+/**
+ * Rewriter API Options
+ */
+export interface RewriterOptions {
+  /** The tone of the rewriting. @default 'as-is' */
+  tone?: RewriterTone;
+  /** The output format. @default 'as-is' */
+  format?: RewriterFormat;
+  /** The length of the output. @default 'as-is' */
+  length?: RewriterLength;
+  /** Shared context for the rewriting session */
+  sharedContext?: string;
+  /** Output language (BCP 47 language tag). @example "es", "en-US", "fr-FR" */
+  outputLanguage?: string;
+  /** Expected input languages (BCP 47 language tags). @example ["en", "ja", "es"] */
+  expectedInputLanguages?: string[];
+  /** Expected context languages (BCP 47 language tags). @example ["en", "ja", "es"] */
+  expectedContextLanguages?: string[];
+}
+
+export interface RewriteRequest {
+  text: string;
   context?: string;
 }
 
@@ -169,6 +198,129 @@ export async function* writeContentStreaming(
     if (writer) {
       writer.destroy();
       console.log('[Writer API] Writer session destroyed');
+    }
+  }
+}
+
+/**
+ * Check if Rewriter API is available
+ */
+export async function checkRewriterAvailability(): Promise<
+  'available' | 'after-download' | 'unavailable'
+> {
+  try {
+    // Check if Rewriter API exists in the global scope
+    if (!('Rewriter' in self)) {
+      console.log('[Rewriter API] Rewriter not found in global scope');
+      return 'unavailable';
+    }
+
+    const availability = await Rewriter.availability();
+    console.log('[Rewriter API] Availability:', availability);
+    return availability;
+  } catch (error) {
+    console.error('[Rewriter API] Error checking availability:', error);
+    return 'unavailable';
+  }
+}
+
+/**
+ * Create a Rewriter session
+ */
+export async function createRewriter(
+  options: RewriterOptions = {}
+): Promise<RewriterInstance> {
+  try {
+    const rewriterOptions: RewriterCreateOptions = {
+      tone: options.tone || 'as-is',
+      format: options.format || 'as-is',
+      length: options.length || 'as-is',
+      ...(options.sharedContext && { sharedContext: options.sharedContext }),
+      ...(options.outputLanguage && { outputLanguage: options.outputLanguage }),
+      ...(options.expectedInputLanguages && {
+        expectedInputLanguages: options.expectedInputLanguages,
+      }),
+      ...(options.expectedContextLanguages && {
+        expectedContextLanguages: options.expectedContextLanguages,
+      }),
+    };
+
+    const rewriter = await Rewriter.create(rewriterOptions);
+    return rewriter;
+  } catch (error) {
+    console.error('Error creating Rewriter:', error);
+    throw error;
+  }
+}
+
+/**
+ * Rewrite content using the Rewriter API
+ */
+export async function rewriteContent(
+  request: RewriteRequest,
+  options: RewriterOptions = {}
+): Promise<string> {
+  try {
+    const rewriter = await createRewriter(options);
+
+    console.log('[Rewriter API] Rewriting text:', request.text);
+    if (request.context) {
+      console.log('[Rewriter API] Context:', request.context);
+    }
+
+    const result = await rewriter.rewrite(request.text, {
+      ...(request.context && { context: request.context }),
+    });
+
+    console.log('[Rewriter API] Rewrite complete:', {
+      result,
+    });
+
+    // Clean up
+    rewriter.destroy();
+    console.log('[Rewriter API] Rewriter session destroyed');
+
+    return result;
+  } catch (error) {
+    console.error('[Rewriter API] Error rewriting content:', error);
+    throw error;
+  }
+}
+
+/**
+ * Rewrite content with streaming support
+ */
+export async function* rewriteContentStreaming(
+  request: RewriteRequest,
+  options: RewriterOptions = {}
+): AsyncGenerator<string, void, unknown> {
+  let rewriter: RewriterInstance | null = null;
+  try {
+    rewriter = await createRewriter(options);
+
+    console.log('[Rewriter API] Starting streaming...');
+
+    const stream = rewriter.rewriteStreaming(request.text, {
+      ...(request.context && { context: request.context }),
+    });
+
+    for await (const chunk of stream) {
+      console.log('[Rewriter API] Chunk received:', chunk);
+      yield chunk;
+    }
+
+    console.log('[Rewriter API] Streaming complete');
+  } catch (error) {
+    console.error(
+      '[Rewriter API] Error rewriting content with streaming:',
+      error
+    );
+    throw error;
+  } finally {
+    // Clean up
+    if (rewriter) {
+      rewriter.destroy();
+      console.log('[Rewriter API] Rewriter session destroyed');
     }
   }
 }
