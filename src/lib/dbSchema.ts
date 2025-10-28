@@ -19,12 +19,13 @@ export const DB_SCHEMA = {
   },
   downloadStatus: {
     storageKey: 'local:global:downloadStatus' as const,
+    maxLimit: 10,
     default: {} as Record<string, {
       isDownloading: boolean | undefined;
       loaded: number | undefined;
       // total: number | undefined;
-      uniqueKey: `${Source}-${string}`;
-      source: string;
+      uniqueKey: string;
+      source: Source;
       createdAt: number;
     }>,
   },

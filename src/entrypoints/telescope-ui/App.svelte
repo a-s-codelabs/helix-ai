@@ -186,7 +186,7 @@
   }
 
   function handleMouseMove(event: MouseEvent) {
-    if (isDragging && telescopeContainer) {
+    if (isDragging && telescopeContainer && !isInSidePanel) {
       const newLeft = Math.max(
         0,
         Math.min(
@@ -218,7 +218,7 @@
     if (isVisible) {
       if (telescopeContainer) {
         telescopeContainer.style.left = "50%";
-        telescopeContainer.style.top = "20px";
+        telescopeContainer.style.top = isInSidePanel ? "0" : "20px";
         telescopeContainer.style.transform = "translateX(-50%)";
       }
 
@@ -241,6 +241,7 @@
 {#if isVisible || isInSidePanel}
   <div
     class="telescope-container"
+    class:sidepanel-layout={isInSidePanel}
     class:draggable={!isInSidePanel}
     bind:this={telescopeContainer}
   >

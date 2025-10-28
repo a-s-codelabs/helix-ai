@@ -211,8 +211,9 @@ async function createAISession(pageContext: string): Promise<AILanguageModel> {
         const session = await LanguageModel.create({
           ...config,
           monitor(m) {
+            const createdAt = Date.now()
             m.addEventListener('downloadprogress', (e) => {
-              monitorHelperSync({ source: 'prompt', loaded: e.loaded, createdAt: Date.now(), options: {} });
+              monitorHelperSync({ source: 'prompt', loaded: e.loaded, createdAt, options: {} });
             });
           },
         });
@@ -222,8 +223,9 @@ async function createAISession(pageContext: string): Promise<AILanguageModel> {
         const session = await LanguageModel.create({
           ...config,
           monitor(m) {
+            const createdAt = Date.now()
             m.addEventListener('downloadprogress', (e) => {
-              monitorHelperSync({ source: 'prompt', loaded: e.loaded, createdAt: Date.now(), options: {} });
+              monitorHelperSync({ source: 'prompt', loaded: e.loaded, createdAt, options: {} });
             });
           },
         });
@@ -453,8 +455,9 @@ function createChatStore() {
         format: 'markdown',
         length: 'short',
         monitor(m) {
+          const createdAt = Date.now()
           m.addEventListener('downloadprogress', (e) => {
-            console.log(`Downloaded ${e.loaded * 100}%`);
+            monitorHelperSync({ source: 'summarize', loaded: e.loaded, createdAt, options: { type: 'tldr', format: 'markdown', length: 'short' } });
           });
         },
       });
@@ -582,8 +585,9 @@ function createChatStore() {
 
         const detector = await LanguageDetector.create({
           monitor(m) {
+            const createdAt = Date.now()
             m.addEventListener('downloadprogress', (e) => {
-              monitorHelperSync({ source: 'language-detector', loaded: e.loaded, createdAt: Date.now(), options: { sourceLanguage: detectedLanguage, targetLanguage } });
+              monitorHelperSync({ source: 'language-detector', loaded: e.loaded, createdAt, options: { sourceLanguage: detectedLanguage, targetLanguage } });
             });
           },
         });
@@ -639,8 +643,9 @@ function createChatStore() {
           targetLanguage,
           signal: abortController.signal,
           monitor(m) {
+            const createdAt = Date.now()
             m.addEventListener('downloadprogress', (e) => {
-              monitorHelperSync({ source: 'translator', loaded: e.loaded, createdAt: Date.now(), options: { sourceLanguage: detectedLanguage, targetLanguage } });
+              monitorHelperSync({ source: 'translator', loaded: e.loaded, createdAt, options: { sourceLanguage: detectedLanguage, targetLanguage } });
             });
           },
         });

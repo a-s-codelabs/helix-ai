@@ -18,27 +18,29 @@ const deleteGS = async <K extends DBStorageKey>(key: K): Promise<void> => {
 };
 
 const appendGS = async <K extends DBStorageKey>({ key, value, whereKey }: { key: K, value: ExtractColumnType<K>, whereKey?: string }): Promise<void> => {
+  let newValue = value;
   const currentValue = await getGS<K>(key, { whereKey });
   if (!currentValue) {
-    if ("maxLimit" in DB_SCHEMA[key] && Array.isArray(value) && value.length > DB_SCHEMA[key].maxLimit) {
-      value = value.slice(0, DB_SCHEMA[key].maxLimit) as ExtractColumnType<K>;
+    if ("maxLimit" in DB_SCHEMA[key] && Array.isArray(newValue) && newValue.length > DB_SCHEMA[key].maxLimit) {
+      newValue = newValue.slice(0, DB_SCHEMA[key].maxLimit) as ExtractColumnType<K>;
     }
-    await storage.setItem(DB_SCHEMA[key].storageKey, value);
+    await storage.setItem(DB_SCHEMA[key].storageKey, newValue);
     return;
   }
   if (Array.isArray(currentValue)) {
-    if ("maxLimit" in DB_SCHEMA[key] && Array.isArray(value) && currentValue.length + value.length > DB_SCHEMA[key].maxLimit) {
-      value = currentValue.slice(0, DB_SCHEMA[key].maxLimit - value.length) as ExtractColumnType<K>;
+    if ("maxLimit" in DB_SCHEMA[key] && Array.isArray(newValue) && currentValue.length + newValue.length > DB_SCHEMA[key].maxLimit) {
+      newValue = currentValue.slice(0, DB_SCHEMA[key].maxLimit - newValue.length) as ExtractColumnType<K>;
     }
-    await storage.setItem(DB_SCHEMA[key].storageKey, [value, ...currentValue]);
+    await storage.setItem(DB_SCHEMA[key].storageKey, [newValue, ...currentValue]);
     return;
   }
   else if (typeof currentValue === 'object') {
-    await storage.setItem(DB_SCHEMA[key].storageKey, { ...value, ...currentValue });
+    console.log("appending: ", { ...currentValue, ...newValue })
+    await storage.setItem(DB_SCHEMA[key].storageKey, { ...currentValue, ...newValue });
     return;
   }
 
-  await storage.setItem(DB_SCHEMA[key].storageKey, value);
+  await storage.setItem(DB_SCHEMA[key].storageKey, newValue);
 };
 
 const onBoardGS = async ({ force = false }: { force?: boolean } = {}) => {

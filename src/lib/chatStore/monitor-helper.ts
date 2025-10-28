@@ -13,19 +13,24 @@ export async function monitorHelperSync({
   options: Record<string, any>;
 }) {
   const key = genDownloadKey({ key: source, options });
+  const uniqueKey = `${key}-${createdAt}`;
+
+  const isDownloading = loaded < 1;
+
   const downloadStatus = await globalStorage().append({
     key: 'downloadStatus',
     value: {
-      [`${key}-en`]: {
-        isDownloading: loaded > 0 ? true : loaded < 1 ? false : undefined,
+      [uniqueKey]: {
+        isDownloading,
         loaded,
-        uniqueKey: `${key}-${"unique"}`,
+        uniqueKey,
         source,
         createdAt,
       }
     }
   });
-  console.debug('downloading ${key} ${progress}%', downloadStatus);
+
+  console.debug(`Downloading ${key}: ${Math.round(loaded * 100)}%`, downloadStatus);
 }
 
 
@@ -34,8 +39,16 @@ function genDownloadKey({ key, options }: { key: Source, options: Record<string,
   switch (key) {
     case "prompt":
       return "prompt"
-    // case "writer"
-    //   return "writer"
+    case "summarize":
+      return "summarizer"
+    case "translator":
+      return "translator"
+    case "language-detector":
+      return "language-detector"
+    case "writer":
+      return "writer"
+    case "rewriter":
+      return "rewriter"
     default:
       return key
   }
