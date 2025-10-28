@@ -3,6 +3,22 @@
  * Provides utilities for using Chrome's built-in Writer API
  */
 
+// Use global type declarations
+declare const Writer: {
+  availability(): Promise<'available' | 'after-download' | 'unavailable'>;
+  create(options?: any): Promise<any>;
+};
+
+declare const Rewriter: {
+  availability(): Promise<'available' | 'after-download' | 'unavailable'>;
+  create(options?: any): Promise<any>;
+};
+
+declare const Proofreader: {
+  availability(): Promise<'available' | 'after-download' | 'unavailable'>;
+  create(options?: any): Promise<any>;
+};
+
 export type WriterTone = 'formal' | 'neutral' | 'casual';
 export type WriterFormat = 'markdown' | 'plain-text';
 export type WriterLength = 'short' | 'medium' | 'long';
@@ -10,6 +26,12 @@ export type WriterLength = 'short' | 'medium' | 'long';
 export type RewriterTone = 'as-is' | 'more-formal' | 'more-casual';
 export type RewriterFormat = 'as-is' | 'markdown' | 'plain-text';
 export type RewriterLength = 'as-is' | 'shorter' | 'longer';
+
+// Proofreader API types
+export interface ProofreaderOptions {
+  /** Expected input languages (BCP 47 language tags). @example ["en", "ja", "es"] */
+  expectedInputLanguages?: string[];
+}
 
 /**
  * Writer API Options
@@ -74,6 +96,10 @@ export interface RewriteRequest {
   context?: string;
 }
 
+export interface ProofreaderRequest {
+  text: string;
+}
+
 /**
  * Check if Writer API is available
  */
@@ -99,11 +125,9 @@ export async function checkWriterAvailability(): Promise<
 /**
  * Create a Writer session
  */
-export async function createWriter(
-  options: WriterOptions = {}
-): Promise<WriterInstance> {
+export async function createWriter(options: WriterOptions = {}): Promise<any> {
   try {
-    const writerOptions: WriterCreateOptions = {
+    const writerOptions: any = {
       tone: options.tone || 'neutral',
       format: options.format || 'plain-text',
       length: options.length || 'medium',
@@ -229,9 +253,9 @@ export async function checkRewriterAvailability(): Promise<
  */
 export async function createRewriter(
   options: RewriterOptions = {}
-): Promise<RewriterInstance> {
+): Promise<any> {
   try {
-    const rewriterOptions: RewriterCreateOptions = {
+    const rewriterOptions: any = {
       tone: options.tone || 'as-is',
       format: options.format || 'as-is',
       length: options.length || 'as-is',
@@ -321,6 +345,113 @@ export async function* rewriteContentStreaming(
     if (rewriter) {
       rewriter.destroy();
       console.log('[Rewriter API] Rewriter session destroyed');
+    }
+  }
+}
+
+/**
+ * Check if Proofreader API is available
+ */
+export async function checkProofreaderAvailability(): Promise<
+  'available' | 'after-download' | 'unavailable'
+> {
+  try {
+    // Check if Proofreader API exists in the global scope
+    if (!('Proofreader' in self)) {
+      console.log('[Proofreader API] Proofreader not found in global scope');
+      return 'unavailable';
+    }
+
+    const availability = await Proofreader.availability();
+    console.log('[Proofreader API] Availability:', availability);
+    return availability;
+  } catch (error) {
+    console.error('[Proofreader API] Error checking availability:', error);
+    return 'unavailable';
+  }
+}
+
+/**
+ * Create a Proofreader session
+ */
+export async function createProofreader(
+  options: ProofreaderOptions = {}
+): Promise<any> {
+  try {
+    const proofreaderOptions: any = {
+      ...(options.expectedInputLanguages && {
+        expectedInputLanguages: options.expectedInputLanguages,
+      }),
+    };
+
+    const proofreader = await Proofreader.create(proofreaderOptions);
+    return proofreader;
+  } catch (error) {
+    console.error('Error creating Proofreader:', error);
+    throw error;
+  }
+}
+
+/**
+ * Proofread content using the Proofreader API
+ */
+export async function proofreadContent(
+  request: ProofreaderRequest,
+  options: ProofreaderOptions = {}
+): Promise<any> {
+  try {
+    const proofreader = await createProofreader(options);
+
+    console.log('[Proofreader API] Proofreading text:', request.text);
+
+    const result = await proofreader.proofread(request.text);
+
+    console.log('[Proofreader API] Proofread complete:', {
+      result,
+    });
+
+    // Clean up
+    proofreader.destroy();
+    console.log('[Proofreader API] Proofreader session destroyed');
+
+    return result;
+  } catch (error) {
+    console.error('[Proofreader API] Error proofreading content:', error);
+    throw error;
+  }
+}
+
+/**
+ * Proofread content with streaming support
+ * Note: The Proofreader API doesn't have streaming, but we'll simulate it for consistency
+ */
+export async function* proofreadContentStreaming(
+  request: ProofreaderRequest,
+  options: ProofreaderOptions = {}
+): AsyncGenerator<string, void, unknown> {
+  let proofreader: any = null;
+  try {
+    proofreader = await createProofreader(options);
+
+    console.log('[Proofreader API] Starting proofreading...');
+
+    const result = await proofreader.proofread(request.text);
+
+    console.log('[Proofreader API] Proofreading complete');
+
+    // Simulate streaming by yielding the corrected text
+    yield result.corrected;
+  } catch (error) {
+    console.error(
+      '[Proofreader API] Error proofreading content with streaming:',
+      error
+    );
+    throw error;
+  } finally {
+    // Clean up
+    if (proofreader) {
+      proofreader.destroy();
+      console.log('[Proofreader API] Proofreader session destroyed');
     }
   }
 }
