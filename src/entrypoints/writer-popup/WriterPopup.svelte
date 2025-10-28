@@ -224,28 +224,31 @@
           // Handle both Chrome Stable (full text each time) and Canary (incremental chunks)
           // @ts-ignore - Check if Rewriter API exists to determine behavior
           streamedContent = 'Rewriter' in self ? streamedContent + chunk : chunk;
+
+          // Update target element in real-time
+          if (targetElement) {
+            targetElement.value = streamedContent;
+            targetElement.dispatchEvent(new Event('input', { bubbles: true }));
+          }
         }
 
         console.log('[Rewriter API] Rewritten text:', streamedContent);
       }
 
-      // Update target element with final content
+      // Finalize and ensure all events are dispatched
       if (targetElement && streamedContent) {
         if (mode === 'writer') {
-          // For writer, append to existing content
-          const initialValue = targetElement.value || '';
-          const separator = initialValue ? '\n\n' : '';
-          const finalValue = initialValue + separator + streamedContent;
-          targetElement.value = finalValue;
+          // For writer, the final value is already set during streaming
+          // Just ensure the change event is dispatched
+          targetElement.dispatchEvent(new Event('change', { bubbles: true }));
         } else {
-          // For rewriter, replace the content
-          targetElement.value = streamedContent;
+          // For rewriter, the content is already replaced during streaming
+          // Just ensure the change event is dispatched
+          // Note: In future, this could support rewriting only selected text
+          targetElement.dispatchEvent(new Event('change', { bubbles: true }));
         }
 
-        targetElement.dispatchEvent(new Event('input', { bubbles: true }));
-        targetElement.dispatchEvent(new Event('change', { bubbles: true }));
         targetElement.focus();
-
         console.log(`[${mode === 'writer' ? 'Writer' : 'Rewriter'} API] Final value set:`, targetElement.value);
       }
 
