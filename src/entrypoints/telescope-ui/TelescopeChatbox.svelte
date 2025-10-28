@@ -352,7 +352,7 @@
     flex-shrink: 0;
     margin-top: auto;
     padding: 12px;
-    width: calc(100% - 24px);
+    /* width: calc(100% - 24px); */
     box-sizing: border-box;
   }
 
