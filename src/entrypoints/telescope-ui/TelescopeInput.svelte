@@ -267,7 +267,7 @@
         </div>
 
         {#if inputState === "ask"}
-          <button class="ask-button" onclick={handleAsk}> Ask </button>
+          <button class="ask-button" onclick={handleAsk}>Ask</button>
         {/if}
 
         {#if inputState === "chat"}
