@@ -1,7 +1,9 @@
 <script lang="ts">
   import { scale, slide } from 'svelte/transition';
   /*@ts-ignore */
-  import Sparkles from '../telescope-ui/icons/Sparkles.svelte';
+  // import Sparkles from '../telescope-ui/icons/Sparkles.svelte';
+  /*@ts-ignore */
+  import Helix from '../telescope-ui/icons/Helix.svelte';
   /*@ts-ignore */
   import Settings from '../telescope-ui/icons/Settings.svelte';
   import {
@@ -436,7 +438,7 @@
   <div class="header" onmousedown={onDragStart} role="button" tabindex="0">
     <div class="header-left">
       <span class="icon">
-        <Sparkles />
+        <Helix />
       </span>
       {#if isGenerating}
         <button
@@ -520,6 +522,8 @@
         <Settings />
       </button>
     </div>
+
+
 
     <!-- Options panel (expandable) -->
     {#if showOptions}
@@ -763,6 +767,8 @@
         </div> -->
       </div>
     {/if}
+
+
   </div>
 </div>
 
@@ -772,7 +778,8 @@
     width: 360px;
     background: #18181b;
     border-radius: 8px;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3),
+    box-shadow:
+      0 20px 25px -5px rgba(0, 0, 0, 0.3),
       0 8px 10px -6px rgba(0, 0, 0, 0.2);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
       Ubuntu, Cantarell, sans-serif;
@@ -800,8 +807,8 @@
   }
 
   .icon {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -842,6 +849,7 @@
     /* Use a faded version of #3b82f6 (blue-500), e.g. 80% opacity */
     background: #3b82f6cc;
   }
+
 
   .header-action-btn.generate:active:not(:disabled) {
     transform: scale(0.98);

@@ -1,7 +1,9 @@
 <script lang="ts">
   import { scale } from 'svelte/transition';
   /*@ts-ignore */
-  import Sparkles from '../telescope-ui/icons/Sparkles.svelte';
+  // import Sparkles from '../telescope-ui/icons/Sparkles.svelte';
+  /*@ts-ignore */
+  import Helix from '../telescope-ui/icons/Helix.svelte';
 
   interface Props {
     x: number;
@@ -23,22 +25,17 @@
   title="AI Writer"
 >
   <span class="icon">
-    <Sparkles />
+    <!-- Replaced Sparkles with Helix icon per design -->
+    <Helix />
   </span>
 </button>
 
 <style>
   .floating-button {
     position: fixed;
-    z-index: 2147483645;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border: 2px solid white;
-    box-shadow:
-      0 4px 12px rgba(102, 126, 234, 0.4),
-      0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 99999999;
+    width: 24px;
+    height: 24px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -50,8 +47,7 @@
 
   .floating-button:hover {
     transform: translate(-50%, -50%) scale(1.1);
-    box-shadow:
-      0 6px 20px rgba(102, 126, 234, 0.5),
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5),
       0 3px 6px rgba(0, 0, 0, 0.15);
   }
 
@@ -60,8 +56,8 @@
   }
 
   .icon {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
