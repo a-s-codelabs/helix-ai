@@ -54,7 +54,9 @@ declare global {
   };
 
   type AILanguageModel = {
-    append(content: { role: string; content: { type: string; value: any }[] }[]): Promise<void>;
+    append(
+      content: { role: string; content: { type: string; value: any }[] }[]
+    ): Promise<void>;
     prompt(input: string): Promise<string>;
     promptStreaming(input: string): ReadableStream<string>;
     destroy(): void;
@@ -63,32 +65,32 @@ declare global {
 
   var LanguageModel:
     | {
-      availability(): Promise<
-        'readily' | 'available' | 'no' | 'downloadable'
-      >;
-      create(
-        options?: AILanguageModelCreateOptions
-      ): Promise<AILanguageModel>;
-    }
+        availability(): Promise<
+          'readily' | 'available' | 'no' | 'downloadable'
+        >;
+        create(
+          options?: AILanguageModelCreateOptions
+        ): Promise<AILanguageModel>;
+      }
     | undefined;
 
   var Summarizer:
     | {
-      availability(): Promise<'readily' | 'available' | 'unavailable'>;
-      create(options?: {
-        sharedContext?: string;
-        type?: 'key-points' | 'tldr' | 'teaser' | 'headline';
-        format?: 'markdown' | 'plain-text';
-        length?: 'short' | 'medium' | 'long';
-        signal?: AbortSignal;
-        monitor?: (monitor: {
-          addEventListener: (
-            type: string,
-            listener: (e: any) => void
-          ) => void;
-        }) => void;
-      }): Promise<AISummarizer>;
-    }
+        availability(): Promise<'readily' | 'available' | 'unavailable'>;
+        create(options?: {
+          sharedContext?: string;
+          type?: 'key-points' | 'tldr' | 'teaser' | 'headline';
+          format?: 'markdown' | 'plain-text';
+          length?: 'short' | 'medium' | 'long';
+          signal?: AbortSignal;
+          monitor?: (monitor: {
+            addEventListener: (
+              type: string,
+              listener: (e: any) => void
+            ) => void;
+          }) => void;
+        }): Promise<AISummarizer>;
+      }
     | undefined;
 
   type AISummarizer = {
@@ -105,42 +107,44 @@ declare global {
 
   var LanguageDetector:
     | {
-      availability(): Promise<'readily' | 'available' | 'unavailable'>;
-      create(options?: {
-        signal?: AbortSignal;
-        monitor?: (monitor: {
-          addEventListener: (
-            type: string,
-            listener: (e: any) => void
-          ) => void;
-        }) => void;
-      }): Promise<AILanguageDetector>;
-    }
+        availability(): Promise<'readily' | 'available' | 'unavailable'>;
+        create(options?: {
+          signal?: AbortSignal;
+          monitor?: (monitor: {
+            addEventListener: (
+              type: string,
+              listener: (e: any) => void
+            ) => void;
+          }) => void;
+        }): Promise<AILanguageDetector>;
+      }
     | undefined;
 
   type AILanguageDetector = {
-    detect(text: string): Promise<Array<{ detectedLanguage: string; confidence?: number }>>;
+    detect(
+      text: string
+    ): Promise<Array<{ detectedLanguage: string; confidence?: number }>>;
     destroy(): void;
   };
 
   var Translator:
     | {
-      availability(options: {
-        sourceLanguage: string;
-        targetLanguage: string;
-      }): Promise<'readily' | 'available' | 'unavailable'>;
-      create(options: {
-        sourceLanguage: string;
-        targetLanguage: string;
-        signal?: AbortSignal;
-        monitor?: (monitor: {
-          addEventListener: (
-            type: string,
-            listener: (e: any) => void
-          ) => void;
-        }) => void;
-      }): Promise<AITranslator>;
-    }
+        availability(options: {
+          sourceLanguage: string;
+          targetLanguage: string;
+        }): Promise<'readily' | 'available' | 'unavailable'>;
+        create(options: {
+          sourceLanguage: string;
+          targetLanguage: string;
+          signal?: AbortSignal;
+          monitor?: (monitor: {
+            addEventListener: (
+              type: string,
+              listener: (e: any) => void
+            ) => void;
+          }) => void;
+        }): Promise<AITranslator>;
+      }
     | undefined;
 
   type AITranslator = {
@@ -203,13 +207,17 @@ function createErrorMessage(error: unknown): ChatMessage {
   };
 }
 
-async function extractPageContent({ tabId }: { tabId: number }): Promise<string> {
+async function extractPageContent({
+  tabId,
+}: {
+  tabId: number;
+}): Promise<string> {
   try {
     const html = (
-      document.querySelector("article") ||
-      document.querySelector("main") ||
-      document.querySelector("[role=\"main\"]") ||
-      document.querySelector("#main") ||
+      document.querySelector('article') ||
+      document.querySelector('main') ||
+      document.querySelector('[role="main"]') ||
+      document.querySelector('#main') ||
       document.documentElement
     ).outerHTML;
 
@@ -223,7 +231,10 @@ async function extractPageContent({ tabId }: { tabId: number }): Promise<string>
     // 4. Process for LLM
     const processedMarkdown = processTextForLLM(markdown);
 
-    const metaDescription = document.querySelector("meta[name=\"description\"]")?.getAttribute?.("content") || "";
+    const metaDescription =
+      document
+        .querySelector('meta[name="description"]')
+        ?.getAttribute?.('content') || '';
     // 5. Add metadata
     const metadata = `# ${document.title || 'Web Page'}
 **Title:** ${document.title}
@@ -240,11 +251,12 @@ async function extractPageContent({ tabId }: { tabId: number }): Promise<string>
     const maxLength = 60_000;
     const finalContent = metadata + processedMarkdown;
 
-    const data = finalContent.length > maxLength
-      ? finalContent.substring(0, maxLength) +
-      '\n\n... [Content truncated for AI context]'
-      : finalContent;
-    globalStorage().append("pageMarkdown", { [`tab_id_${tabId}`]: data });
+    const data =
+      finalContent.length > maxLength
+        ? finalContent.substring(0, maxLength) +
+          '\n\n... [Content truncated for AI context]'
+        : finalContent;
+    globalStorage().append('pageMarkdown', { [`tab_id_${tabId}`]: data });
     return data;
   } catch (err) {
     console.error('Error extracting page content:', err);
@@ -309,7 +321,7 @@ async function createAISession(pageContext: string): Promise<AILanguageModel> {
       language: 'en',
       outputLanguage: 'en',
       output: { language: 'en' },
-      expectedInputs: [{ type: "image" }],
+      expectedInputs: [{ type: 'image' }],
       temperature,
       topK,
       initialPrompts: [
@@ -318,10 +330,10 @@ async function createAISession(pageContext: string): Promise<AILanguageModel> {
           content: systemPrompt(6),
         },
       ],
-    }
+    };
     try {
       const availability = await LanguageModel.availability();
-      console.log({ availability })
+      console.log({ availability });
       if (availability === 'readily' || availability === 'available') {
         console.log('##HELIX condition 1 - available');
         // IMPORTANT: working LanguageModel
@@ -331,7 +343,6 @@ async function createAISession(pageContext: string): Promise<AILanguageModel> {
       }
       if (availability === 'downloadable') {
         const session = await LanguageModel.create(config);
-
 
         throw new Error(
           'AI model is downloading. Check progress at chrome://components'
@@ -419,11 +430,11 @@ async function createAISession(pageContext: string): Promise<AILanguageModel> {
 
   throw new Error(
     'Chrome Built-in AI not available.\n\n' +
-    'Please ensure:\n' +
-    '1. You are using Chrome 138+ (Dev/Canary/Beta)\n' +
-    '2. Flags are enabled at chrome:flags for Built-in AI\n' +
-    '3. Chrome has been fully restarted\n' +
-    '4. Model is downloaded at chrome://components'
+      'Please ensure:\n' +
+      '1. You are using Chrome 138+ (Dev/Canary/Beta)\n' +
+      '2. Flags are enabled at chrome:flags for Built-in AI\n' +
+      '3. Chrome has been fully restarted\n' +
+      '4. Model is downloaded at chrome://components'
   );
 }
 
@@ -535,10 +546,9 @@ function createChatStore() {
     window.sessionStorage.setItem('debug_chat_store', JSON.stringify(state));
   });
 
-  console.log({ chrome })
+  console.log({ chrome });
   return {
     subscribe,
-
 
     /**
      * Initialize and check AI availability
@@ -558,7 +568,7 @@ function createChatStore() {
         pageContext = providedPageContext;
         // console.log('##HELIX pageContext (provided)', pageContext);
       } else {
-        globalStorage().get("pageMarkdown", { whereKey: tabId.toString() })
+        globalStorage().get('pageMarkdown', { whereKey: tabId.toString() });
         pageContext = await extractPageContent({ tabId });
         // console.log('##HELIX pageContext (extracted)', pageContext);
       }
@@ -674,7 +684,7 @@ function createChatStore() {
         streamingMessageId: assistantMsgId,
         abortController,
         error: null,
-        inputValue: ""
+        inputValue: '',
       }));
 
       if (typeof Summarizer === 'undefined') {
@@ -690,13 +700,12 @@ function createChatStore() {
           m.addEventListener('downloadprogress', (e) => {
             console.log(`Downloaded ${e.loaded * 100}%`);
           });
-        }
+        },
       });
 
       const stream = summarizer.summarizeStreaming(userMessage, {
         signal: abortController.signal,
       });
-
 
       try {
         const streamTimeout = setTimeout(() => {
@@ -801,12 +810,12 @@ function createChatStore() {
       update((state) => ({
         ...state,
         messages: [...state.messages, userMsg, assistantMsg],
-        isLoading: true,
-        isStreaming: false,
-        streamingMessageId: null,
-        abortController: null,
+        isLoading: false,
+        isStreaming: true,
+        streamingMessageId: assistantMsgId,
+        abortController,
         error: null,
-        inputValue: ""
+        inputValue: '',
       }));
 
       let detectedLanguage = 'en'; // Default fallback
@@ -819,7 +828,9 @@ function createChatStore() {
 
         const detectorAvailability = await LanguageDetector.availability();
         if (detectorAvailability === 'unavailable') {
-          throw new Error('Language Detector is not available. Please enable it in Chrome flags.');
+          throw new Error(
+            'Language Detector is not available. Please enable it in Chrome flags.'
+          );
         }
 
         const detector = await LanguageDetector.create({
@@ -827,7 +838,7 @@ function createChatStore() {
             m.addEventListener('downloadprogress', (e) => {
               console.log(`Language Detector Downloaded ${e.loaded * 100}%`);
             });
-          }
+          },
         });
 
         const detectionResults = await detector.detect(userMessage);
@@ -856,6 +867,9 @@ function createChatStore() {
               ...state,
               messages: updatedMessages,
               isLoading: false,
+              isStreaming: false,
+              streamingMessageId: null,
+              abortController: null,
             };
           });
           return;
@@ -885,7 +899,7 @@ function createChatStore() {
             m.addEventListener('downloadprogress', (e) => {
               console.log(`Translator Downloaded ${e.loaded * 100}%`);
             });
-          }
+          },
         });
 
         // Step 4: Translate the text
@@ -893,25 +907,46 @@ function createChatStore() {
 
         translator.destroy();
 
-        // Step 5: Update the assistant message with the translation
-        update((state) => {
-          const updatedMessages = state.messages.map((msg) => {
-            if (msg.id === assistantMsgId) {
-              return {
-                ...msg,
-                content: translatedText,
-              };
-            }
-            return msg;
+        // Step 5: Simulate streaming by breaking the translation into chunks
+        const words = translatedText.split(' ');
+        const chunkSize = Math.max(1, Math.ceil(words.length / 10)); // Break into ~10 chunks
+
+        for (let i = 0; i < words.length; i += chunkSize) {
+          // Check if streaming was aborted
+          if (abortController.signal.aborted) {
+            break;
+          }
+
+          const chunk = words.slice(i, i + chunkSize).join(' ');
+
+          update((state) => {
+            const updatedMessages = state.messages.map((msg) => {
+              if (msg.id === assistantMsgId) {
+                return {
+                  ...msg,
+                  content: msg.content + (msg.content ? ' ' : '') + chunk,
+                };
+              }
+              return msg;
+            });
+
+            return {
+              ...state,
+              messages: updatedMessages,
+            };
           });
 
-          return {
-            ...state,
-            messages: updatedMessages,
-            isLoading: false,
-          };
-        });
+          // Add a delay to simulate streaming
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
 
+        // Mark streaming as complete
+        update((state) => ({
+          ...state,
+          isStreaming: false,
+          streamingMessageId: null,
+          abortController: null,
+        }));
       } catch (err) {
         console.error('Translation error:', err);
         const errorMessage = getErrorMessage(err);
@@ -932,6 +967,9 @@ function createChatStore() {
             ...state,
             messages: updatedMessages,
             isLoading: false,
+            isStreaming: false,
+            streamingMessageId: null,
+            abortController: null,
             error: errorMessage,
           };
         });
@@ -1026,10 +1064,10 @@ function createChatStore() {
         if (images && images.length > 0 && session) {
           for await (const image of images) {
             // Convert base64 image to File before sending to the session
-            function base64ToFile(base64Data: string, filename = "image.png") {
-              const arr = base64Data.split(",");
+            function base64ToFile(base64Data: string, filename = 'image.png') {
+              const arr = base64Data.split(',');
               const mimeMatch = arr[0].match(/:(.*?);/);
-              const mime = mimeMatch ? mimeMatch[1] : "image/png";
+              const mime = mimeMatch ? mimeMatch[1] : 'image/png';
               const bstr = atob(arr.length > 1 ? arr[1] : arr[0]);
               let n = bstr.length;
               const u8arr = new Uint8Array(n);
@@ -1040,19 +1078,19 @@ function createChatStore() {
             }
 
             const file = base64ToFile(
-              image.startsWith("data:") ? image : `data:image/png;base64,${image}`
+              image.startsWith('data:')
+                ? image
+                : `data:image/png;base64,${image}`
             );
 
-            console.log("Appending image!!!!")
+            console.log('Appending image!!!!');
             await session?.append([
               {
                 role: 'user',
-                content: [
-                  { type: 'image', value: file }
-                ],
+                content: [{ type: 'image', value: file }],
               },
             ]);
-          };
+          }
         }
 
         // Create stream with error handling
@@ -1316,7 +1354,6 @@ function createChatStore() {
     },
   };
 }
-
 
 function getActiveTabId() {
   return new Promise<number>((resolve, reject) => {
