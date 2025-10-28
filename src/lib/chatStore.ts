@@ -4,6 +4,11 @@ import {
   htmlToMarkdown,
   processTextForLLM,
 } from './utils/converters';
+import {
+  imageStringToFile,
+  base64ToFile as utilsBase64ToFile,
+  ensurePngFile,
+} from './utils/file';
 import { storage } from 'wxt/utils/storage';
 import { globalStorage } from './globalStorage';
 
@@ -1063,25 +1068,9 @@ function createChatStore() {
 
         if (images && images.length > 0 && session) {
           for await (const image of images) {
-            // Convert base64 image to File before sending to the session
-            function base64ToFile(base64Data: string, filename = 'image.png') {
-              const arr = base64Data.split(',');
-              const mimeMatch = arr[0].match(/:(.*?);/);
-              const mime = mimeMatch ? mimeMatch[1] : 'image/png';
-              const bstr = atob(arr.length > 1 ? arr[1] : arr[0]);
-              let n = bstr.length;
-              const u8arr = new Uint8Array(n);
-              while (n--) {
-                u8arr[n] = bstr.charCodeAt(n);
-              }
-              return new File([u8arr], filename, { type: mime });
-            }
-
-            const file = base64ToFile(
-              image.startsWith('data:')
-                ? image
-                : `data:image/png;base64,${image}`
-            );
+            // Convert any image string to a PNG File before sending to the session
+            const rawFile = await imageStringToFile(image, 'image');
+            const file = await ensurePngFile(rawFile, 'image.png');
 
             console.log('Appending image!!!!');
             await session?.append([
