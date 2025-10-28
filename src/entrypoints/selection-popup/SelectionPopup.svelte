@@ -25,8 +25,6 @@
   ];
 
   let showLanguageDropdown = $state(false);
-  let dropdownShouldBeAtTop = $state(false);
-  let dropdownElement: HTMLDivElement | undefined = $state();
 
   // Use a subset of supported languages for the dropdown (most common ones)
   const languages = SUPPORTED_LANGUAGES.slice(0, 8); // Top 8 languages
@@ -37,54 +35,6 @@
       (window.getSelection?.() || document.getSelection?.())?.toString() || ""
     );
   }
-
-  // Check dropdown position and adjust if it hits the top
-  function checkDropdownPosition() {
-    if (!dropdownElement || !showLanguageDropdown) return;
-
-    const rect = dropdownElement.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-
-    // If dropdown would go below the viewport or has less than 100px space below
-    const spaceBelow = viewportHeight - rect.bottom;
-    const shouldBeAtTop = spaceBelow < 100;
-
-    dropdownShouldBeAtTop = shouldBeAtTop;
-  }
-
-  // Use effect to observe dropdown position changes
-  let observer: MutationObserver | undefined;
-
-  $effect(() => {
-    if (showLanguageDropdown && dropdownElement) {
-      // Check position immediately
-      checkDropdownPosition();
-
-      // Set up mutation observer to watch for changes
-      observer = new MutationObserver(() => {
-        checkDropdownPosition();
-      });
-
-      observer.observe(dropdownElement, {
-        attributes: true,
-        attributeFilter: ["style", "class"],
-        childList: true,
-        subtree: true,
-      });
-
-      // Also check on scroll and resize
-      window.addEventListener("scroll", checkDropdownPosition, true);
-      window.addEventListener("resize", checkDropdownPosition);
-
-      return () => {
-        observer?.disconnect();
-        window.removeEventListener("scroll", checkDropdownPosition, true);
-        window.removeEventListener("resize", checkDropdownPosition);
-      };
-    } else {
-      dropdownShouldBeAtTop = false;
-    }
-  });
 
   async function handleAction(action: SelectionAction) {
     const selectedText = getSelectedText();
@@ -106,66 +56,35 @@
       });
       onClose?.();
       return;
-    } else if (action === "translate") {
-      globalStorage().set("action_state", {
-        actionSource: "translate",
-        content: selectedText,
-        targetLanguage: null,
-      });
-      onClose?.();
-      return;
     }
+    // Translate action is now handled by hover dropdown, no direct action needed
   }
 
   async function handleLanguageSelection(languageCode: string) {
     const selectedText = getSelectedText();
 
-    // Handle translate directly with the selected text and target language
-    const success = await sidePanelUtils.moveToSidePanel({
-      messages: [
-        {
-          id: Date.now(),
-          type: "user",
-          content: selectedText,
-          timestamp: new Date(),
-        },
-      ],
-      isStreaming: false,
-      streamingMessageId: null,
-      inputValue: "",
-      inputImageAttached: [],
-      searchIndex: 1,
-      totalResults: 0,
-      currentState: "ask",
-      source: "translate",
-      actionSource: "translate",
-      targetLanguage: languageCode,
-      timestamp: Date.now(),
+    chrome.runtime.sendMessage({
+      type: "OPEN_TO_SIDE_PANEL",
     });
-
-    showLanguageDropdown = false;
-    onClose?.();
+    console.log("languageCode", languageCode);
+    globalStorage().set("action_state", {
+        actionSource: "translate",
+        content: selectedText,
+        targetLanguage: languageCode,
+      });
+      onClose?.();
+      showLanguageDropdown = false;
+      onClose?.();
   }
 
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === "Escape") {
-      if (showLanguageDropdown) {
-        showLanguageDropdown = false;
-      } else {
-        onClose?.();
-      }
-    }
-  }
-
-  function handleClickOutside(event: MouseEvent) {
-    // Close language dropdown when clicking outside
-    if (showLanguageDropdown) {
-      showLanguageDropdown = false;
+      onClose?.();
     }
   }
 </script>
 
-<svelte:window onkeydown={handleKeydown} onmousedown={handleClickOutside} />
+<svelte:window onkeydown={handleKeydown} />
 
 <div
   class="selection-popup"
@@ -183,35 +102,43 @@
   {/if}
   <div class="popup-content">
     {#each actions as action (action.id)}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         class="action-wrapper"
         class:active={action.id === "translate" && showLanguageDropdown}
         onmousedown={(e) => e.stopPropagation()}
+        aria-label={action.label}
       >
         <button
           class="action-button"
-          onclick={() => handleAction(action.id)}
+          onclick={() =>{
+             if (action.id === "translate") {
+              showLanguageDropdown = true;
+             }
+             else {
+              handleAction(action.id);
+             }
+          }}
           type="button"
           aria-label={action.label}
         >
           <span class="action-icon">
-            <!-- svelte-ignore svelte_component_deprecated -->
-            <svelte:component this={action.icon} />
+            <action.icon />
           </span>
           <span class="action-label">{action.label}</span>
           {#if action.id === "translate"}
             <span class="dropdown-icon">
-              <svelte:component this={Down} />
+              <Down />
             </span>
           {/if}
         </button>
         {#if action.id === "translate" && showLanguageDropdown}
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
           <div
-            bind:this={dropdownElement}
             class="language-dropdown"
-            class:dropdown-at-top={dropdownShouldBeAtTop}
-            transition:scale={{ duration: 150, start: 0.9 }}
             onmousedown={(e) => e.stopPropagation()}
+            role="button"
+            tabindex="0"
           >
             {#each languages as language (language.code)}
               <button
@@ -361,10 +288,6 @@
     overflow: hidden;
   }
 
-  .language-dropdown.dropdown-at-top {
-    top: auto;
-    bottom: calc(100% + 8px);
-  }
 
   .language-option {
     display: flex;

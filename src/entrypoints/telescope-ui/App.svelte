@@ -3,6 +3,7 @@
   import { chatStore } from "../../lib/chatStore";
   import { sidePanelUtils, sidePanelStore } from "../../lib/sidePanelStore";
   import { globalStorage } from "@/lib/globalStorage";
+  import { Message, State } from "./type";
 
   let currentState: State = $state("ask");
   let inputValue = $state("");
@@ -66,7 +67,7 @@
     const storedState = await globalStorage().get("action_state");
     console.log("event", storedState);
     if (storedState) {
-      globalStorage().delete("action_state");
+      // globalStorage().delete("action_state");g
       console.log("App: Updating state from storage:", storedState);
 
       if (storedState.actionSource === "addToChat") {
