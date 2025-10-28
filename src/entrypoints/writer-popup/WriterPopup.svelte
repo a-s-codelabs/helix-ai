@@ -410,42 +410,44 @@
           </div>
         </div>
 
-        <!-- Input Quota Info -->
-        <div class="info-section">
-          <span class="info-label">Input Quota:</span>
-          <span class="info-value">~6000 characters</span>
+        <div class="field">
+           <!-- Output Language -->
+            <label for="outputLanguage">Output Language</label>
+            <select
+              id="outputLanguage"
+              bind:value={outputLanguage}
+              disabled={isGenerating}
+            >
+              <option value="en">English</option>
+              <option value="fr">French</option>
+              <option value="ja">Japanese</option>
+              <option value="pt">Portuguese</option>
+              <option value="es">Spanish</option>
+            </select>
         </div>
 
+        <!-- Input Quota Info -->
+        <!-- <div class="info-section">
+          <span class="info-label">Input Quota:</span>
+          <span class="info-value">~6000 characters</span>
+        </div> -->
+
         <!-- Languages Section (Collapsible) -->
-        <button
+        <!-- <button
           type="button"
           class="section-toggle"
           onclick={() => (showLanguages = !showLanguages)}
         >
           <span class="toggle-icon">{showLanguages ? '▼' : '▶'}</span>
           Languages (optional)
-        </button>
+        </button> -->
 
-        {#if showLanguages}
-          <div class="languages-panel" transition:slide={{ duration: 200 }}>
-            <!-- Output Language -->
-            <div class="field">
-              <label for="outputLanguage">Output Language</label>
-              <select
-                id="outputLanguage"
-                bind:value={outputLanguage}
-                disabled={isGenerating}
-              >
-                <option value="en">English</option>
-                <option value="fr">French</option>
-                <option value="ja">Japanese</option>
-                <option value="pt">Portuguese</option>
-                <option value="es">Spanish</option>
-              </select>
-            </div>
+        <!-- {#if showLanguages}
+          <div class="languages-panel" transition:slide={{ duration: 200 }}> -->
+
 
             <!-- Expected Input Languages -->
-            <div class="field">
+            <!-- <div class="field">
               <fieldset class="checkbox-fieldset">
                 <legend>Expected Input Languages</legend>
                 <div class="checkbox-group">
@@ -491,10 +493,10 @@
                 </label>
               </div>
               </fieldset>
-            </div>
+            </div> -->
 
             <!-- Expected Context Languages -->
-            <div class="field">
+            <!-- <div class="field">
               <fieldset class="checkbox-fieldset">
                 <legend>Expected Context Languages</legend>
                 <div class="checkbox-group">
@@ -540,29 +542,31 @@
                 </label>
               </div>
               </fieldset>
-            </div>
-          </div>
-        {/if}
+            </div> -->
+          <!-- </div> -->
+        <!-- {/if} -->
 
         <!-- Reset Button -->
-        <button
+        <!-- <button
           type="button"
           class="reset-btn"
           onclick={handleResetOptions}
           disabled={isGenerating}
         >
           Reset Options
-        </button>
+        </button> -->
 
         <!-- Keyboard shortcuts hint -->
-        <div class="shortcuts-hint">
+        <!-- <div class="shortcuts-hint">
           <span class="shortcut"
             ><kbd>Ctrl</kbd>+<kbd>Enter</kbd> to generate</span
           >
           <span class="shortcut"><kbd>Esc</kbd> to exit</span>
-        </div>
+        </div> -->
       </div>
     {/if}
+
+
   </div>
 </div>
 
