@@ -1,7 +1,9 @@
 <script lang="ts">
   import { scale, slide } from 'svelte/transition';
   /*@ts-ignore */
-  import Sparkles from '../telescope-ui/icons/Sparkles.svelte';
+  // import Sparkles from '../telescope-ui/icons/Sparkles.svelte';
+  /*@ts-ignore */
+  import Helix from '../telescope-ui/icons/Helix.svelte';
   /*@ts-ignore */
   import Settings from '../telescope-ui/icons/Settings.svelte';
   import {
@@ -310,7 +312,7 @@
   <div class="header" onmousedown={onDragStart} role="button" tabindex="0">
     <div class="header-left">
       <span class="icon">
-        <Sparkles />
+        <Helix />
       </span>
       {#if isGenerating}
         <button
@@ -622,8 +624,8 @@
   }
 
   .icon {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
