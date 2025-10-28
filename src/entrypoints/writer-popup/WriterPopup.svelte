@@ -6,6 +6,8 @@
   import Helix from '../telescope-ui/icons/Helix.svelte';
   /*@ts-ignore */
   import Settings from '../telescope-ui/icons/Settings.svelte';
+  /*@ts-ignore */
+  import Send from '../telescope-ui/icons/Send.svelte';
   import {
     writeContentStreaming,
     checkWriterAvailability,
@@ -401,8 +403,12 @@
     context = '';
   }
 
-  function handleModeToggle() {
-    mode = mode === 'writer' ? 'rewriter' : 'writer';
+  function handleWriterMode() {
+    mode = 'writer';
+  }
+
+  function handleRewriterMode() {
+    mode = 'rewriter';
   }
 
   function handleKeydown(event: KeyboardEvent) {
@@ -455,19 +461,30 @@
           onclick={handleGenerate}
           disabled={!prompt.trim()}
         >
-          {mode === 'writer' ? 'Write' : 'Rewrite'}
+          <Send />
         </button>
       {/if}
     </div>
     <div class="header-right">
       <button
-        class="header-btn mode-toggle"
-        onclick={handleModeToggle}
+        class="header-btn mode-btn writer-btn"
+        onclick={handleWriterMode}
         type="button"
-        aria-label="Toggle mode"
+        aria-label="Writer mode"
         disabled={isGenerating}
+        class:active={mode === 'writer'}
       >
-        {mode === 'writer' ? '✍️ Writer' : '🔄 Rewriter'}
+        Writer
+      </button>
+      <button
+        class="header-btn mode-btn rewriter-btn"
+        onclick={handleRewriterMode}
+        type="button"
+        aria-label="Rewriter mode"
+        disabled={isGenerating}
+        class:active={mode === 'rewriter'}
+      >
+        Rewriter
       </button>
       <!-- <button
         class="header-btn"
@@ -819,7 +836,6 @@
     padding: 6px 16px;
     border: none;
     border-radius: 8px;
-    font-size: 13px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -833,16 +849,21 @@
   .header-action-btn.generate {
     background: #3b82f6;
     color: white;
-    /* Match TelescopeInput .ask-button styles */
-    padding: 6px 14px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
     border-radius: 8px;
-    font-weight: 600;
-    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transition: all 0.2s ease;
     flex-shrink: 0;
-    white-space: nowrap;
-    height: fit-content;
     align-self: center;
+  }
+
+  .header-action-btn.generate :global(svg) {
+    width: 14px;
+    height: 14px;
   }
 
   .header-action-btn.generate:hover:not(:disabled) {
@@ -896,14 +917,24 @@
     cursor: not-allowed;
   }
 
-  .header-btn.mode-toggle {
+  .header-btn.mode-btn {
     background: #3f3f46;
     color: #e4e4e7;
     font-weight: 500;
+    margin-right: 4px;
   }
 
-  .header-btn.mode-toggle:hover:not(:disabled) {
+  .header-btn.mode-btn:hover:not(:disabled) {
     background: #52525b;
+  }
+
+  .header-btn.mode-btn.active {
+    background: #3b82f6;
+    color: #ffffff;
+  }
+
+  .header-btn.mode-btn.active:hover:not(:disabled) {
+    background: #3b82f6cc;
   }
 
   .header-btn.close {
@@ -1020,7 +1051,7 @@
 
   .prompt-textarea:focus {
     outline: none;
-    border-color: #a78bfa;
+    border-color: #3b82f6;
     background: #18181b;
   }
 
