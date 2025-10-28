@@ -446,26 +446,6 @@
       <span class="icon">
         <Helix />
       </span>
-      {#if isGenerating}
-        <button
-          type="button"
-          class="header-action-btn stop"
-          onclick={handleStop}
-        >
-          ■ Stop
-        </button>
-      {:else}
-        <button
-          type="button"
-          class="header-action-btn generate"
-          onclick={handleGenerate}
-          disabled={!prompt.trim()}
-        >
-          <Send />
-        </button>
-      {/if}
-    </div>
-    <div class="header-right">
       <button
         class="header-btn mode-btn writer-btn"
         onclick={handleWriterMode}
@@ -486,6 +466,38 @@
       >
         Rewriter
       </button>
+      <button
+        class="header-btn mode-btn proofreader-btn"
+        onclick={handleProofreaderMode}
+        type="button"
+        aria-label="Proofreader mode"
+        disabled={isGenerating}
+        class:active={mode === 'proofreader'}
+      >
+        Proofreader
+      </button>
+    </div>
+    
+    <div class="header-right">
+      {#if isGenerating}
+        <button
+          type="button"
+          class="header-action-btn stop"
+          onclick={handleStop}
+        >
+          Stop
+        </button>
+      {:else}
+        <button
+          type="button"
+          class="header-action-btn generate"
+          onclick={handleGenerate}
+          disabled={!prompt.trim()}
+        >
+          <Send />
+        </button>
+      {/if}
+
       <!-- <button
         class="header-btn"
         onclick={() => (showOptions = !showOptions)}
@@ -792,7 +804,7 @@
 <style>
   .writer-popup {
     position: fixed;
-    width: 360px;
+    width: 410px;
     background: #18181b;
     border-radius: 8px;
     box-shadow:
