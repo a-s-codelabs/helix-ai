@@ -606,7 +606,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #a78bfa;
+    color: #3b82f6;
   }
 
   .header-action-btn {
@@ -625,13 +625,15 @@
   }
 
   .header-action-btn.generate {
-    background: #a78bfa;
-    color: #18181b;
+    background: #3b82f6;
+    color: white;
   }
 
   .header-action-btn.generate:hover:not(:disabled) {
-    background: #c4b5fd;
+    /* Use a faded version of #3b82f6 (blue-500), e.g. 80% opacity */
+    background: #3b82f6cc;
   }
+
 
   .header-action-btn.generate:active:not(:disabled) {
     transform: scale(0.98);
@@ -688,6 +690,8 @@
 
   /* Content */
   .content {
+    overflow: auto;
+    max-height: 50vh;
     padding: 12px;
     display: flex;
     flex-direction: column;
@@ -780,7 +784,7 @@
 
   input[type='text']:focus {
     outline: none;
-    border-color: #a78bfa;
+    border-color: #3b82f6;
   }
 
   input[type='text']:disabled {
@@ -808,7 +812,7 @@
   textarea:focus,
   select:focus {
     outline: none;
-    border-color: #a78bfa;
+    border-color: #3b82f6;
   }
 
   textarea:disabled,
@@ -856,7 +860,7 @@
     background: #27272a;
     border: 1px solid #3f3f46;
     border-radius: 6px;
-    color: #a78bfa;
+    color: #3b82f6;
     font-size: 12px;
     font-weight: 600;
     font-family: inherit;
@@ -959,7 +963,7 @@
     width: 16px;
     height: 16px;
     cursor: pointer;
-    accent-color: #a78bfa;
+    accent-color: #3b82f6;
   }
 
   .checkbox-label input[type='checkbox']:disabled {
