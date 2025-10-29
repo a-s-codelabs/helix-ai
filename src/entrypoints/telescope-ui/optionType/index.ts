@@ -15,7 +15,7 @@ export const option = {
           label: 'Auto',
           value: 'auto',
         },
-        {...translateOption},
+        ...translateOption,
       ],
       defaultValue: 'auto',
       name: 'Input language',
@@ -23,28 +23,28 @@ export const option = {
     },
   ],
 
-  prompt: [{ ...defaultOption }],
-  
+  prompt: [...defaultOption],
+
   summarise: [
-    {...defaultOption},
-    {...summaryType},
-    {...lengthOption},
-    {...formatOption},
+    ...defaultOption,
+    ...summaryType,
+    ...lengthOption,
+    ...formatOption,
   ],
 
   write: [
-    {...defaultOption},
-    {...toneOption},
-    {...lengthOption},
-    {...formatOption},
-    {...writerOutputLanguageOption},
+    ...defaultOption,
+    ...toneOption,
+    ...lengthOption,
+    ...formatOption,
+    ...writerOutputLanguageOption,
   ],
 
   rewrite: [
-    {...defaultOption},
-    {...toneOption},
-    {...lengthOption},
-    {...formatOption},
-    {...writerOutputLanguageOption},
-  ]
+    ...defaultOption,
+    ...toneOption,
+    ...lengthOption,
+    ...formatOption,
+    ...writerOutputLanguageOption,
+  ],
 } as const;

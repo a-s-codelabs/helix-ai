@@ -14,6 +14,8 @@
   import TranslateIcon from "./icons/Translate.svelte";
   import WriterIcon from "./icons/Writer.svelte";
   import RewriterIcon from "./icons/Rewriter.svelte";
+  import SettingsPopup from "./SettingsPopup.svelte";
+  import type { Intent } from "./SettingsPopup.svelte";
 
   let {
     inputState = $bindable("ask" as State),
@@ -40,10 +42,14 @@
   let isCompactAction = $state(false); // when true, show send icon instead of label
 
   // Hover menu for search icon: choose intent and adapt placeholder
-  type Intent = "prompt" | "summarise" | "translate" | "write" | "rewrite";
   let showIntentMenu = $state(false);
   let selectedIntent = $state<Intent>("summarise");
   let intentTriggerElement: HTMLDivElement;
+
+  // Settings popup state
+  let showSettingsPopup = $state(false);
+  let settingsButtonElement: HTMLButtonElement;
+  let settingsValues = $state<Record<string, string | number>>({});
 
   const intentToPlaceholder: Record<Intent, string> = {
     prompt: "Ask...",
@@ -103,10 +109,33 @@
     if (!target) return;
     const clickedInsideIntent = intentTriggerElement?.contains(target) ?? false;
     const clickedInsideBar = inputBarElement?.contains(target) ?? false;
+    const clickedInsideSettings = settingsButtonElement?.contains(target) ?? false;
+    const clickedInsideSettingsPopup = (event.target as HTMLElement)?.closest('.settings-popup') !== null;
     // Only close if click is outside both intent controls AND the search bar
     if (!clickedInsideIntent && !clickedInsideBar) {
       showIntentMenu = false;
     }
+    // Close settings popup if clicking outside (but not when clicking the button itself)
+    if (showSettingsPopup && !clickedInsideSettings && !clickedInsideSettingsPopup) {
+      showSettingsPopup = false;
+    }
+  }
+
+  function handleSettingsClick(event: MouseEvent) {
+    event.stopPropagation();
+    event.preventDefault();
+    showSettingsPopup = !showSettingsPopup;
+    console.log('Settings clicked, showSettingsPopup:', showSettingsPopup);
+  }
+
+  function handleSettingsClose() {
+    showSettingsPopup = false;
+  }
+
+  function handleSettingsChange({ id, value }: { id: string; value: string | number }) {
+    settingsValues[id] = value;
+    // You can add additional logic here if needed
+    console.log('Settings changed:', { id, value, allValues: settingsValues });
   }
 
   $effect(() => {
@@ -352,13 +381,26 @@
 
       {#if !isInputExpanded}
         <!-- Settings icon placed to the left of the vertical separator -->
-        <button
-          class="icon-button"
-          title="Settings"
-          aria-label="Settings"
-        >
-          <SettingsIcon />
-        </button>
+        <div class="settings-container" style="position: relative;">
+          <button
+            class="icon-button"
+            title="Settings"
+            aria-label="Settings"
+            bind:this={settingsButtonElement}
+            onclick={handleSettingsClick}
+            class:active={showSettingsPopup}
+          >
+            <SettingsIcon />
+          </button>
+          {#if showSettingsPopup}
+            <SettingsPopup
+              intent={selectedIntent}
+              bind:values={settingsValues}
+              onChange={handleSettingsChange}
+              onClose={handleSettingsClose}
+            />
+          {/if}
+        </div>
 
         <div class="separator"></div>
 
@@ -458,6 +500,27 @@
             {/if}
           </div>
           <div class="expand-bar-content">
+            <div class="settings-container" style="position: relative; margin-right: 8px;">
+              <button
+                class="icon-button"
+                title="Settings"
+                aria-label="Settings"
+                bind:this={settingsButtonElement}
+                onclick={handleSettingsClick}
+                class:active={showSettingsPopup}
+              >
+                <SettingsIcon />
+              </button>
+              {#if showSettingsPopup}
+                <SettingsPopup
+                  intent={selectedIntent}
+                  bind:values={settingsValues}
+                  onChange={handleSettingsChange}
+                  onClose={handleSettingsClose}
+                />
+              {/if}
+            </div>
+
             <div class="action-icons">
               <button
                 class="icon-button"
@@ -1022,6 +1085,15 @@
   .icon-button:hover {
     background: #404040;
     color: #d1d5db;
+  }
+
+  .icon-button.active {
+    background: #404040;
+    color: #3b82f6;
+  }
+
+  .settings-container {
+    position: relative;
   }
 
   .ask-button-container {
