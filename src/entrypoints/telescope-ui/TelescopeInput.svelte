@@ -41,6 +41,7 @@
   type Intent = "prompt" | "summarise" | "translate" | "write" | "rewrite";
   let showIntentMenu = $state(false);
   let selectedIntent = $state<Intent>("summarise");
+  let intentTriggerElement: HTMLDivElement;
 
   const intentToPlaceholder: Record<Intent, string> = {
     prompt: "Ask...",
@@ -49,6 +50,18 @@
     write: "Write content...",
     rewrite: "Rewrite selected text...",
   };
+
+  // Match intent to icon component so the leading icon reflects selection
+  const intentToIcon: Record<Intent, typeof SearchAiIcon> = {
+    prompt: AddToChat,
+    summarise: SummariseIcon,
+    translate: TranslateIcon,
+    write: WriterIcon,
+    rewrite: RewriterIcon,
+  };
+
+  // Derived current icon component for the input
+  const CurrentIntentIcon = $derived(intentToIcon[selectedIntent] ?? SearchAiIcon);
 
   $effect(() => {
     isInSidePanel =
@@ -62,11 +75,29 @@
     (() => {
       // If consumer provided a custom placeholder, prefer it for non-sidepanel when intent is summarise (default)
       const base = intentToPlaceholder[selectedIntent] ?? "Ask...";
-      if (isInSidePanel) return selectedIntent === "summarise" ? "Ask..." : base;
+      // if (isInSidePanel) return selectedIntent === "summarise" ? "Ask..." : base;
       // Outside sidepanel, allow component-supplied placeholder for summarise intent
-      return selectedIntent === "summarise" ? placeholder : base;
+      return base;
     })()
   );
+
+  // Close intent menu when clicking outside of the intent area and the search bar
+  function handleDocumentClick(event: MouseEvent) {
+    const target = event.target as Node | null;
+    if (!target) return;
+    const clickedInsideIntent = intentTriggerElement?.contains(target) ?? false;
+    const clickedInsideBar = inputBarElement?.contains(target) ?? false;
+    // Only close if click is outside both intent controls AND the search bar
+    if (!clickedInsideIntent && !clickedInsideBar) {
+      showIntentMenu = false;
+    }
+  }
+
+  $effect(() => {
+    // Attach listener once; it's cheap and guarded inside handler
+    document.addEventListener("click", handleDocumentClick, true);
+    return () => document.removeEventListener("click", handleDocumentClick, true);
+  });
 
   let inputElement: HTMLTextAreaElement;
   let inputBarElement: HTMLDivElement;
@@ -257,29 +288,29 @@
       {#if !isInputExpanded}
         <div
           class="icon search-icon intent-trigger"
+          bind:this={intentTriggerElement}
           onmouseenter={() => (showIntentMenu = true)}
-          onmouseleave={() => (showIntentMenu = false)}
         >
-          <SearchAiIcon />
+          <CurrentIntentIcon />
           {#if showIntentMenu}
             <div class="intent-menu" role="menu">
-              <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "prompt")}>
+              <button class="intent-item {selectedIntent === 'prompt' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'prompt'} onclick={() => { selectedIntent = "prompt"; showIntentMenu = false; }}>
                 <span class="intent-icon-circle"><AddToChat /></span>
                 <span>Prompt</span>
               </button>
-              <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "summarise")}>
+              <button class="intent-item {selectedIntent === 'summarise' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'summarise'} onclick={() => { selectedIntent = "summarise"; showIntentMenu = false; }}>
                 <span class="intent-icon-circle"><SummariseIcon /></span>
                 <span>Summarise</span>
               </button>
-              <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "translate")}>
+              <button class="intent-item {selectedIntent === 'translate' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'translate'} onclick={() => { selectedIntent = "translate"; showIntentMenu = false; }}>
                 <span class="intent-icon-circle"><TranslateIcon /></span>
                 <span>Translate</span>
               </button>
-              <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "write")}>
+              <button class="intent-item {selectedIntent === 'write' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'write'} onclick={() => { selectedIntent = "write"; showIntentMenu = false; }}>
                 <span class="intent-icon-circle intent-icon-circle--large"><WriterIcon /></span>
                 <span>Write</span>
               </button>
-              <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "rewrite")}>
+              <button class="intent-item {selectedIntent === 'rewrite' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'rewrite'} onclick={() => { selectedIntent = "rewrite"; showIntentMenu = false; }}>
                 <span class="intent-icon-circle intent-icon-circle--large"><RewriterIcon /></span>
                 <span>Rewrite</span>
               </button>
@@ -378,29 +409,29 @@
         <div class="expand-bar">
           <div
             class="icon search-icon intent-trigger"
+            bind:this={intentTriggerElement}
             onmouseenter={() => (showIntentMenu = true)}
-            onmouseleave={() => (showIntentMenu = false)}
           >
-            <SearchAiIcon />
+            <CurrentIntentIcon />
             {#if showIntentMenu}
               <div class="intent-menu" role="menu">
-                <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "prompt")}>
+                <button class="intent-item {selectedIntent === 'prompt' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'prompt'} onclick={() => { selectedIntent = "prompt"; showIntentMenu = false; }}>
                   <span class="intent-icon-circle"><AddToChat /></span>
                   <span>Prompt</span>
                 </button>
-                <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "summarise")}>
+                <button class="intent-item {selectedIntent === 'summarise' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'summarise'} onclick={() => { selectedIntent = "summarise"; showIntentMenu = false; }}>
                   <span class="intent-icon-circle"><SummariseIcon /></span>
                   <span>Summarise</span>
                 </button>
-                <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "translate")}>
+                <button class="intent-item {selectedIntent === 'translate' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'translate'} onclick={() => { selectedIntent = "translate"; showIntentMenu = false; }}>
                   <span class="intent-icon-circle"><TranslateIcon /></span>
                   <span>Translate</span>
                 </button>
-                <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "write")}>
+                <button class="intent-item {selectedIntent === 'write' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'write'} onclick={() => { selectedIntent = "write"; showIntentMenu = false; }}>
                   <span class="intent-icon-circle intent-icon-circle--large"><WriterIcon /></span>
                   <span>Write</span>
                 </button>
-                <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "rewrite")}>
+                <button class="intent-item {selectedIntent === 'rewrite' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'rewrite'} onclick={() => { selectedIntent = "rewrite"; showIntentMenu = false; }}>
                   <span class="intent-icon-circle intent-icon-circle--large"><RewriterIcon /></span>
                   <span>Rewrite</span>
                 </button>
@@ -839,6 +870,10 @@
   }
   .intent-item:hover {
     background: #374151;
+    border-color: #4b5563;
+  }
+  .intent-item.active {
+    background: #2f3746;
     border-color: #4b5563;
   }
 
