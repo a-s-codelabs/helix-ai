@@ -270,7 +270,19 @@
         </div>
 
         {#if inputState === "ask"}
-          <button class="ask-button" onclick={handleAsk}>Ask</button>
+          <div class="ask-button-container">
+            <button class="ask-button" onclick={handleAsk}>Ask</button>
+            {#if !isInSidePanel}
+              <button
+                class="close-button"
+                onclick={handleClose}
+                title="Close"
+                aria-label="Close"
+              >
+                <CloseIcon />
+              </button>
+            {/if}
+          </div>
         {/if}
 
         {#if inputState === "chat"}
@@ -324,7 +336,19 @@
             </div>
 
             {#if inputState === "ask"}
-              <button class="ask-button" onclick={handleAsk}> Ask </button>
+              <div class="ask-button-container">
+                <button class="ask-button" onclick={handleAsk}> Ask </button>
+                {#if !isInSidePanel}
+                  <button
+                    class="close-button"
+                    onclick={handleClose}
+                    title="Close"
+                    aria-label="Close"
+                  >
+                    <CloseIcon />
+                  </button>
+                {/if}
+              </div>
             {/if}
 
             {#if inputState === "chat"}
@@ -774,6 +798,13 @@
     color: #d1d5db;
   }
 
+  .ask-button-container {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
   .ask-button {
     background: #3b82f6;
     color: white;
@@ -790,7 +821,7 @@
     align-self: center;
   }
 
-  .input-bar.input-expanded .ask-button {
+  .input-bar.input-expanded .ask-button-container {
     align-self: flex-start;
     margin-top: 2px;
   }
