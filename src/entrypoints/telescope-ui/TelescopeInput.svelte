@@ -128,7 +128,6 @@
     event.stopPropagation();
     event.preventDefault();
     showSettingsPopup = !showSettingsPopup;
-    console.log('Settings clicked, showSettingsPopup:', showSettingsPopup);
   }
 
   function handleSettingsClose() {
@@ -137,8 +136,6 @@
 
   function handleSettingsChange({ id, value }: { id: string; value: string | number }) {
     settingsValues[id] = value;
-    // You can add additional logic here if needed
-    console.log('Settings changed:', { id, value, allValues: settingsValues });
   }
 
   async function handleSettingsSave({ intent, values }: { intent: Intent; values: Record<string, string | number> }) {
@@ -149,7 +146,6 @@
         [intent]: values,
       };
       await storage.set('telescopeSettings', updatedSettings);
-      console.log('Settings saved for intent:', intent, values);
     } catch (error) {
       console.error('Failed to save settings:', error);
     }
@@ -164,7 +160,6 @@
       if (savedSettings && savedSettings[selectedIntent]) {
         // Merge saved settings with current values to preserve any existing defaults
         settingsValues = { ...settingsValues, ...savedSettings[selectedIntent] };
-        console.log('Settings loaded for intent:', selectedIntent, settingsValues);
       } else {
         // No saved settings, so values will be initialized by SettingsPopup's default logic
         settingsValues = {};
@@ -233,9 +228,14 @@
           ? quotedContent.join("\n\n---\n\n") + "\n\n"
           : "";
       const finalMessage = quotedText + inputValue;
-      onAsk?.({ value: finalMessage, images: inputImageAttached });
+      handleSendData();
       resetInput();
     }
+  }
+
+  function handleSendData() {
+    onAsk?.({ value: inputValue, images: inputImageAttached, settings: settingsValues, intent: selectedIntent });
+    resetInput();
   }
 
   function handleAsk() {
@@ -245,7 +245,7 @@
         ? quotedContent.join("\n\n---\n\n") + "\n\n"
         : "";
     const finalMessage = quotedText + inputValue;
-    onAsk?.({ value: finalMessage, images: inputImageAttached });
+    handleSendData();
     resetInput();
   }
 
