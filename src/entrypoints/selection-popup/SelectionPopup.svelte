@@ -207,6 +207,8 @@
 
   .action-wrapper {
     position: relative;
+    /* Allow child button to shrink so text can ellipsize */
+    min-width: 0;
   }
 
   .action-wrapper.active .action-button {
@@ -229,6 +231,10 @@
     font-size: 13px;
     font-weight: 500;
     outline: none;
+    /* Allow truncation instead of forcing scroll when space is tight */
+    min-width: 0;
+    overflow: hidden; /* clip inner text so ellipsis can apply */
+    max-width: 148px; /* constrain to enable ellipsis */
   }
 
   .action-button:hover {
@@ -257,10 +263,19 @@
     background: #2b2e39;
     border-radius: 50%;
     padding: 4px;
+    flex-shrink: 0; /* Prevent icon from shrinking so text can ellipsize */
   }
 
   .action-label {
     line-height: 1;
+    /* Truncate long labels with an ellipsis when width is constrained */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+    flex: 1 1 auto; /* allow label to shrink within flex button */
+    min-width: 0; /* required for flex items to ellipsize */
+    display: block; /* ensure text-overflow works inside flex container */
   }
 
   .dropdown-icon {
@@ -270,6 +285,7 @@
     width: 16px;
     height: 16px;
     margin-left: 4px;
+    flex-shrink: 0; /* Prevent dropdown icon from shrinking */
   }
 
   .language-dropdown {
@@ -327,11 +343,13 @@
 
   @media (max-width: 640px) {
     .action-label {
-      display: none;
+      /* Keep label but let it ellipsize on small screens */
+      display: inline;
     }
 
     .action-button {
       padding: 8px;
+      min-width: 0;
     }
 
     .popup-content {

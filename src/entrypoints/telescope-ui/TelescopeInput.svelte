@@ -937,6 +937,13 @@
     scrollbar-color: #555 #2a2a2a;
   }
 
+  /* When not expanded, keep a single line and ellipsize overflowing text */
+  .input-field:not(.input-expanded) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   /* Webkit scrollbar styling for input field */
   .input-field::-webkit-scrollbar {
     width: 4px;
