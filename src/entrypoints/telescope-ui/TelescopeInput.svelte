@@ -3,10 +3,19 @@
   import AttachmentIcon from "./icons/Attachment.svelte";
   import SearchAiIcon from "./icons/SearchAi.svelte";
   import CloseIcon from "./icons/Close.svelte";
+  import SettingsIcon from "./icons/Settings.svelte";
   import type { InputProps, State } from "./type";
   import SendIcon from "./icons/Send.svelte";
   import StopIcon from "./icons/Stop.svelte";
   import { globalStorage } from "@/lib/globalStorage";
+  // intent icons
+  import AddToChat from "./icons/AddToChat.svelte";
+  import SummariseIcon from "./icons/Summarise.svelte";
+  import TranslateIcon from "./icons/Translate.svelte";
+  import WriterIcon from "./icons/Writer.svelte";
+  import RewriterIcon from "./icons/Rewriter.svelte";
+  import SettingsPopup from "./SettingsPopup.svelte";
+  import type { Intent } from "./SettingsPopup.svelte";
 
   let {
     inputState = $bindable("ask" as State),
@@ -29,6 +38,41 @@
   }: InputProps = $props();
 
   let isInSidePanel = $state(false);
+  let containerElement: HTMLDivElement; // root container to measure width
+  let isCompactAction = $state(false); // when true, show send icon instead of label
+
+  // Hover menu for search icon: choose intent and adapt placeholder
+  let showIntentMenu = $state(false);
+  let selectedIntent = $state<Intent>("summarise");
+  let intentTriggerElement: HTMLDivElement;
+
+  // Settings popup state
+  let showSettingsPopup = $state(false);
+  let settingsButtonElement: HTMLButtonElement;
+  let settingsValues = $state<Record<string, string | number>>({});
+
+  // Storage instance for saving settings
+  const storage = globalStorage();
+
+  const intentToPlaceholder: Record<Intent, string> = {
+    prompt: "Ask...",
+    summarise: "Summarize this site...",
+    translate: "Translate this content...",
+    write: "Write content...",
+    rewrite: "Rewrite selected text...",
+  };
+
+  // Match intent to icon component so the leading icon reflects selection
+  const intentToIcon: Record<Intent, typeof SearchAiIcon> = {
+    prompt: AddToChat,
+    summarise: SummariseIcon,
+    translate: TranslateIcon,
+    write: WriterIcon,
+    rewrite: RewriterIcon,
+  };
+
+  // Derived current icon component for the input
+  const CurrentIntentIcon = $derived(intentToIcon[selectedIntent] ?? SearchAiIcon);
 
   $effect(() => {
     isInSidePanel =
@@ -37,8 +81,104 @@
       document.title.includes("Side Panel");
   });
 
-  // Dynamic placeholder based on side panel mode
-  let dynamicPlaceholder = $derived(isInSidePanel ? "Ask..." : placeholder);
+  // Observe container width and toggle compact mode;
+  // compact threshold chosen to align with existing 400px media query
+  $effect(() => {
+    if (!containerElement) return;
+    const updateCompact = () => {
+      const width = containerElement.clientWidth;
+      isCompactAction = width <= 400;
+    };
+    updateCompact();
+    const observer = new ResizeObserver(updateCompact);
+    observer.observe(containerElement);
+    return () => observer.disconnect();
+  });
+
+  // Dynamic placeholder based on side panel mode and selected intent
+  let dynamicPlaceholder = $derived(
+    (() => {
+      // If consumer provided a custom placeholder, prefer it for non-sidepanel when intent is summarise (default)
+      const base = intentToPlaceholder[selectedIntent] ?? "Ask...";
+      // if (isInSidePanel) return selectedIntent === "summarise" ? "Ask..." : base;
+      // Outside sidepanel, allow component-supplied placeholder for summarise intent
+      return base;
+    })()
+  );
+
+  // Close intent menu when clicking outside of the intent area and the search bar
+  function handleDocumentClick(event: MouseEvent) {
+    const target = event.target as Node | null;
+    if (!target) return;
+    const clickedInsideIntent = intentTriggerElement?.contains(target) ?? false;
+    const clickedInsideBar = inputBarElement?.contains(target) ?? false;
+    const clickedInsideSettings = settingsButtonElement?.contains(target) ?? false;
+    const clickedInsideSettingsPopup = (event.target as HTMLElement)?.closest('.settings-popup') !== null;
+    // Only close if click is outside both intent controls AND the search bar
+    if (!clickedInsideIntent && !clickedInsideBar) {
+      showIntentMenu = false;
+    }
+    // Close settings popup if clicking outside (but not when clicking the button itself)
+    if (showSettingsPopup && !clickedInsideSettings && !clickedInsideSettingsPopup) {
+      showSettingsPopup = false;
+    }
+  }
+
+  function handleSettingsClick(event: MouseEvent) {
+    event.stopPropagation();
+    event.preventDefault();
+    showSettingsPopup = !showSettingsPopup;
+    console.log('Settings clicked, showSettingsPopup:', showSettingsPopup);
+  }
+
+  function handleSettingsClose() {
+    showSettingsPopup = false;
+  }
+
+  function handleSettingsChange({ id, value }: { id: string; value: string | number }) {
+    settingsValues[id] = value;
+    // You can add additional logic here if needed
+    console.log('Settings changed:', { id, value, allValues: settingsValues });
+  }
+
+  async function handleSettingsSave({ intent, values }: { intent: Intent; values: Record<string, string | number> }) {
+    try {
+      const currentSettings = await storage.get('telescopeSettings') || {};
+      const updatedSettings = {
+        ...currentSettings,
+        [intent]: values,
+      };
+      await storage.set('telescopeSettings', updatedSettings);
+      console.log('Settings saved for intent:', intent, values);
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+    }
+  }
+
+  // Load saved settings when intent changes
+  $effect(async () => {
+    if (!selectedIntent) return;
+
+    try {
+      const savedSettings = await storage.get('telescopeSettings');
+      if (savedSettings && savedSettings[selectedIntent]) {
+        // Merge saved settings with current values to preserve any existing defaults
+        settingsValues = { ...settingsValues, ...savedSettings[selectedIntent] };
+        console.log('Settings loaded for intent:', selectedIntent, settingsValues);
+      } else {
+        // No saved settings, so values will be initialized by SettingsPopup's default logic
+        settingsValues = {};
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+    }
+  });
+
+  $effect(() => {
+    // Attach listener once; it's cheap and guarded inside handler
+    document.addEventListener("click", handleDocumentClick, true);
+    return () => document.removeEventListener("click", handleDocumentClick, true);
+  });
 
   let inputElement: HTMLTextAreaElement;
   let inputBarElement: HTMLDivElement;
@@ -175,6 +315,7 @@
   class:expanded={isExpanded}
   class:reached-min-chars={true}
   class:sidepanel-mode={isInSidePanel}
+  bind:this={containerElement}
 >
   <div
     class="input-bar-container"
@@ -227,8 +368,36 @@
       class:input-expanded={isInputExpanded}
     >
       {#if !isInputExpanded}
-        <div class="icon search-icon">
-          <SearchAiIcon />
+        <div
+          class="icon search-icon intent-trigger"
+          bind:this={intentTriggerElement}
+          onmouseenter={() => (showIntentMenu = true)}
+        >
+          <CurrentIntentIcon />
+          {#if showIntentMenu}
+            <div class="intent-menu" role="menu">
+              <button class="intent-item {selectedIntent === 'prompt' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'prompt'} onclick={() => { selectedIntent = "prompt"; showIntentMenu = false; }}>
+                <span class="intent-icon-circle"><AddToChat /></span>
+                <span>Prompt</span>
+              </button>
+              <button class="intent-item {selectedIntent === 'summarise' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'summarise'} onclick={() => { selectedIntent = "summarise"; showIntentMenu = false; }}>
+                <span class="intent-icon-circle"><SummariseIcon /></span>
+                <span>Summarise</span>
+              </button>
+              <button class="intent-item {selectedIntent === 'translate' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'translate'} onclick={() => { selectedIntent = "translate"; showIntentMenu = false; }}>
+                <span class="intent-icon-circle"><TranslateIcon /></span>
+                <span>Translate</span>
+              </button>
+              <button class="intent-item {selectedIntent === 'write' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'write'} onclick={() => { selectedIntent = "write"; showIntentMenu = false; }}>
+                <span class="intent-icon-circle intent-icon-circle--large"><WriterIcon /></span>
+                <span>Write</span>
+              </button>
+              <button class="intent-item {selectedIntent === 'rewrite' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'rewrite'} onclick={() => { selectedIntent = "rewrite"; showIntentMenu = false; }}>
+                <span class="intent-icon-circle intent-icon-circle--large"><RewriterIcon /></span>
+                <span>Rewrite</span>
+              </button>
+            </div>
+          {/if}
         </div>
       {/if}
       <!-- svelte-ignore a11y_autofocus -->
@@ -247,6 +416,29 @@
       ></textarea>
 
       {#if !isInputExpanded}
+        <!-- Settings icon placed to the left of the vertical separator -->
+        <div class="settings-container" style="position: relative;">
+          <button
+            class="icon-button"
+            title="Settings"
+            aria-label="Settings"
+            bind:this={settingsButtonElement}
+            onclick={handleSettingsClick}
+            class:active={showSettingsPopup}
+          >
+            <SettingsIcon />
+          </button>
+          {#if showSettingsPopup}
+            <SettingsPopup
+              intent={selectedIntent}
+              bind:values={settingsValues}
+              onChange={handleSettingsChange}
+              onClose={handleSettingsClose}
+              onSave={handleSettingsSave}
+            />
+          {/if}
+        </div>
+
         <div class="separator"></div>
 
         <div class="action-icons">
@@ -270,7 +462,21 @@
         </div>
 
         {#if inputState === "ask"}
-          <button class="ask-button" onclick={handleAsk}>Ask</button>
+          <div class="ask-button-container">
+            <button class="ask-button" onclick={handleAsk}>
+              <SendIcon />
+            </button>
+            {#if !isInSidePanel}
+              <button
+                class="close-button"
+                onclick={handleClose}
+                title="Close"
+                aria-label="Close"
+              >
+                <CloseIcon />
+              </button>
+            {/if}
+          </div>
         {/if}
 
         {#if inputState === "chat"}
@@ -299,10 +505,60 @@
 
       {#if isInputExpanded}
         <div class="expand-bar">
-          <div class="icon search-icon">
-            <SearchAiIcon />
+          <div
+            class="icon search-icon intent-trigger"
+            bind:this={intentTriggerElement}
+            onmouseenter={() => (showIntentMenu = true)}
+          >
+            <CurrentIntentIcon />
+            {#if showIntentMenu}
+              <div class="intent-menu" role="menu">
+                <button class="intent-item {selectedIntent === 'prompt' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'prompt'} onclick={() => { selectedIntent = "prompt"; showIntentMenu = false; }}>
+                  <span class="intent-icon-circle"><AddToChat /></span>
+                  <span>Prompt</span>
+                </button>
+                <button class="intent-item {selectedIntent === 'summarise' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'summarise'} onclick={() => { selectedIntent = "summarise"; showIntentMenu = false; }}>
+                  <span class="intent-icon-circle"><SummariseIcon /></span>
+                  <span>Summarise</span>
+                </button>
+                <button class="intent-item {selectedIntent === 'translate' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'translate'} onclick={() => { selectedIntent = "translate"; showIntentMenu = false; }}>
+                  <span class="intent-icon-circle"><TranslateIcon /></span>
+                  <span>Translate</span>
+                </button>
+                <button class="intent-item {selectedIntent === 'write' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'write'} onclick={() => { selectedIntent = "write"; showIntentMenu = false; }}>
+                  <span class="intent-icon-circle intent-icon-circle--large"><WriterIcon /></span>
+                  <span>Write</span>
+                </button>
+                <button class="intent-item {selectedIntent === 'rewrite' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'rewrite'} onclick={() => { selectedIntent = "rewrite"; showIntentMenu = false; }}>
+                  <span class="intent-icon-circle intent-icon-circle--large"><RewriterIcon /></span>
+                  <span>Rewrite</span>
+                </button>
+              </div>
+            {/if}
           </div>
           <div class="expand-bar-content">
+            <div class="settings-container" style="position: relative; margin-right: 8px;">
+              <button
+                class="icon-button"
+                title="Settings"
+                aria-label="Settings"
+                bind:this={settingsButtonElement}
+                onclick={handleSettingsClick}
+                class:active={showSettingsPopup}
+              >
+                <SettingsIcon />
+              </button>
+              {#if showSettingsPopup}
+                <SettingsPopup
+                  intent={selectedIntent}
+                  bind:values={settingsValues}
+                  onChange={handleSettingsChange}
+                  onClose={handleSettingsClose}
+                  onSave={handleSettingsSave}
+                />
+              {/if}
+            </div>
+
             <div class="action-icons">
               <button
                 class="icon-button"
@@ -324,7 +580,21 @@
             </div>
 
             {#if inputState === "ask"}
-              <button class="ask-button" onclick={handleAsk}> Ask </button>
+              <div class="ask-button-container">
+                <button class="ask-button" onclick={handleAsk}>
+                  <SendIcon />
+                </button>
+                {#if !isInSidePanel}
+                  <button
+                    class="close-button"
+                    onclick={handleClose}
+                    title="Close"
+                    aria-label="Close"
+                  >
+                    <CloseIcon />
+                  </button>
+                {/if}
+              </div>
             {/if}
 
             {#if inputState === "chat"}
@@ -681,6 +951,80 @@
     color: #d1d5db;
   }
 
+  /* Intent menu */
+  .intent-trigger {
+    position: relative;
+  }
+  .intent-menu {
+    position: absolute;
+    top: 36px;
+    left: 0;
+    background: #1f2937;
+    border: 1px solid #374151;
+    border-radius: 10px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column; /* show one by one */
+    gap: 4px;
+    z-index: 20;
+    min-width: 180px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+  }
+  /* Open upward in sidepanel mode */
+  .telescope-container.sidepanel-mode .intent-menu {
+    top: auto;
+    bottom: 36px;
+    box-shadow: 0 -8px 20px rgba(0,0,0,0.35);
+  }
+  .intent-item {
+    background: transparent;
+    color: #e5e7eb;
+    border: 1px solid transparent;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .intent-item:hover {
+    background: #374151;
+    border-color: #4b5563;
+  }
+  .intent-item.active {
+    background: #2f3746;
+    border-color: #4b5563;
+  }
+
+  /* Circle behind the small intent icons */
+  .intent-icon-circle {
+    width: 32px;
+    height: 32px;
+    background: #2b2e39;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+  /* Normalize the icon sizes inside the circle */
+  .intent-icon-circle :global(svg) {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Larger variant for write and rewrite */
+  .intent-icon-circle--large {
+    width: 36px;
+    height: 36px;
+  }
+  .intent-icon-circle--large :global(svg) {
+    width: 24px;
+    height: 24px;
+  }
+
   .input-field {
     flex: 1 1 auto;
     background: transparent;
@@ -703,6 +1047,13 @@
     /* Thin scrollbar styling */
     scrollbar-width: thin;
     scrollbar-color: #555 #2a2a2a;
+  }
+
+  /* When not expanded, keep a single line and ellipsize overflowing text */
+  .input-field:not(.input-expanded) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   /* Webkit scrollbar styling for input field */
@@ -774,12 +1125,29 @@
     color: #d1d5db;
   }
 
+  .icon-button.active {
+    background: #404040;
+    color: #3b82f6;
+  }
+
+  .settings-container {
+    position: relative;
+  }
+
+  .ask-button-container {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
   .ask-button {
     background: #3b82f6;
     color: white;
     border: none;
-    padding: 6px 14px;
-    border-radius: 8px;
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 100%;
     font-weight: 600;
     font-size: 14px;
     cursor: pointer;
@@ -790,7 +1158,7 @@
     align-self: center;
   }
 
-  .input-bar.input-expanded .ask-button {
+  .input-bar.input-expanded .ask-button-container {
     align-self: flex-start;
     margin-top: 2px;
   }
