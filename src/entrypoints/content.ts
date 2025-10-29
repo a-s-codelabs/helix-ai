@@ -11,6 +11,7 @@ import { writerPopupStore } from '../lib/writerPopupStore';
 import { sidePanelUtils } from '../lib/sidePanelStore';
 import type { SelectionAction } from './selection-popup/types';
 import { globalStorage } from '@/lib/globalStorage';
+import { getFeatureConfig } from '../lib/featureConfig';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -225,9 +226,15 @@ export default defineContentScript({
     };
 
     // Helper to update the popup position according to current selection
-    const updateSelectionPopupPosition = () => {
+    const updateSelectionPopupPosition = async () => {
       // If the popup is not showing, don't do anything
       if (!isSelectionPopupVisible()) return;
+
+      const featureConfig = await getFeatureConfig();
+      if (!featureConfig.selectionTelescopeEnabled) {
+        hideSelectionPopup();
+        return;
+      }
 
       // Find new position and selected text
       const selection = window.getSelection();
@@ -272,10 +279,16 @@ export default defineContentScript({
     };
 
     // Handle text selection
-    const handleSelectionChange = () => {
+    const handleSelectionChange = async () => {
       // Use a debounce to avoid too many calls
       clearTimeout((window as any).__selectionTimeout);
-      (window as any).__selectionTimeout = setTimeout(() => {
+      (window as any).__selectionTimeout = setTimeout(async () => {
+        const featureConfig = await getFeatureConfig();
+        if (!featureConfig.selectionTelescopeEnabled) {
+          hideSelectionPopup();
+          return;
+        }
+
         const selection = window.getSelection();
         const selectedText = selection?.toString().trim();
 
@@ -288,15 +301,15 @@ export default defineContentScript({
     };
 
     // Handle mouse up (for better UX)
-    const handleMouseUp = (event: MouseEvent) => {
+    const handleMouseUp = async (event: MouseEvent) => {
       // Ignore clicks on the popup itself
       if ((event.target as HTMLElement).closest('.selection-popup')) {
         return;
       }
 
       // Small delay to let the selection stabilize
-      setTimeout(() => {
-        handleSelectionChange();
+      setTimeout(async () => {
+        await handleSelectionChange();
       }, 10);
     };
 
@@ -317,8 +330,8 @@ export default defineContentScript({
       let timeout: number | null = null;
       const onRecalc = () => {
         if (timeout) clearTimeout(timeout);
-        timeout = window.setTimeout(() => {
-          updateSelectionPopupPosition();
+        timeout = window.setTimeout(async () => {
+          await updateSelectionPopupPosition();
         }, 50);
       };
 
@@ -471,6 +484,11 @@ export default defineContentScript({
       if ((event.metaKey || event.ctrlKey) && event.key === 'e') {
         event.preventDefault();
 
+        const featureConfig = await getFeatureConfig();
+        if (!featureConfig.floatingTelescopeEnabled) {
+          return;
+        }
+
         if (!isVisible || !ui) {
           console.log('Opening telescope from keyboard...');
           await createUI();
@@ -516,6 +534,15 @@ export default defineContentScript({
         console.log('Opening telescope from message...');
         (async () => {
           try {
+            const featureConfig = await getFeatureConfig();
+            if (!featureConfig.floatingTelescopeEnabled) {
+              sendResponse({
+                success: false,
+                error: 'Floating telescope is disabled',
+              });
+              return;
+            }
+
             // Wait for the page to be ready
             if (document.readyState === 'loading') {
               console.log('Waiting for DOM to load...');
@@ -580,7 +607,7 @@ export default defineContentScript({
             const pageContext =
               finalContent.length > maxLength
                 ? finalContent.substring(0, maxLength) +
-                '\n\n... [Content truncated for AI context]'
+                  '\n\n... [Content truncated for AI context]'
                 : finalContent;
 
             console.log('Content script: Extracted page context, sending back');

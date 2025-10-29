@@ -1,4 +1,5 @@
 import { globalStorage } from '@/lib/globalStorage';
+import { getFeatureConfig } from '@/lib/featureConfig';
 
 export default defineBackground(() => {
   // Setup context menu for images: Helix AI -> Add to chat
@@ -64,6 +65,12 @@ export default defineBackground(() => {
       console.log(`Command received: ${command}`);
       if (command === 'open-floating-telescope') {
         try {
+          const featureConfig = await getFeatureConfig();
+          if (!featureConfig.floatingTelescopeEnabled) {
+            console.log('Floating telescope is disabled');
+            return;
+          }
+
           const tabs = await chrome.tabs.query({
             active: true,
             currentWindow: true,

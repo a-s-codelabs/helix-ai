@@ -55,7 +55,11 @@
     }
   }
 
-  function openTelescopeFloating() {
+  async function openTelescopeFloating() {
+    if (!floatingTelescopeEnabled) {
+      return;
+    }
+
     if (typeof chrome !== "undefined" && chrome.tabs) {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs[0]?.id) {
@@ -146,7 +150,11 @@
       <button class="action-button" onclick={openTelescopeSidePanel}>
         open in sidepanel
       </button>
-      <button class="action-button" onclick={openTelescopeFloating}>
+      <button
+        class="action-button"
+        onclick={openTelescopeFloating}
+        disabled={!floatingTelescopeEnabled}
+      >
         open in floating
       </button>
     </div>
@@ -257,6 +265,19 @@
 
   .action-button:active {
     transform: translateY(0);
+  }
+
+  .action-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #262832;
+    border-color: #404040;
+  }
+
+  .action-button:disabled:hover {
+    background: #262832;
+    border-color: #404040;
+    transform: none;
   }
 
   .keybinding-section {
