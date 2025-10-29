@@ -63,14 +63,14 @@ export const DB_SCHEMA = {
       content: string;
       targetLanguage: string | null;
     } | {
-      actionSource: "float";
+      actionSource: "input-options";
       messages: {
         id: number;
         role: "user" | "assistant" | "system";
         content: string;
         timestamp: number;
         source: "append" | "move" | "addtochat";
-        actionSource: "summarise" | "translate" | "prompt";
+        actionSource: InputIntent;
       }[];
     } | {
       actionSource: "popup";

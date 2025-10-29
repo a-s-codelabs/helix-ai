@@ -8,6 +8,12 @@
   import SendIcon from "./icons/Send.svelte";
   import StopIcon from "./icons/Stop.svelte";
   import { globalStorage } from "@/lib/globalStorage";
+  // intent icons
+  import AddToChat from "./icons/AddToChat.svelte";
+  import SummariseIcon from "./icons/Summarise.svelte";
+  import TranslateIcon from "./icons/Translate.svelte";
+  import WriterIcon from "./icons/Writer.svelte";
+  import RewriterIcon from "./icons/Rewriter.svelte";
 
   let {
     inputState = $bindable("ask" as State),
@@ -257,11 +263,26 @@
           <SearchAiIcon />
           {#if showIntentMenu}
             <div class="intent-menu" role="menu">
-              <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "prompt")}>Prompt</button>
-              <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "summarise")}>Summarise</button>
-              <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "translate")}>Translate</button>
-              <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "write")}>Write</button>
-              <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "rewrite")}>Rewrite</button>
+              <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "prompt")}>
+                <span class="intent-icon-circle"><AddToChat /></span>
+                <span>Prompt</span>
+              </button>
+              <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "summarise")}>
+                <span class="intent-icon-circle"><SummariseIcon /></span>
+                <span>Summarise</span>
+              </button>
+              <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "translate")}>
+                <span class="intent-icon-circle"><TranslateIcon /></span>
+                <span>Translate</span>
+              </button>
+              <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "write")}>
+                <span class="intent-icon-circle intent-icon-circle--large"><WriterIcon /></span>
+                <span>Write</span>
+              </button>
+              <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "rewrite")}>
+                <span class="intent-icon-circle intent-icon-circle--large"><RewriterIcon /></span>
+                <span>Rewrite</span>
+              </button>
             </div>
           {/if}
         </div>
@@ -363,11 +384,26 @@
             <SearchAiIcon />
             {#if showIntentMenu}
               <div class="intent-menu" role="menu">
-                <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "prompt")}>Prompt</button>
-                <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "summarise")}>Summarise</button>
-                <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "translate")}>Translate</button>
-                <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "write")}>Write</button>
-                <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "rewrite")}>Rewrite</button>
+                <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "prompt")}>
+                  <span class="intent-icon-circle"><AddToChat /></span>
+                  <span>Prompt</span>
+                </button>
+                <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "summarise")}>
+                  <span class="intent-icon-circle"><SummariseIcon /></span>
+                  <span>Summarise</span>
+                </button>
+                <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "translate")}>
+                  <span class="intent-icon-circle"><TranslateIcon /></span>
+                  <span>Translate</span>
+                </button>
+                <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "write")}>
+                  <span class="intent-icon-circle intent-icon-circle--large"><WriterIcon /></span>
+                  <span>Write</span>
+                </button>
+                <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "rewrite")}>
+                  <span class="intent-icon-circle intent-icon-circle--large"><RewriterIcon /></span>
+                  <span>Rewrite</span>
+                </button>
               </div>
             {/if}
           </div>
@@ -797,10 +833,39 @@
     cursor: pointer;
     text-align: left;
     width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
   .intent-item:hover {
     background: #374151;
     border-color: #4b5563;
+  }
+
+  /* Circle behind the small intent icons */
+  .intent-icon-circle {
+    width: 32px;
+    height: 32px;
+    background: #2b2e39;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+  /* Normalize the icon sizes inside the circle */
+  .intent-icon-circle :global(svg) {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Larger variant for write and rewrite */
+  .intent-icon-circle--large {
+    width: 36px;
+    height: 36px;
+  }
+  .intent-icon-circle--large :global(svg) {
+    width: 24px;
+    height: 24px;
   }
 
   .input-field {
