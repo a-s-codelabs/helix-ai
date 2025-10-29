@@ -77,18 +77,37 @@ declare namespace chrome {
 
     function query(
       queryInfo: { active: boolean; currentWindow: boolean },
-      callback: (tabs: Tab[]) => void
+      callback?: (tabs: Tab[]) => void
     ): void;
     function sendMessage(
       tabId: number,
       message: any,
       callback?: (response: any) => void
     ): void;
-    function create(createProperties: { url: string }): void;
+    function create(createProperties: { url: string }, callback?: (tab: Tab) => void): void;
 
     const onUpdated: {
       addListener(
         callback: (tabId: number, changeInfo: any, tab: Tab) => void
+      ): void;
+    };
+  }
+
+  namespace commands {
+    interface Command {
+      name?: string;
+      shortcut?: string;
+      description?: string;
+    }
+
+    function getAll(callback?: (commands: Command[]) => void): Promise<Command[]>;
+
+    const onCommand: {
+      addListener(
+        callback: (command: string, tab?: tabs.Tab) => void
+      ): void;
+      removeListener(
+        callback: (command: string, tab?: tabs.Tab) => void
       ): void;
     };
   }

@@ -61,7 +61,7 @@ export default defineBackground(() => {
   }
   // Handle keyboard shortcuts via Commands API
   if (chrome.commands && chrome.commands.onCommand) {
-    chrome.commands.onCommand.addListener(async (command) => {
+    chrome.commands.onCommand.addListener(async (command: string) => {
       console.log(`Command received: ${command}`);
       if (command === 'open-floating-telescope') {
         try {
@@ -71,10 +71,19 @@ export default defineBackground(() => {
             return;
           }
 
-          const tabs = await chrome.tabs.query({
-            active: true,
-            currentWindow: true,
+          // Use promise-based approach for tabs.query
+          const tabs = await new Promise<chrome.tabs.Tab[]>((resolve) => {
+            chrome.tabs.query(
+              {
+                active: true,
+                currentWindow: true,
+              },
+              (result) => {
+                resolve(result || []);
+              }
+            );
           });
+
           const activeTab = tabs[0];
           if (activeTab?.id) {
             chrome.tabs.sendMessage(activeTab.id, {
@@ -92,6 +101,27 @@ export default defineBackground(() => {
     console.log(`BACKGROUND: MESSAGE`, message.type);
     if (message.type === 'OPEN_TO_SIDE_PANEL') {
       openSidePanel(message, sender);
+      return true;
+    }
+
+    if (message.type === 'OPEN_SHORTCUTS_PAGE') {
+      chrome.tabs.create(
+        { url: 'chrome://extensions/shortcuts' },
+        (tab: chrome.tabs.Tab) => {
+          if (chrome.runtime.lastError) {
+            console.error(
+              'Error opening shortcuts page:',
+              chrome.runtime.lastError.message
+            );
+            sendResponse({
+              success: false,
+              error: chrome.runtime.lastError.message,
+            });
+          } else {
+            sendResponse({ success: true });
+          }
+        }
+      );
       return true;
     }
 

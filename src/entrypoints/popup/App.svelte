@@ -116,14 +116,46 @@
 
   let keyboardShortcut = $state("ctrl + e");
 
+  // Open Chrome shortcuts page to edit keyboard shortcut
+  async function openShortcutsPage() {
+    try {
+      // Try to open via background script (chrome:// URLs require background context)
+      chrome.runtime.sendMessage(
+        {
+          type: "OPEN_SHORTCUTS_PAGE",
+        },
+        () => {
+          // Close popup after opening shortcuts page
+          setTimeout(() => {
+            window.close();
+          }, 100);
+        }
+      );
+    } catch (error) {
+      console.error("Error opening shortcuts page:", error);
+    }
+  }
+
+  // Refresh keyboard shortcut when window regains focus
+  async function refreshShortcut() {
+    keyboardShortcut = await getKeyboardShortcut();
+  }
+
   // Set up event listeners and load settings
   onMount(async () => {
     await loadSettings();
     keyboardShortcut = await getKeyboardShortcut();
     document.addEventListener("mousedown", handleClickOutside);
 
+    // Listen for window focus to refresh shortcut after user edits it
+    const handleFocus = () => {
+      refreshShortcut();
+    };
+    window.addEventListener("focus", handleFocus);
+
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("focus", handleFocus);
       saveSettings();
     };
   });
@@ -148,14 +180,14 @@
     <h2>Open telescope</h2>
     <div class="button-group">
       <button class="action-button" onclick={openTelescopeSidePanel}>
-        open in sidepanel
+        Open in sidepanel
       </button>
       <button
         class="action-button"
         onclick={openTelescopeFloating}
         disabled={!floatingTelescopeEnabled}
       >
-        open in floating
+        Open in floating
       </button>
     </div>
   </div>
@@ -164,7 +196,30 @@
     <h3>Keybinding</h3>
     <div class="keybinding-row">
       <span class="keybinding-label">Floating telescope</span>
-      <span class="keybinding-shortcut">{keyboardShortcut}</span>
+      <button
+        class="keybinding-shortcut-btn"
+        onclick={openShortcutsPage}
+        title="Click to edit keyboard shortcut"
+      >
+        <span class="keybinding-shortcut">{keyboardShortcut}</span>
+        <svg
+          class="edit-icon"
+          width="14"
+          height="14"
+          viewBox="0 0 14 14"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M10.5 3.5L10 4L8 2L8.5 1.5C8.77614 1.22386 9.22386 1.22386 9.5 1.5L10.5 2.5C10.7761 2.77614 10.7761 3.22386 10.5 3.5ZM7.5 3.5L9.5 5.5L4 11H2V9L7.5 3.5Z"
+            stroke="currentColor"
+            stroke-width="1.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            fill="none"
+          />
+        </svg>
+      </button>
     </div>
   </div>
 
@@ -304,11 +359,43 @@
     font-weight: 400;
   }
 
+  .keybinding-shortcut-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+  }
+
+  .keybinding-shortcut-btn:hover {
+    background: #262832;
+    border-color: #404040;
+  }
+
+  .keybinding-shortcut-btn:active {
+    background: #1f2129;
+  }
+
   .keybinding-shortcut {
     font-size: 13px;
     color: #F2F8FC;
     font-weight: 500;
     text-transform: lowercase;
+  }
+
+  .edit-icon {
+    color: #9ca3af;
+    flex-shrink: 0;
+    transition: color 0.2s ease;
+  }
+
+  .keybinding-shortcut-btn:hover .edit-icon {
+    color: #3b82f6;
   }
 
   .enable-section {
