@@ -24,81 +24,27 @@ export const option = {
   ],
 
   prompt: [{ ...defaultOption }],
+  
   summarise: [
     {...defaultOption},
-    {
-      uiType: 'dropdown',
-      name: 'Summary type',
-      id: 'summaryType',
-      options: {...summaryType},
-    },
-    {
-      uiType: 'dropdown',
-      name: 'Length',
-      id: 'length',
-      options: {...lengthOption},
-    },
-    {
-      uiType: 'dropdown',
-      name: 'Format',
-      id: 'format',
-      options: {...formatOption},
-    }
+    {...summaryType},
+    {...lengthOption},
+    {...formatOption},
   ],
 
   write: [
     {...defaultOption},
-    {
-      uiType: 'dropdown',
-      name: 'Tone',
-      id: 'tone',
-      options: {...toneOption},
-    },
-    {
-      uiType: 'dropdown',
-      name: 'Length',
-      id: 'length',
-      options: {...lengthOption},
-    },
-    {
-      uiType: 'dropdown',
-      name: 'Format',
-      id: 'format',
-      options: {...formatOption},
-    },
-    {
-      uiType: 'dropdown',
-      name: 'Output Language',
-      id: 'outputLanguage',
-      options: {...writerOutputLanguageOption},
-    },
+    {...toneOption},
+    {...lengthOption},
+    {...formatOption},
+    {...writerOutputLanguageOption},
   ],
 
   rewrite: [
     {...defaultOption},
-    {
-      uiType: 'dropdown',
-      name: 'Tone',
-      id: 'tone',
-      options: {...toneOption},
-    },
-    {
-      uiType: 'dropdown',
-      name: 'Length',
-      id: 'length',
-      options: {...lengthOption},
-    },
-    {
-      uiType: 'dropdown',
-      name: 'Format',
-      id: 'format',
-      options: {...formatOption},
-    },
-    {
-      uiType: 'dropdown',
-      name: 'Output Language',
-      id: 'outputLanguage',
-      options: {...writerOutputLanguageOption},
-    },
+    {...toneOption},
+    {...lengthOption},
+    {...formatOption},
+    {...writerOutputLanguageOption},
   ]
 } as const;

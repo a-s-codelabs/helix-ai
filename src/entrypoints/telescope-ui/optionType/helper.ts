@@ -38,6 +38,7 @@ export const defaultOption = [
     uiType: 'slider',
     name: 'Temperature',
     id: 'temperature',
+    defaultValue: 0.7,
     min: 0,
     max: 2,
   },
@@ -45,6 +46,7 @@ export const defaultOption = [
     uiType: 'slider',
     name: 'TopK',
     id: 'topK',
+    defaultValue: 0,
     min: 0,
     max: 100,
   },
@@ -52,83 +54,118 @@ export const defaultOption = [
 
 export const summaryType = [
   {
-    label: 'Key Points',
-    value: 'keyPoints',
-  },
-  {
-    label: 'TL;DR',
-    value: 'tldr',
-  },
-  {
-    label: 'Teaser',
-    value: 'teaser',
-  },
-  {
-    label: 'Headline',
-    value: 'headline',
+    uiType: 'dropdown',
+    name: 'Summary type',
+    id: 'summaryType',
+    options: [
+      {
+        label: 'Key Points',
+        value: 'keyPoints',
+      },
+      {
+        label: 'TL;DR',
+        value: 'tldr',
+      },
+      {
+        label: 'Teaser',
+        value: 'teaser',
+      },
+      {
+        label: 'Headline',
+        value: 'headline',
+      },
+    ],
   },
 ] as const;
 
 export const lengthOption = [
   {
-    label: 'Short',
-    value: 'short',
-  },
-  {
-    label: 'Medium',
-    value: 'medium',
-  },
-  {
-    label: 'Long',
-    value: 'long',
+    uiType: 'dropdown',
+    name: 'Length',
+    id: 'length',
+    options: [
+      {
+        label: 'Short',
+        value: 'short',
+      },
+      {
+        label: 'Medium',
+        value: 'medium',
+      },
+      {
+        label: 'Long',
+        value: 'long',
+      },
+    ],
   },
 ] as const;
 
 export const formatOption = [
   {
-    label: 'Markdown',
-    value: 'markdown',
-  },
-  {
-    label: 'Plain Text',
-    value: 'plain-text',
+    uiType: 'dropdown',
+    name: 'Format',
+    id: 'format',
+    options: [
+      {
+        label: 'Markdown',
+        value: 'markdown',
+      },
+      {
+        label: 'Plain Text',
+        value: 'plain-text',
+      },
+    ],
   },
 ] as const;
 
 export const toneOption = [
   {
-    label: 'Formal',
-    value: 'formal',
-  },
-  {
-    label: 'Neutral',
-    value: 'neutral',
-  },
-  {
-    label: 'Casual',
-    value: 'casual',
+    uiType: 'dropdown',
+    name: 'Tone',
+    id: 'tone',
+    options: [
+      {
+        label: 'Formal',
+        value: 'formal',
+      },
+      {
+        label: 'Neutral',
+        value: 'neutral',
+      },
+      {
+        label: 'Casual',
+        value: 'casual',
+      },
+    ],
   },
 ] as const;
 
 export const writerOutputLanguageOption = [
   {
-    label: 'English',
-    value: 'en',
-  },
-  {
-    label: 'Spanish',
-    value: 'es',
-  },
-  {
-    label: 'French',
-    value: 'fr',
-  },
-  {
-    label: 'Portuguese',
-    value: 'pt',
-  },
-  {
-    label: 'Japanese',
-    value: 'ja',
+    uiType: 'dropdown',
+    name: 'Output Language',
+    id: 'outputLanguage',
+    options: [
+      {
+        label: 'English',
+        value: 'en',
+      },
+      {
+        label: 'Spanish',
+        value: 'es',
+      },
+      {
+        label: 'French',
+        value: 'fr',
+      },
+      {
+        label: 'Portuguese',
+        value: 'pt',
+      },
+      {
+        label: 'Japanese',
+        value: 'ja',
+      },
+    ],
   },
 ] as const;
