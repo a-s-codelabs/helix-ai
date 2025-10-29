@@ -36,6 +36,8 @@
   }: InputProps = $props();
 
   let isInSidePanel = $state(false);
+  let containerElement: HTMLDivElement; // root container to measure width
+  let isCompactAction = $state(false); // when true, show send icon instead of label
 
   // Hover menu for search icon: choose intent and adapt placeholder
   type Intent = "prompt" | "summarise" | "translate" | "write" | "rewrite";
@@ -63,21 +65,25 @@
   // Derived current icon component for the input
   const CurrentIntentIcon = $derived(intentToIcon[selectedIntent] ?? SearchAiIcon);
 
-  // Action button label based on selected intent
-  const intentToActionLabel: Record<Intent, string> = {
-    prompt: "Ask",
-    summarise: "Summarise",
-    translate: "Translate",
-    write: "Write",
-    rewrite: "Rewrite",
-  };
-  const currentActionLabel = $derived(intentToActionLabel[selectedIntent] ?? "Ask");
-
   $effect(() => {
     isInSidePanel =
       window.location.pathname.includes("sidepanel") ||
       window.location.href.includes("sidepanel") ||
       document.title.includes("Side Panel");
+  });
+
+  // Observe container width and toggle compact mode;
+  // compact threshold chosen to align with existing 400px media query
+  $effect(() => {
+    if (!containerElement) return;
+    const updateCompact = () => {
+      const width = containerElement.clientWidth;
+      isCompactAction = width <= 400;
+    };
+    updateCompact();
+    const observer = new ResizeObserver(updateCompact);
+    observer.observe(containerElement);
+    return () => observer.disconnect();
   });
 
   // Dynamic placeholder based on side panel mode and selected intent
@@ -244,6 +250,7 @@
   class:expanded={isExpanded}
   class:reached-min-chars={true}
   class:sidepanel-mode={isInSidePanel}
+  bind:this={containerElement}
 >
   <div
     class="input-bar-container"
@@ -377,7 +384,9 @@
 
         {#if inputState === "ask"}
           <div class="ask-button-container">
-            <button class="ask-button" onclick={handleAsk}>{currentActionLabel}</button>
+            <button class="ask-button" onclick={handleAsk}>
+              <SendIcon />
+            </button>
             {#if !isInSidePanel}
               <button
                 class="close-button"
@@ -471,7 +480,9 @@
 
             {#if inputState === "ask"}
               <div class="ask-button-container">
-                <button class="ask-button" onclick={handleAsk}> {currentActionLabel} </button>
+                <button class="ask-button" onclick={handleAsk}>
+                  <SendIcon />
+                </button>
                 {#if !isInSidePanel}
                   <button
                     class="close-button"
@@ -1024,8 +1035,9 @@
     background: #3b82f6;
     color: white;
     border: none;
-    padding: 6px 14px;
-    border-radius: 8px;
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 100%;
     font-weight: 600;
     font-size: 14px;
     cursor: pointer;
