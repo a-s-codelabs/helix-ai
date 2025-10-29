@@ -463,8 +463,17 @@
 
         {#if inputState === "ask"}
           <div class="ask-button-container">
-            <button class="ask-button" onclick={handleAsk}>
-              <SendIcon />
+            <button
+              class="ask-button"
+              class:streaming={isStreaming}
+              onclick={isStreaming ? handleStop : handleAsk}
+              aria-label={isStreaming ? "Stop streaming" : "Send message"}
+            >
+              {#if isStreaming}
+                <StopIcon />
+              {:else}
+                <SendIcon />
+              {/if}
             </button>
             {#if !isInSidePanel}
               <button
@@ -581,8 +590,17 @@
 
             {#if inputState === "ask"}
               <div class="ask-button-container">
-                <button class="ask-button" onclick={handleAsk}>
-                  <SendIcon />
+                <button
+                  class="ask-button"
+                  class:streaming={isStreaming}
+                  onclick={isStreaming ? handleStop : handleAsk}
+                  aria-label={isStreaming ? "Stop streaming" : "Send message"}
+                >
+                  {#if isStreaming}
+                    <StopIcon />
+                  {:else}
+                    <SendIcon />
+                  {/if}
                 </button>
                 {#if !isInSidePanel}
                   <button
@@ -1156,6 +1174,21 @@
     white-space: nowrap;
     height: fit-content;
     align-self: center;
+    display: flex;            /* center icon precisely */
+    align-items: center;
+    justify-content: center;
+    line-height: 0;           /* avoid baseline offset */
+  }
+
+  .ask-button.streaming {
+    background: none;
+    color: #9ca3af;
+  }
+
+  .ask-button.streaming:hover {
+    background: #404040;
+    color: #d1d5db;
+    transform: none; /* keep position stable while hovering */
   }
 
   .input-bar.input-expanded .ask-button-container {
