@@ -1,39 +1,43 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { globalStorage } from "@/lib/globalStorage";
+  import HelixIcon from "@/entrypoints/telescope-ui/icons/Helix.svelte";
 
   // State management
-  let telescopeEnabled = $state(true);
-  let useDefaultKeyBinding = $state(true);
-  let textToSpeechEnabled = $state(true);
-  let languagePreference = $state("English");
-  let answerFormat = $state("Direct Answer");
+  let floatingTelescopeEnabled = $state(true);
+  let selectionTelescopeEnabled = $state(true);
 
   // Reference to main element for outside click detection
   let mainElement: HTMLElement;
 
-  // Language options
-  const languageOptions = [
-    "English",
-    "Spanish",
-    "French",
-    "German",
-    "Italian",
-    "Portuguese",
-    "Chinese",
-    "Japanese",
-    "Korean",
-  ];
+  // Load settings from storage
+  async function loadSettings() {
+    try {
+      const config = await globalStorage().get("config");
+      if (config && typeof config === "object") {
+        floatingTelescopeEnabled = (config as any).floatingTelescopeEnabled ?? true;
+        selectionTelescopeEnabled = (config as any).selectionTelescopeEnabled ?? true;
+      }
+    } catch (error) {
+      console.error("Error loading settings:", error);
+    }
+  }
 
-  // Answer format options
-  const answerFormatOptions = [
-    "Direct Answer",
-    "Summary",
-    "Detailed Explanation",
-  ];
+  // Save settings to storage
+  async function saveSettings() {
+    try {
+      const currentConfig = await globalStorage().get("config");
+      await globalStorage().set("config", {
+        ...(currentConfig || {}),
+        floatingTelescopeEnabled,
+        selectionTelescopeEnabled,
+      } as any);
+    } catch (error) {
+      console.error("Error saving settings:", error);
+    }
+  }
 
   function openTelescopeSidePanel() {
-    // Open the side panel
     if (typeof chrome !== "undefined" && chrome.sidePanel && chrome.tabs) {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const currentWindowId = tabs[0]?.windowId;
@@ -41,8 +45,6 @@
           chrome.sidePanel
             .open({ windowId: currentWindowId })
             .then(() => {
-              console.log("Side panel opened successfully");
-              // Close the popup after opening side panel
               window.close();
             })
             .catch((error: Error) => {
@@ -50,57 +52,27 @@
             });
         }
       });
-    } else {
-      console.error("Side panel API not available");
     }
   }
 
-  function openTelescopeSearch() {
-    console.log("openTelescopeSearch called");
-    // Send message to content script to open telescope
+  function openTelescopeFloating() {
     if (typeof chrome !== "undefined" && chrome.tabs) {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        console.log("Active tab:", tabs[0]);
         if (tabs[0]?.id) {
-          console.log("Sending message to tab:", tabs[0].id);
           chrome.tabs.sendMessage(
             tabs[0].id,
             { action: "openTelescope" },
-            (response: any) => {
-              if (chrome.runtime.lastError) {
-                console.error(
-                  "Error sending message:",
-                  chrome.runtime.lastError
-                );
-                // Don't close popup on error - let user try again
-              } else {
-                console.log("Message sent successfully, response:", response);
-                // Close the popup after message is sent successfully
+            () => {
+              if (!chrome.runtime.lastError) {
                 setTimeout(() => {
                   window.close();
                 }, 100);
               }
             }
           );
-        } else {
-          console.error("No active tab ID found");
         }
       });
-    } else {
-      console.error("Chrome API not available");
     }
-  }
-
-  function handleSubmit() {
-    // Save settings and close popup
-    console.log("Settings saved:", {
-      telescopeEnabled,
-      useDefaultKeyBinding,
-      textToSpeechEnabled,
-      languagePreference,
-      answerFormat,
-    });
-    window.close();
   }
 
   // Handle clicks outside the popup to close it
@@ -110,459 +82,230 @@
     }
   }
 
-  // Handle keyboard shortcuts
-  function handleKeyDown(event: KeyboardEvent) {
-    // Check for Cmd+E (Mac) or Ctrl+E (Windows/Linux)
-    if ((event.metaKey || event.ctrlKey) && event.key === 'e') {
-      event.preventDefault();
-      openTelescopeSearch();
-    }
+  // Format keyboard shortcut to lowercase style
+  function formatShortcut(shortcut: string): string {
+    if (!shortcut) return "ctrl + e";
+    return shortcut
+      .toLowerCase()
+      .replace(/\bctrl\b/g, "ctrl")
+      .replace(/\bcommand\b/g, "cmd")
+      .replace(/\balt\b/g, "alt")
+      .replace(/\bshift\b/g, "shift")
+      .replace(/\+/g, " + ");
   }
 
-  // Set up event listeners
-  onMount(() => {
+  // Get current keyboard shortcut
+  async function getKeyboardShortcut(): Promise<string> {
+    try {
+      if (chrome.commands) {
+        const commands = await chrome.commands.getAll();
+        const floatingCmd = commands.find(
+          (cmd) => cmd.name === "open-floating-telescope"
+        );
+        return formatShortcut(floatingCmd?.shortcut || "Ctrl+E");
+      }
+    } catch (error) {
+      console.error("Error getting keyboard shortcut:", error);
+    }
+    return "ctrl + e";
+  }
+
+  let keyboardShortcut = $state("ctrl + e");
+
+  // Set up event listeners and load settings
+  onMount(async () => {
+    await loadSettings();
+    keyboardShortcut = await getKeyboardShortcut();
     document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleKeyDown);
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
+      saveSettings();
     };
+  });
+
+  // Watch for toggle changes to auto-save
+  $effect(() => {
+    floatingTelescopeEnabled;
+    selectionTelescopeEnabled;
+    saveSettings();
   });
 </script>
 
 <main bind:this={mainElement}>
   <div class="header">
-    <div class="header-content">
+    <div class="header-title">
+      <HelixIcon size={24} />
       <h1>Helix</h1>
-      <p class="subtitle">AI search assistant for smarter website queries.</p>
-    </div>
-    <button class="header-button" onclick={openTelescopeSidePanel}>
-      Open Telescope
-    </button>
-  </div>
-
-  <div class="settings-section">
-    <h3>Key binding</h3>
-    <div class="checkbox-row">
-      <span class="checkbox-text">Use default key binding</span>
-      <label class="checkbox-label">
-        <input type="checkbox" bind:checked={useDefaultKeyBinding} />
-        <span class="checkmark"></span>
-      </label>
-    </div>
-
-    <div class="key-binding-container">
-      <div class="search-input-container">
-        <input
-          type="text"
-          value="Search Telescope"
-          readonly
-          class="search-input"
-          onclick={openTelescopeSearch}
-        />
-        <div class="key-combination">
-          <kbd>CTRL</kbd>
-          <span class="plus">+</span>
-          <kbd>E</kbd>
-        </div>
-      </div>
-      <div class="info-text">
-        <svg
-          class="info-icon"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <circle cx="12" cy="12" r="10"></circle>
-          <path d="M12 16v-4"></path>
-          <path d="M12 8h.01"></path>
-        </svg>
-        Press the search key twice to trigger default browser search.
-      </div>
     </div>
   </div>
 
-  <div class="settings-section">
-    <div class="section-header">
-      <h3>Text-to-Speech</h3>
+  <div class="open-telescope-section">
+    <h2>Open telescope</h2>
+    <div class="button-group">
+      <button class="action-button" onclick={openTelescopeSidePanel}>
+        open in sidepanel
+      </button>
+      <button class="action-button" onclick={openTelescopeFloating}>
+        open in floating
+      </button>
+    </div>
+  </div>
+
+  <div class="keybinding-section">
+    <h3>Keybinding</h3>
+    <div class="keybinding-row">
+      <span class="keybinding-label">Floating telescope</span>
+      <span class="keybinding-shortcut">{keyboardShortcut}</span>
+    </div>
+  </div>
+
+  <div class="enable-section">
+    <div class="enable-row">
+      <span class="enable-label">Enable floating telescope</span>
       <label class="toggle">
-        <input type="checkbox" bind:checked={textToSpeechEnabled} />
+        <input type="checkbox" bind:checked={floatingTelescopeEnabled} />
         <span class="slider"></span>
       </label>
     </div>
-    <div class="info-text">
-      <svg
-        class="info-icon"
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <circle cx="12" cy="12" r="10"></circle>
-        <path d="M12 16v-4"></path>
-        <path d="M12 8h.01"></path>
-      </svg>
-      Converts answers into speech so you can listen instead of reading.
+    <div class="enable-row">
+      <span class="enable-label">Enable selection telescope</span>
+      <label class="toggle">
+        <input type="checkbox" bind:checked={selectionTelescopeEnabled} />
+        <span class="slider"></span>
+      </label>
     </div>
   </div>
-
-  <div class="settings-section">
-    <h3>Language Preference</h3>
-    <div class="dropdown-container">
-      <select bind:value={languagePreference} class="dropdown">
-        {#each languageOptions as option}
-          <option value={option}>{option}</option>
-        {/each}
-      </select>
-    </div>
-    <div class="info-text">
-      <svg
-        class="info-icon"
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <circle cx="12" cy="12" r="10"></circle>
-        <path d="M12 16v-4"></path>
-        <path d="M12 8h.01"></path>
-      </svg>
-      Choose your preferred language for AI responses and results.
-    </div>
-  </div>
-
-  <div class="settings-section">
-    <h3>Answer Format</h3>
-    <div class="dropdown-container">
-      <select bind:value={answerFormat} class="dropdown">
-        {#each answerFormatOptions as option}
-          <option value={option}>{option}</option>
-        {/each}
-      </select>
-    </div>
-    <div class="info-text">
-      <svg
-        class="info-icon"
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <circle cx="12" cy="12" r="10"></circle>
-        <path d="M12 16v-4"></path>
-        <path d="M12 8h.01"></path>
-      </svg>
-      Select how answers should be displayed Direct, Summary or Detailed Explanation.
-    </div>
-  </div>
-
-  <button class="submit-button" onclick={handleSubmit}> Submit </button>
 </main>
 
 <style>
   @import url("https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap");
 
-  /* CSS Reset to prevent external interference */
+  /* CSS Reset */
   * {
     box-sizing: border-box;
-  }
-
-  /* Prevent horizontal overflow globally */
-  * {
-    max-width: 100%;
-    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
   }
 
   main {
-    width: 400px !important;
-    height: auto;
-    padding: 0 0 80px 0 !important;
-    margin: 0 !important;
-    font-family:
-      "Sora",
-      -apple-system,
-      BlinkMacSystemFont,
-      "Segoe UI",
-      Roboto,
+    width: 400px;
+    min-height: auto;
+    padding: 20px;
+    font-family: "Sora", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
       sans-serif;
-    background: #0a0a0a;
-    color: #ffffff;
-    border-radius: 0;
+    background: #131723;
+    color: #F2F8FC;
     box-sizing: border-box;
-    overflow: hidden;
-    max-width: none !important;
-    text-align: left !important;
-    position: relative;
   }
 
   .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    padding: 20px 20px 20px;
-    margin-bottom: 8px;
+    margin-bottom: 20px;
   }
 
-  .header-content h1 {
+  .header-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .header h1 {
     font-size: 24px;
     font-weight: 700;
-    margin: 0 0 8px 0;
-    color: #ffffff;
-  }
-
-  .subtitle {
-    color: #9ca3af;
-    font-size: 12px;
+    color: #F2F8FC;
     margin: 0;
-    line-height: 1.4;
-    margin-left: 6px;
   }
 
-  .header-button {
-    width: 140px;
-    height: 36px;
-    background: #3b82f6;
-    color: white;
-    border: none;
-    border-radius: 0;
-    padding: 8px 12px;
-    text-wrap: nowrap;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    box-sizing: border-box;
+  .open-telescope-section {
+    margin-bottom: 24px;
   }
 
-  .header-button:hover {
-    background: #2563eb;
-    transform: translateY(-1px);
-  }
-
-  .header-button:active {
-    transform: translateY(0);
-  }
-
-  .settings-section {
-    padding: 0 20px;
-    margin-bottom: 6px;
-    width: 100%;
-    box-sizing: border-box;
-    overflow: hidden;
-  }
-
-  .settings-section h3 {
+  .open-telescope-section h2 {
     font-size: 14px;
     font-weight: 600;
-    color: #ffffff;
-    margin: 0 0 6px 0;
-  }
-
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-  }
-
-  .section-header h3 {
-    margin: 0;
-  }
-
-  .checkbox-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    color: #F2F8FC;
     margin-bottom: 12px;
   }
 
-  .checkbox-label {
+  .button-group {
     display: flex;
-    flex-direction: row;
-    align-items: center;
-    cursor: pointer;
-  }
-
-  .checkbox-label input[type="checkbox"] {
-    display: none;
-  }
-
-  .checkmark {
-    width: 20px;
-    height: 20px;
-    background: #3b82f6;
-    border-radius: 0;
-    position: relative;
-    transition: all 0.2s ease;
-  }
-
-  .checkmark::after {
-    content: "";
-    position: absolute;
-    left: 6px;
-    top: 2px;
-    width: 6px;
-    height: 10px;
-    border: solid white;
-    border-width: 0 2px 2px 0;
-    transform: rotate(45deg);
-    opacity: 1;
-  }
-
-  .checkbox-label input[type="checkbox"]:not(:checked) + .checkmark {
-    background: #262832;
-    border: 1px solid #404040;
-  }
-
-  .checkbox-label input[type="checkbox"]:not(:checked) + .checkmark::after {
-    opacity: 0;
-  }
-
-  .checkbox-text {
-    color: #9ca3af;
-    font-size: 13px;
-    margin: 0;
-    flex: 1;
-  }
-
-  .key-binding-container {
-    margin-top: 12px;
-    width: 100%;
-    overflow: hidden;
-  }
-
-  .search-input-container {
-    display: flex;
-    align-items: center;
     gap: 12px;
-    margin-bottom: 6px;
-    width: 100%;
-    height: 44px;
-    box-sizing: border-box;
-    overflow: hidden;
-    background: #262832;
-    border: 1px solid #404040;
-    border-radius: 0;
-    padding: 6px 12px;
+    flex-wrap: wrap;
   }
 
-  .search-input {
+  .action-button {
     flex: 1;
-    min-width: 0;
-    background: transparent;
-    border: none;
-    color: #ffffff;
-    font-size: 13px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    box-sizing: border-box;
-    outline: none;
-  }
-
-  .search-input:hover {
-    color: #ffffff;
-  }
-
-  .search-input-container:hover {
-    border-color: #555;
-    background: #2a2a2a;
-  }
-
-  .key-combination {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex-shrink: 0;
-    white-space: nowrap;
-    min-width: fit-content;
-  }
-
-  .key-combination span {
-    color: #d1d5db;
-    font-size: 12px;
-  }
-
-  .plus {
-    color: #d1d5db;
-    font-size: 12px;
-    font-weight: 500;
-  }
-
-  kbd {
-    background: #3e424b;
-    border: 1px solid #4b5563;
-    border-radius: 0;
-    padding: 2px 6px;
-    font-family: monospace;
-    font-size: 10px;
-    color: #ffffff;
-    min-width: 32px;
-    text-align: center;
-    flex-shrink: 0;
-    white-space: nowrap;
-    font-weight: 500;
-  }
-
-  .info-text {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    color: #9ca3af;
-    font-size: 12px;
-    line-height: 1.4;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    hyphens: auto;
-    max-width: calc(100% - 10px);
-    margin-bottom: 16px;
-  }
-
-  .info-icon {
-    color: #6b7280;
-    flex-shrink: 0;
-    margin-top: 1px;
-  }
-
-  .dropdown-container {
-    margin-bottom: 6px;
-  }
-
-  .dropdown {
-    width: 100%;
+    min-width: 140px;
+    height: 36px;
     background: #262832;
+    color: #F2F8FC;
     border: 1px solid #404040;
-    border-radius: 0;
-    padding: 8px 12px;
-    color: #ffffff;
-    font-size: 13px;
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
-    box-sizing: border-box;
+    text-transform: lowercase;
   }
 
-  .dropdown:hover {
-    border-color: #555;
-    background: #2a2a2a;
-  }
-
-  .dropdown:focus {
-    outline: none;
+  .action-button:hover {
+    background: #3b82f6;
     border-color: #3b82f6;
+    transform: translateY(-1px);
   }
 
-  .dropdown option {
-    background: #262832;
-    color: #ffffff;
+  .action-button:active {
+    transform: translateY(0);
+  }
+
+  .keybinding-section {
+    margin-bottom: 24px;
+  }
+
+  .keybinding-section h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #F2F8FC;
+    margin-bottom: 12px;
+  }
+
+  .keybinding-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+  }
+
+  .keybinding-label {
+    font-size: 13px;
+    color: #9ca3af;
+    font-weight: 400;
+  }
+
+  .keybinding-shortcut {
+    font-size: 13px;
+    color: #F2F8FC;
+    font-weight: 500;
+    text-transform: lowercase;
+  }
+
+  .enable-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .enable-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .enable-label {
+    font-size: 13px;
+    color: #9ca3af;
+    font-weight: 400;
   }
 
   .toggle {
@@ -612,34 +355,6 @@
   .toggle input:checked + .slider:before {
     transform: translateX(20px);
     background-color: white;
-  }
-
-  .submit-button {
-    width: 225px;
-    height: 48px;
-    background: #3b82f6;
-    color: white;
-    border: none;
-    border-radius: 0;
-    padding: 12px 24px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    position: absolute;
-    bottom: 20px;
-    right: 20px;
-    box-sizing: border-box;
-    z-index: 10;
-  }
-
-  .submit-button:hover {
-    background: #2563eb;
-    transform: translateY(-1px);
-  }
-
-  .submit-button:active {
-    transform: translateY(0);
   }
 </style>
 

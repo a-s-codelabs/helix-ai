@@ -19,5 +19,14 @@ export default defineConfig({
     action: {
       default_title: 'Open Helix AI',
     },
+    commands: {
+      'open-floating-telescope': {
+        suggested_key: {
+          default: 'Ctrl+E',
+          mac: 'Command+E',
+        },
+        description: 'Open floating telescope search',
+      },
+    },
   },
 });

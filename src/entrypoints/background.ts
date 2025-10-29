@@ -58,6 +58,29 @@ export default defineBackground(() => {
       }
     });
   }
+  // Handle keyboard shortcuts via Commands API
+  if (chrome.commands && chrome.commands.onCommand) {
+    chrome.commands.onCommand.addListener(async (command) => {
+      console.log(`Command received: ${command}`);
+      if (command === 'open-floating-telescope') {
+        try {
+          const tabs = await chrome.tabs.query({
+            active: true,
+            currentWindow: true,
+          });
+          const activeTab = tabs[0];
+          if (activeTab?.id) {
+            chrome.tabs.sendMessage(activeTab.id, {
+              action: 'openTelescope',
+            });
+          }
+        } catch (error) {
+          console.error('Error opening floating telescope:', error);
+        }
+      }
+    });
+  }
+
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log(`BACKGROUND: MESSAGE`, message.type);
     if (message.type === 'OPEN_TO_SIDE_PANEL') {
