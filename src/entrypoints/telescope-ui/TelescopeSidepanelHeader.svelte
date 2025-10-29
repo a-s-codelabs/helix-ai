@@ -55,9 +55,7 @@
   // Check download status
   async function checkDownloadStatus() {
     try {
-      console.log("==== Check for status ====");
       const status = await globalStorage().get("downloadStatus");
-      console.log("==== Status ====", status);
       if (status) {
         downloadStatuses = status;
 

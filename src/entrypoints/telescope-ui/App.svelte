@@ -5,6 +5,8 @@
   import { globalStorage } from "@/lib/globalStorage";
   import { Message, State } from "./type";
   import TelescopeSidepanelHeader from "./TelescopeSidepanelHeader.svelte";
+  import { handleAskHelper } from "./handleAsk";
+
 
   let currentState: State = $state("ask");
   let inputValue = $state("");
@@ -126,10 +128,8 @@
     inputValue = value;
   }
 
-  function handleAsk({ value, images }: { value: string; images?: string[] }) {
-    if (value.trim()) {
-      chatStore.sendMessageStreaming(value, images);
-    }
+  function handleAsk(opts: AskOptions) {
+    handleAskHelper(opts);
   }
 
   function handleSuggestedQuestion({ question }: { question: string }) {
