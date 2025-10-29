@@ -1,6 +1,6 @@
 type TabId = `tab_id_${number}`;
 
-
+export type InputIntent = "translator" | "summarize" | "prompt" | "writer" | "rewriter";
 export type Source = "translator" | "summarize" | "prompt" | "writer" | "rewriter" | "language-detector";
 
 export const DB_SCHEMA = {
@@ -53,6 +53,9 @@ export const DB_SCHEMA = {
       // isStreaming: boolean;
       // streamingId: number | null;
     } & ({
+      actionSource: "addToChat";
+      content: string;
+    } | {
       actionSource: "summarise";
       content: string;
     } | {
@@ -71,10 +74,7 @@ export const DB_SCHEMA = {
       }[];
     } | {
       actionSource: "popup";
-    } | {
-      actionSource: "addToChat";
-      content: string;
-    } | {
+    } |  {
       actionSource: "context-image";
       content: string;
     }),

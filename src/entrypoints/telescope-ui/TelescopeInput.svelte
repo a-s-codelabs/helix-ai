@@ -3,6 +3,7 @@
   import AttachmentIcon from "./icons/Attachment.svelte";
   import SearchAiIcon from "./icons/SearchAi.svelte";
   import CloseIcon from "./icons/Close.svelte";
+  import SettingsIcon from "./icons/Settings.svelte";
   import type { InputProps, State } from "./type";
   import SendIcon from "./icons/Send.svelte";
   import StopIcon from "./icons/Stop.svelte";
@@ -281,6 +282,15 @@
       ></textarea>
 
       {#if !isInputExpanded}
+        <!-- Settings icon placed to the left of the vertical separator -->
+        <button
+          class="icon-button"
+          title="Settings"
+          aria-label="Settings"
+        >
+          <SettingsIcon />
+        </button>
+
         <div class="separator"></div>
 
         <div class="action-icons">
