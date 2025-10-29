@@ -63,6 +63,16 @@
   // Derived current icon component for the input
   const CurrentIntentIcon = $derived(intentToIcon[selectedIntent] ?? SearchAiIcon);
 
+  // Action button label based on selected intent
+  const intentToActionLabel: Record<Intent, string> = {
+    prompt: "Ask",
+    summarise: "Summarise",
+    translate: "Translate",
+    write: "Write",
+    rewrite: "Rewrite",
+  };
+  const currentActionLabel = $derived(intentToActionLabel[selectedIntent] ?? "Ask");
+
   $effect(() => {
     isInSidePanel =
       window.location.pathname.includes("sidepanel") ||
@@ -367,7 +377,7 @@
 
         {#if inputState === "ask"}
           <div class="ask-button-container">
-            <button class="ask-button" onclick={handleAsk}>Ask</button>
+            <button class="ask-button" onclick={handleAsk}>{currentActionLabel}</button>
             {#if !isInSidePanel}
               <button
                 class="close-button"
@@ -461,7 +471,7 @@
 
             {#if inputState === "ask"}
               <div class="ask-button-container">
-                <button class="ask-button" onclick={handleAsk}> Ask </button>
+                <button class="ask-button" onclick={handleAsk}> {currentActionLabel} </button>
                 {#if !isInSidePanel}
                   <button
                     class="close-button"
