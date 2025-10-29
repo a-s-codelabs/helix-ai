@@ -43,7 +43,7 @@
 
   // Hover menu for search icon: choose intent and adapt placeholder
   let showIntentMenu = $state(false);
-  let selectedIntent = $state<Intent>("summarise");
+  let selectedIntent = $state<Intent>("prompt");
   let intentTriggerElement: HTMLDivElement;
 
   // Settings popup state
