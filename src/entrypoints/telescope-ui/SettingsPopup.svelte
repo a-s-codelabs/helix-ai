@@ -18,6 +18,8 @@
     values = $bindable({} as SettingsValues),
     onChange,
     onClose,
+    onSave,
+    onReset,
   } = $props();
 
   // Get options for the current intent
@@ -67,14 +69,81 @@
     });
   });
 
+  // Get default values for current intent
+  function getDefaultValues(): SettingsValues {
+    if (!intent) return {};
+
+    const intentKey = intent as IntentKey;
+    const options = option[intentKey] || [];
+    const defaults: SettingsValues = {};
+
+    options.forEach((opt) => {
+      if (opt.id) {
+        if (opt.defaultValue !== undefined) {
+          defaults[opt.id] = opt.defaultValue;
+        } else if (
+          opt.uiType === 'dropdown' &&
+          opt.options &&
+          opt.options.length > 0
+        ) {
+          // For dropdowns without default, use first option
+          const firstOption = opt.options[0];
+          if (typeof firstOption === 'object' && 'value' in firstOption) {
+            defaults[opt.id] = firstOption.value;
+          }
+        } else if (opt.uiType === 'slider' && opt.min !== undefined) {
+          // For sliders without default, use min value
+          defaults[opt.id] = opt.min;
+        }
+      }
+    });
+
+    return defaults;
+  }
+
   function handleDropdownChange(optionId: string, value: OptionValue) {
     values[optionId] = value;
     onChange?.({ id: optionId, value });
+    // Auto-save on change - use $effect to ensure values are updated before saving
+    if (intent) {
+      // Use setTimeout to ensure the value is set before saving
+      setTimeout(() => {
+        onSave?.({ intent, values: { ...values } });
+      }, 0);
+    }
   }
 
   function handleSliderChange(optionId: string, value: number) {
     values[optionId] = value;
     onChange?.({ id: optionId, value });
+    // Auto-save on change - use $effect to ensure values are updated before saving
+    if (intent) {
+      // Use setTimeout to ensure the value is set before saving
+      setTimeout(() => {
+        onSave?.({ intent, values: { ...values } });
+      }, 0);
+    }
+  }
+
+  function handleReset() {
+    if (!intent) return;
+
+    const defaults = getDefaultValues();
+    // Reset all values to defaults
+    Object.keys(values).forEach((key) => {
+      if (defaults[key] !== undefined) {
+        values[key] = defaults[key];
+      } else {
+        delete values[key];
+      }
+    });
+
+    // Set missing defaults
+    Object.assign(values, defaults);
+
+    // Trigger save after reset
+    onSave?.({ intent, values: { ...values } });
+    onReset?.();
   }
 
   function getCurrentValue(optionId: string): OptionValue {
@@ -153,6 +222,17 @@
           </div>
         {/if}
       {/each}
+    </div>
+
+    <div class="settings-footer">
+      <button
+        class="reset-button"
+        onclick={handleReset}
+        title="Reset to defaults"
+        aria-label="Reset to defaults"
+      >
+        Reset
+      </button>
     </div>
   </div>
   {:else}
@@ -240,6 +320,38 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+  }
+
+  .settings-footer {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #374151;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .reset-button {
+    background: #374151;
+    border: 1px solid #4b5563;
+    border-radius: 6px;
+    color: #e5e7eb;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+  }
+
+  .reset-button:hover {
+    background: #4b5563;
+    border-color: #6b7280;
+    color: #f3f4f6;
+  }
+
+  .reset-button:active {
+    background: #1f2937;
+    transform: scale(0.98);
   }
 
   .settings-option {

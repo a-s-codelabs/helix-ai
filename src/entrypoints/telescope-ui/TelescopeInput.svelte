@@ -51,6 +51,9 @@
   let settingsButtonElement: HTMLButtonElement;
   let settingsValues = $state<Record<string, string | number>>({});
 
+  // Storage instance for saving settings
+  const storage = globalStorage();
+
   const intentToPlaceholder: Record<Intent, string> = {
     prompt: "Ask...",
     summarise: "Summarize this site...",
@@ -137,6 +140,39 @@
     // You can add additional logic here if needed
     console.log('Settings changed:', { id, value, allValues: settingsValues });
   }
+
+  async function handleSettingsSave({ intent, values }: { intent: Intent; values: Record<string, string | number> }) {
+    try {
+      const currentSettings = await storage.get('telescopeSettings') || {};
+      const updatedSettings = {
+        ...currentSettings,
+        [intent]: values,
+      };
+      await storage.set('telescopeSettings', updatedSettings);
+      console.log('Settings saved for intent:', intent, values);
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+    }
+  }
+
+  // Load saved settings when intent changes
+  $effect(async () => {
+    if (!selectedIntent) return;
+
+    try {
+      const savedSettings = await storage.get('telescopeSettings');
+      if (savedSettings && savedSettings[selectedIntent]) {
+        // Merge saved settings with current values to preserve any existing defaults
+        settingsValues = { ...settingsValues, ...savedSettings[selectedIntent] };
+        console.log('Settings loaded for intent:', selectedIntent, settingsValues);
+      } else {
+        // No saved settings, so values will be initialized by SettingsPopup's default logic
+        settingsValues = {};
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+    }
+  });
 
   $effect(() => {
     // Attach listener once; it's cheap and guarded inside handler
@@ -398,6 +434,7 @@
               bind:values={settingsValues}
               onChange={handleSettingsChange}
               onClose={handleSettingsClose}
+              onSave={handleSettingsSave}
             />
           {/if}
         </div>
@@ -517,6 +554,7 @@
                   bind:values={settingsValues}
                   onChange={handleSettingsChange}
                   onClose={handleSettingsClose}
+                  onSave={handleSettingsSave}
                 />
               {/if}
             </div>
