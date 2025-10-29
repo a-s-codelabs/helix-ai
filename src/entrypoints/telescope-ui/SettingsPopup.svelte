@@ -1,6 +1,7 @@
 <script lang="ts">
   import { option } from './optionType/index';
   import CloseIcon from './icons/Close.svelte';
+  import TrashIcon from './icons/Trash.svelte';
 
   export type Intent =
     | 'prompt'
@@ -156,14 +157,24 @@
     <div class="settings-popup" role="dialog" aria-label="Settings">
     <div class="settings-header">
       <h3 class="settings-title">Settings</h3>
-      <button
-        class="close-button"
-        onclick={onClose}
-        title="Close settings"
-        aria-label="Close settings"
-      >
-        <CloseIcon />
-      </button>
+      <div class="header-buttons">
+        <button
+          class="trash-button"
+          onclick={handleReset}
+          title="Reset to defaults"
+          aria-label="Reset to defaults"
+        >
+          <TrashIcon />
+        </button>
+        <button
+          class="close-button"
+          onclick={onClose}
+          title="Close settings"
+          aria-label="Close settings"
+        >
+          <CloseIcon />
+        </button>
+      </div>
     </div>
 
     <div class="settings-content">
@@ -223,30 +234,29 @@
         {/if}
       {/each}
     </div>
-
-    <div class="settings-footer">
-      <button
-        class="reset-button"
-        onclick={handleReset}
-        title="Reset to defaults"
-        aria-label="Reset to defaults"
-      >
-        Reset
-      </button>
-    </div>
   </div>
   {:else}
     <div class="settings-popup" role="dialog" aria-label="Settings">
       <div class="settings-header">
         <h3 class="settings-title">Settings</h3>
-        <button
-          class="close-button"
-          onclick={onClose}
-          title="Close settings"
-          aria-label="Close settings"
-        >
-          <CloseIcon />
-        </button>
+        <div class="header-buttons">
+          <button
+            class="trash-button"
+            onclick={handleReset}
+            title="Reset to defaults"
+            aria-label="Reset to defaults"
+          >
+            <TrashIcon />
+          </button>
+          <button
+            class="close-button"
+            onclick={onClose}
+            title="Close settings"
+            aria-label="Close settings"
+          >
+            <CloseIcon />
+          </button>
+        </div>
       </div>
       <div class="settings-content">
         <p style="color: #9ca3af; font-size: 14px;">No settings available for this intent.</p>
@@ -298,6 +308,12 @@
     color: #e5e7eb;
   }
 
+  .header-buttons {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
   .close-button {
     background: none;
     border: none;
@@ -322,14 +338,6 @@
     gap: 16px;
   }
 
-  .settings-footer {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid #374151;
-    display: flex;
-    justify-content: flex-end;
-  }
-
   .reset-button {
     background: #374151;
     border: 1px solid #4b5563;
@@ -350,6 +358,29 @@
   }
 
   .reset-button:active {
+    background: #1f2937;
+    transform: scale(0.98);
+  }
+
+  .trash-button {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+
+  .trash-button:hover {
+    background: #374151;
+    color: #ef4444;
+  }
+
+  .trash-button:active {
     background: #1f2937;
     transform: scale(0.98);
   }
