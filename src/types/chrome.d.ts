@@ -143,3 +143,93 @@ declare namespace chrome {
     function generateText(options: TextGenerationOptions, callback: (result: TextGenerationResult) => void): void;
   }
 
+  // Chrome Built-in AI APIs
+  namespace ai {
+    // Writer API
+    interface WriterCreateOptions {
+      tone?: 'formal' | 'neutral' | 'casual';
+      format?: 'markdown' | 'plain-text';
+      length?: 'short' | 'medium' | 'long';
+      sharedContext?: string;
+      outputLanguage?: string;
+      expectedInputLanguages?: string[];
+      expectedContextLanguages?: string[];
+    }
+
+    interface WriterInstance {
+      write(prompt: string, options?: { context?: string }): Promise<string>;
+      writeStreaming(prompt: string, options?: { context?: string }): AsyncGenerator<string>;
+      destroy(): void;
+    }
+
+    interface Writer {
+      availability(): Promise<'available' | 'after-download' | 'unavailable'>;
+      create(options?: WriterCreateOptions): Promise<WriterInstance>;
+    }
+
+    // Rewriter API
+    interface RewriterCreateOptions {
+      tone?: 'as-is' | 'more-formal' | 'more-casual';
+      format?: 'as-is' | 'markdown' | 'plain-text';
+      length?: 'as-is' | 'shorter' | 'longer';
+      sharedContext?: string;
+      outputLanguage?: string;
+      expectedInputLanguages?: string[];
+      expectedContextLanguages?: string[];
+    }
+
+    interface RewriterInstance {
+      rewrite(text: string, options?: { context?: string }): Promise<string>;
+      rewriteStreaming(text: string, options?: { context?: string }): AsyncGenerator<string>;
+      destroy(): void;
+    }
+
+    interface Rewriter {
+      availability(): Promise<'available' | 'after-download' | 'unavailable'>;
+      create(options?: RewriterCreateOptions): Promise<RewriterInstance>;
+    }
+
+    // Proofreader API
+    interface ProofreaderCreateOptions {
+      expectedInputLanguages?: string[];
+    }
+
+    interface ProofreadCorrection {
+      startIndex: number;
+      endIndex: number;
+      correctionType: string;
+      explanation?: string;
+    }
+
+    interface ProofreadResult {
+      corrected: string;
+      corrections: ProofreadCorrection[];
+    }
+
+    interface ProofreaderInstance {
+      proofread(text: string): Promise<ProofreadResult>;
+      destroy(): void;
+    }
+
+    interface Proofreader {
+      availability(): Promise<'available' | 'after-download' | 'unavailable'>;
+      create(options?: ProofreaderCreateOptions): Promise<ProofreaderInstance>;
+    }
+  }
+}
+
+// Global AI API declarations
+declare const Writer: chrome.ai.Writer;
+declare const Rewriter: chrome.ai.Rewriter;
+declare const Proofreader: chrome.ai.Proofreader;
+
+// Type aliases for easier usage
+type WriterInstance = chrome.ai.WriterInstance;
+type WriterCreateOptions = chrome.ai.WriterCreateOptions;
+type RewriterInstance = chrome.ai.RewriterInstance;
+type RewriterCreateOptions = chrome.ai.RewriterCreateOptions;
+type ProofreaderInstance = chrome.ai.ProofreaderInstance;
+type ProofreaderCreateOptions = chrome.ai.ProofreaderCreateOptions;
+type ProofreadResult = chrome.ai.ProofreadResult;
+type ProofreadCorrection = chrome.ai.ProofreadCorrection;
+

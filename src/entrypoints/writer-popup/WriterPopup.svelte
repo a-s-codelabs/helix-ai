@@ -6,13 +6,18 @@
   import Helix from '../telescope-ui/icons/Helix.svelte';
   /*@ts-ignore */
   import Settings from '../telescope-ui/icons/Settings.svelte';
+  /*@ts-ignore */
+  import Send from '../telescope-ui/icons/Send.svelte';
   import {
     writeContentStreaming,
     checkWriterAvailability,
     rewriteContentStreaming,
     checkRewriterAvailability,
+    proofreadContentStreaming,
+    checkProofreaderAvailability,
     type WriterOptions,
     type RewriterOptions,
+    type ProofreaderOptions,
   } from '../../lib/writerApiHelper';
 
   interface Props {
@@ -24,7 +29,7 @@
   let { targetElement, onClose, onDragStart }: Props = $props();
 
   // Mode
-  type Mode = 'writer' | 'rewriter';
+  type Mode = 'writer' | 'rewriter' | 'proofreader';
   let mode = $state<Mode>('writer');
 
   // State
@@ -53,6 +58,15 @@
   let rewriterTone = $state<'as-is' | 'more-formal' | 'more-casual'>('as-is');
   let rewriterLength = $state<'as-is' | 'shorter' | 'longer'>('as-is');
   let rewriterFormat = $state<'as-is' | 'markdown' | 'plain-text'>('as-is');
+
+  // Proofreader options
+  let proofreaderInputLangs = $state({
+    en: true, // Default to English
+    fr: false,
+    ja: false,
+    pt: false,
+    es: false,
+  });
 
   // Common options
   let outputLanguage = $state('en');
@@ -84,11 +98,13 @@
       const availability =
         mode === 'writer'
           ? await checkWriterAvailability()
-          : await checkRewriterAvailability();
+          : mode === 'rewriter'
+          ? await checkRewriterAvailability()
+          : await checkProofreaderAvailability();
 
       apiAvailable = availability;
 
-      const apiName = mode === 'writer' ? 'Writer' : 'Rewriter';
+      const apiName = mode === 'writer' ? 'Writer' : mode === 'rewriter' ? 'Rewriter' : 'Proofreader';
 
       if (availability === 'unavailable') {
         error = `${apiName} API is not available. Please use Chrome 129+ with Built-in AI enabled.`;
@@ -103,14 +119,14 @@
   });
 
   // Get context from existing text in the textarea
-  // For rewriter mode, also capture selected text if any
+  // For rewriter and proofreader modes, also capture selected text if any
   $effect(() => {
     if (targetElement && targetElement.value) {
       context = targetElement.value;
     }
 
-    // In rewriter mode, check for selected text
-    if (mode === 'rewriter' && targetElement) {
+    // In rewriter or proofreader mode, check for selected text
+    if ((mode === 'rewriter' || mode === 'proofreader') && targetElement) {
       const start = targetElement.selectionStart || 0;
       const end = targetElement.selectionEnd || 0;
 
@@ -139,7 +155,7 @@
       const textarea = document.querySelector('.prompt-textarea') as HTMLTextAreaElement;
       if (mode === 'writer' && input) {
         input.focus();
-      } else if (mode === 'rewriter' && textarea) {
+      } else if ((mode === 'rewriter' || mode === 'proofreader') && textarea) {
         textarea.focus();
       }
     }, 0);
@@ -147,7 +163,7 @@
 
   async function handleGenerate() {
     if (!prompt.trim()) {
-      error = mode === 'writer' ? 'Please enter a prompt' : 'Please enter text to rewrite';
+      error = mode === 'writer' ? 'Please enter a prompt' : mode === 'rewriter' ? 'Please enter text to rewrite' : 'Please enter text to proofread';
       return;
     }
 
@@ -219,7 +235,7 @@
         }
 
         console.log('[Writer API] Generated text:', streamedContent);
-      } else {
+      } else if (mode === 'rewriter') {
         // Rewriter mode
         const options: RewriterOptions = {
           tone: rewriterTone,
@@ -276,6 +292,58 @@
         }
 
         console.log('[Rewriter API] Rewritten text:', streamedContent);
+      } else if (mode === 'proofreader') {
+        // Proofreader mode
+        const selectedProofreaderLangs = Object.entries(proofreaderInputLangs)
+          .filter(([_, checked]) => checked)
+          .map(([lang]) => lang);
+
+        const options: ProofreaderOptions = {
+          ...(selectedProofreaderLangs.length > 0 && {
+            expectedInputLanguages: selectedProofreaderLangs,
+          }),
+        };
+
+        console.log('[Proofreader API] Proofreading with streaming:', {
+          text: prompt.trim(),
+          options,
+        });
+
+        // Stream the content
+        const stream = proofreadContentStreaming(
+          {
+            text: prompt.trim(),
+          },
+          options
+        );
+
+        for await (const chunk of stream) {
+          if (abortController?.signal.aborted) {
+            console.log('[Proofreader API] Proofreading stopped by user');
+            break;
+          }
+
+          // Proofreader API returns the corrected text directly
+          streamedContent = chunk;
+
+          // Update target element in real-time
+          if (targetElement) {
+            if (selectionStart !== null && selectionEnd !== null) {
+              // Replace only selected text
+              targetElement.value = textBeforeSelection + streamedContent + textAfterSelection;
+
+              // Set cursor at the end of the proofread content
+              const newCursorPosition = textBeforeSelection.length + streamedContent.length;
+              targetElement.setSelectionRange(newCursorPosition, newCursorPosition);
+            } else {
+              // Replace entire content
+              targetElement.value = streamedContent;
+            }
+            targetElement.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        }
+
+        console.log('[Proofreader API] Proofread text:', streamedContent);
       }
 
       // Finalize and ensure all events are dispatched
@@ -285,18 +353,19 @@
           // Just ensure the change event is dispatched
           targetElement.dispatchEvent(new Event('change', { bubbles: true }));
         } else {
-          // For rewriter, the content is already replaced during streaming
-          // Supports rewriting only selected text or entire content
+          // For rewriter and proofreader, the content is already replaced during streaming
+          // Supports rewriting/proofreading only selected text or entire content
           targetElement.dispatchEvent(new Event('change', { bubbles: true }));
         }
 
         targetElement.focus();
-        console.log(`[${mode === 'writer' ? 'Writer' : 'Rewriter'} API] Final value set:`, targetElement.value);
+        console.log(`[${mode === 'writer' ? 'Writer' : mode === 'rewriter' ? 'Rewriter' : 'Proofreader'} API] Final value set:`, targetElement.value);
       }
 
       // Show success notification if not aborted
       if (!abortController?.signal.aborted && streamedContent) {
-        showSuccessNotification(mode === 'writer' ? 'Content generated!' : 'Content rewritten!');
+        const successMessage = mode === 'writer' ? 'Content generated!' : mode === 'rewriter' ? 'Content rewritten!' : 'Content proofread!';
+        showSuccessNotification(successMessage);
 
         // Close the popup
         setTimeout(() => {
@@ -305,9 +374,9 @@
       }
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
-        console.log(`[${mode === 'writer' ? 'Writer' : 'Rewriter'} API] Generation aborted`);
+        console.log(`[${mode === 'writer' ? 'Writer' : mode === 'rewriter' ? 'Rewriter' : 'Proofreader'} API] Generation aborted`);
       } else {
-        console.error(`[${mode === 'writer' ? 'Writer' : 'Rewriter'} API] Error:`, err);
+        console.error(`[${mode === 'writer' ? 'Writer' : mode === 'rewriter' ? 'Rewriter' : 'Proofreader'} API] Error:`, err);
         error =
           err instanceof Error ? err.message : 'Failed to generate content';
       }
@@ -382,6 +451,15 @@
     rewriterLength = 'as-is';
     rewriterFormat = 'as-is';
 
+    // Reset proofreader options
+    proofreaderInputLangs = {
+      en: true, // Default to English
+      fr: false,
+      ja: false,
+      pt: false,
+      es: false,
+    };
+
     // Reset common options
     outputLanguage = 'en';
     inputLangs = {
@@ -401,8 +479,16 @@
     context = '';
   }
 
-  function handleModeToggle() {
-    mode = mode === 'writer' ? 'rewriter' : 'writer';
+  function handleWriterMode() {
+    mode = 'writer';
+  }
+
+  function handleRewriterMode() {
+    mode = 'rewriter';
+  }
+
+  function handleProofreaderMode() {
+    mode = 'proofreader';
   }
 
   function handleKeydown(event: KeyboardEvent) {
@@ -440,13 +526,46 @@
       <span class="icon">
         <Helix />
       </span>
+      <button
+        class="header-btn mode-btn writer-btn"
+        onclick={handleWriterMode}
+        type="button"
+        aria-label="Writer mode"
+        disabled={isGenerating}
+        class:active={mode === 'writer'}
+      >
+        Writer
+      </button>
+      <button
+        class="header-btn mode-btn rewriter-btn"
+        onclick={handleRewriterMode}
+        type="button"
+        aria-label="Rewriter mode"
+        disabled={isGenerating}
+        class:active={mode === 'rewriter'}
+      >
+        Rewriter
+      </button>
+      <button
+        class="header-btn mode-btn proofreader-btn"
+        onclick={handleProofreaderMode}
+        type="button"
+        aria-label="Proofreader mode"
+        disabled={isGenerating}
+        class:active={mode === 'proofreader'}
+      >
+        Proofreader
+      </button>
+    </div>
+
+    <div class="header-right">
       {#if isGenerating}
         <button
           type="button"
           class="header-action-btn stop"
           onclick={handleStop}
         >
-          ■ Stop
+          Stop
         </button>
       {:else}
         <button
@@ -455,20 +574,10 @@
           onclick={handleGenerate}
           disabled={!prompt.trim()}
         >
-          {mode === 'writer' ? 'Write' : 'Rewrite'}
+          <Send />
         </button>
       {/if}
-    </div>
-    <div class="header-right">
-      <button
-        class="header-btn mode-toggle"
-        onclick={handleModeToggle}
-        type="button"
-        aria-label="Toggle mode"
-        disabled={isGenerating}
-      >
-        {mode === 'writer' ? '✍️ Writer' : '🔄 Rewriter'}
-      </button>
+
       <!-- <button
         class="header-btn"
         onclick={() => (showOptions = !showOptions)}
@@ -500,7 +609,7 @@
         type="text"
         bind:value={prompt}
         placeholder={`Add prompt to ${
-          mode === 'writer' ? 'write' : 'rewrite'
+          mode === 'writer' ? 'write' : mode === 'rewriter' ? 'rewrite' : 'proofread'
         } here...`}
         class="prompt-textarea"
         rows="3"
@@ -508,7 +617,7 @@
       />
       {#if selectionStart !== null && selectionEnd !== null}
         <div class="selection-info">
-          ✓ Rewriting selected text only ({selectionEnd - selectionStart} chars)
+          ✓ {mode === 'rewriter' ? 'Rewriting' : 'Proofreading'} selected text only ({selectionEnd - selectionStart} chars)
         </div>
       {/if}
 
@@ -550,7 +659,7 @@
                 <option value="neutral">Neutral</option>
                 <option value="casual">Casual</option>
               </select>
-            {:else}
+            {:else if mode === 'rewriter'}
               <select
                 id="tone"
                 bind:value={rewriterTone}
@@ -559,6 +668,11 @@
                 <option value="as-is">As-Is</option>
                 <option value="more-formal">More Formal</option>
                 <option value="more-casual">More Casual</option>
+              </select>
+            {:else}
+              <!-- Proofreader mode doesn't have tone options -->
+              <select disabled>
+                <option>N/A</option>
               </select>
             {/if}
           </div>
@@ -575,7 +689,7 @@
                 <option value="medium">Medium</option>
                 <option value="long">Long</option>
               </select>
-            {:else}
+            {:else if mode === 'rewriter'}
               <select
                 id="length"
                 bind:value={rewriterLength}
@@ -584,6 +698,11 @@
                 <option value="as-is">As-Is</option>
                 <option value="shorter">Shorter</option>
                 <option value="longer">Longer</option>
+              </select>
+            {:else}
+              <!-- Proofreader mode doesn't have length options -->
+              <select disabled>
+                <option>N/A</option>
               </select>
             {/if}
           </div>
@@ -599,7 +718,7 @@
                 <option value="plain-text">Plain Text</option>
                 <option value="markdown">Markdown</option>
               </select>
-            {:else}
+            {:else if mode === 'rewriter'}
               <select
                 id="format"
                 bind:value={rewriterFormat}
@@ -608,6 +727,11 @@
                 <option value="as-is">As-Is</option>
                 <option value="plain-text">Plain Text</option>
                 <option value="markdown">Markdown</option>
+              </select>
+            {:else}
+              <!-- Proofreader mode doesn't have format options -->
+              <select disabled>
+                <option>N/A</option>
               </select>
             {/if}
           </div>
@@ -629,7 +753,56 @@
           </select>
         </div>
 
-        <!-- Input Quota Info -->
+        <!-- Proofreader Language Options -->
+        {#if mode === 'proofreader'}
+          <div class="field">
+            <fieldset class="checkbox-fieldset">
+              <legend>Expected Input Languages</legend>
+              <div class="checkbox-group">
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    bind:checked={proofreaderInputLangs.en}
+                    disabled={isGenerating}
+                  />
+                  <span>English</span>
+                </label>
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    bind:checked={proofreaderInputLangs.fr}
+                    disabled={isGenerating}
+                  />
+                  <span>French</span>
+                </label>
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    bind:checked={proofreaderInputLangs.ja}
+                    disabled={isGenerating}
+                  />
+                  <span>Japanese</span>
+                </label>
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    bind:checked={proofreaderInputLangs.pt}
+                    disabled={isGenerating}
+                  />
+                  <span>Portuguese</span>
+                </label>
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    bind:checked={proofreaderInputLangs.es}
+                    disabled={isGenerating}
+                  />
+                  <span>Spanish</span>
+                </label>
+              </div>
+            </fieldset>
+          </div>
+        {/if}
         <!-- <div class="info-section">
           <span class="info-label">Input Quota:</span>
           <span class="info-value">~6000 characters</span>
@@ -775,7 +948,7 @@
 <style>
   .writer-popup {
     position: fixed;
-    width: 360px;
+    width: 410px;
     background: #18181b;
     border-radius: 8px;
     box-shadow:
@@ -819,7 +992,6 @@
     padding: 6px 16px;
     border: none;
     border-radius: 8px;
-    font-size: 13px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -833,16 +1005,21 @@
   .header-action-btn.generate {
     background: #3b82f6;
     color: white;
-    /* Match TelescopeInput .ask-button styles */
-    padding: 6px 14px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
     border-radius: 8px;
-    font-weight: 600;
-    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transition: all 0.2s ease;
     flex-shrink: 0;
-    white-space: nowrap;
-    height: fit-content;
     align-self: center;
+  }
+
+  .header-action-btn.generate :global(svg) {
+    width: 14px;
+    height: 14px;
   }
 
   .header-action-btn.generate:hover:not(:disabled) {
@@ -896,14 +1073,24 @@
     cursor: not-allowed;
   }
 
-  .header-btn.mode-toggle {
+  .header-btn.mode-btn {
     background: #3f3f46;
     color: #e4e4e7;
     font-weight: 500;
+    margin-right: 4px;
   }
 
-  .header-btn.mode-toggle:hover:not(:disabled) {
+  .header-btn.mode-btn:hover:not(:disabled) {
     background: #52525b;
+  }
+
+  .header-btn.mode-btn.active {
+    background: #3b82f6;
+    color: #ffffff;
+  }
+
+  .header-btn.mode-btn.active:hover:not(:disabled) {
+    background: #3b82f6cc;
   }
 
   .header-btn.close {
@@ -1020,7 +1207,7 @@
 
   .prompt-textarea:focus {
     outline: none;
-    border-color: #a78bfa;
+    border-color: #3b82f6;
     background: #18181b;
   }
 
