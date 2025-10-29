@@ -30,6 +30,19 @@
 
   let isInSidePanel = $state(false);
 
+  // Hover menu for search icon: choose intent and adapt placeholder
+  type Intent = "prompt" | "summarise" | "translate" | "write" | "rewrite";
+  let showIntentMenu = $state(false);
+  let selectedIntent = $state<Intent>("summarise");
+
+  const intentToPlaceholder: Record<Intent, string> = {
+    prompt: "Ask...",
+    summarise: "Summarize this site...",
+    translate: "Translate this content...",
+    write: "Write content...",
+    rewrite: "Rewrite selected text...",
+  };
+
   $effect(() => {
     isInSidePanel =
       window.location.pathname.includes("sidepanel") ||
@@ -37,8 +50,16 @@
       document.title.includes("Side Panel");
   });
 
-  // Dynamic placeholder based on side panel mode
-  let dynamicPlaceholder = $derived(isInSidePanel ? "Ask..." : placeholder);
+  // Dynamic placeholder based on side panel mode and selected intent
+  let dynamicPlaceholder = $derived(
+    (() => {
+      // If consumer provided a custom placeholder, prefer it for non-sidepanel when intent is summarise (default)
+      const base = intentToPlaceholder[selectedIntent] ?? "Ask...";
+      if (isInSidePanel) return selectedIntent === "summarise" ? "Ask..." : base;
+      // Outside sidepanel, allow component-supplied placeholder for summarise intent
+      return selectedIntent === "summarise" ? placeholder : base;
+    })()
+  );
 
   let inputElement: HTMLTextAreaElement;
   let inputBarElement: HTMLDivElement;
@@ -227,8 +248,21 @@
       class:input-expanded={isInputExpanded}
     >
       {#if !isInputExpanded}
-        <div class="icon search-icon">
+        <div
+          class="icon search-icon intent-trigger"
+          onmouseenter={() => (showIntentMenu = true)}
+          onmouseleave={() => (showIntentMenu = false)}
+        >
           <SearchAiIcon />
+          {#if showIntentMenu}
+            <div class="intent-menu" role="menu">
+              <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "prompt")}>Prompt</button>
+              <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "summarise")}>Summarise</button>
+              <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "translate")}>Translate</button>
+              <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "write")}>Write</button>
+              <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "rewrite")}>Rewrite</button>
+            </div>
+          {/if}
         </div>
       {/if}
       <!-- svelte-ignore a11y_autofocus -->
@@ -311,8 +345,21 @@
 
       {#if isInputExpanded}
         <div class="expand-bar">
-          <div class="icon search-icon">
+          <div
+            class="icon search-icon intent-trigger"
+            onmouseenter={() => (showIntentMenu = true)}
+            onmouseleave={() => (showIntentMenu = false)}
+          >
             <SearchAiIcon />
+            {#if showIntentMenu}
+              <div class="intent-menu" role="menu">
+                <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "prompt")}>Prompt</button>
+                <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "summarise")}>Summarise</button>
+                <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "translate")}>Translate</button>
+                <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "write")}>Write</button>
+                <button class="intent-item" role="menuitem" onclick={() => (selectedIntent = "rewrite")}>Rewrite</button>
+              </div>
+            {/if}
           </div>
           <div class="expand-bar-content">
             <div class="action-icons">
@@ -703,6 +750,47 @@
 
   .search-icon {
     color: #d1d5db;
+  }
+
+  /* Intent menu */
+  .intent-trigger {
+    position: relative;
+  }
+  .intent-menu {
+    position: absolute;
+    top: 36px;
+    left: 0;
+    background: #1f2937;
+    border: 1px solid #374151;
+    border-radius: 10px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column; /* show one by one */
+    gap: 4px;
+    z-index: 20;
+    min-width: 180px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+  }
+  /* Open upward in sidepanel mode */
+  .telescope-container.sidepanel-mode .intent-menu {
+    top: auto;
+    bottom: 36px;
+    box-shadow: 0 -8px 20px rgba(0,0,0,0.35);
+  }
+  .intent-item {
+    background: transparent;
+    color: #e5e7eb;
+    border: 1px solid transparent;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+  }
+  .intent-item:hover {
+    background: #374151;
+    border-color: #4b5563;
   }
 
   .input-field {
