@@ -141,6 +141,11 @@
     keyboardShortcut = await getKeyboardShortcut();
   }
 
+  // Open A S Codelabs website
+  function openASCodelabs() {
+    chrome.tabs.create({ url: "https://ascodelabs.com" });
+  }
+
   // Set up event listeners and load settings
   onMount(async () => {
     await loadSettings();
@@ -238,6 +243,11 @@
         <span class="slider"></span>
       </label>
     </div>
+  </div>
+
+  <div class="footer">
+    <span class="footer-text">Created by </span>
+    <button class="footer-link" onclick={openASCodelabs}>A S Codelabs</button>
   </div>
 </main>
 
@@ -463,6 +473,40 @@
   .toggle input:checked + .slider:before {
     transform: translateX(20px);
     background-color: white;
+  }
+
+  .footer {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid #374151;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .footer-text {
+    font-size: 12px;
+    color: #9ca3af;
+    font-weight: 400;
+  }
+
+  .footer-link {
+    background: none;
+    border: none;
+    color: #3b82f6;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: none;
+    transition: color 0.2s ease;
+    font-family: inherit;
+  }
+
+  .footer-link:hover {
+    color: #60a5fa;
+    text-decoration: underline;
   }
 </style>
 
