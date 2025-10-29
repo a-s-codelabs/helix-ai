@@ -13,6 +13,12 @@ import {
 } from "./helper";
 import { extractPageContent } from "./extract-helper";
 import { monitorHelperSync } from "./monitor-helper";
+import {
+  writeContentStreaming,
+  rewriteContentStreaming,
+  type WriterOptions,
+  type RewriterOptions,
+} from '../writerApiHelper';
 
 // Helper function for streaming operations
 async function processStream<T>(
@@ -20,7 +26,7 @@ async function processStream<T>(
   abortController: AbortController,
   onChunk: (chunk: T) => void,
   timeoutMs: number = 30000,
-  operationName: string = "stream"
+  operationName: string = 'stream'
 ): Promise<void> {
   const streamTimeout = setTimeout(() => {
     console.warn(`${operationName} timeout`);
@@ -63,17 +69,20 @@ async function processStream<T>(
 
 // Helper function to create AI sessions with monitoring
 async function createAISessionWithMonitor(
-  sessionType: "summarizer" | "languageDetector" | "translator",
+  sessionType: 'summarizer' | 'languageDetector' | 'translator',
   options: any = {},
   monitorOptions: any = {}
 ): Promise<any> {
   const monitor = (m: any) => {
     const createdAt = Date.now();
-    m.addEventListener("downloadprogress", (e: any) => {
+    m.addEventListener('downloadprogress', (e: any) => {
       monitorHelperSync({
-        source: sessionType === "summarizer" ? "summarize" :
-          sessionType === "languageDetector" ? "language-detector" :
-            "translator",
+        source:
+          sessionType === 'summarizer'
+            ? 'summarize'
+            : sessionType === 'languageDetector'
+            ? 'language-detector'
+            : 'translator',
         loaded: e.loaded,
         createdAt,
         options: monitorOptions,
@@ -82,21 +91,21 @@ async function createAISessionWithMonitor(
   };
 
   switch (sessionType) {
-    case "summarizer":
-      if (typeof Summarizer === "undefined") {
-        throw new Error("Summarizer API not available");
+    case 'summarizer':
+      if (typeof Summarizer === 'undefined') {
+        throw new Error('Summarizer API not available');
       }
       return await Summarizer.create({ ...options, monitor });
 
-    case "languageDetector":
-      if (typeof LanguageDetector === "undefined") {
-        throw new Error("LanguageDetector API not available");
+    case 'languageDetector':
+      if (typeof LanguageDetector === 'undefined') {
+        throw new Error('LanguageDetector API not available');
       }
       return await LanguageDetector.create({ ...options, monitor });
 
-    case "translator":
-      if (typeof Translator === "undefined") {
-        throw new Error("Translator API not available");
+    case 'translator':
+      if (typeof Translator === 'undefined') {
+        throw new Error('Translator API not available');
       }
       return await Translator.create({ ...options, monitor });
 
@@ -107,12 +116,12 @@ async function createAISessionWithMonitor(
 
 // Helper function to create message objects
 function createChatMessage(
-  type: "user" | "assistant",
+  type: 'user' | 'assistant',
   content: string,
   images?: string[]
 ): ChatMessage {
   return {
-    id: Date.now() + (type === "assistant" ? 1 : 0),
+    id: Date.now() + (type === 'assistant' ? 1 : 0),
     type,
     content,
     images: images || [],
@@ -181,7 +190,7 @@ function appendToStreamingMessage(
 
 export type ChatMessage = {
   id: number;
-  type: "user" | "assistant";
+  type: 'user' | 'assistant';
   content: string;
   images?: string[];
   timestamp: Date;
@@ -208,7 +217,7 @@ declare global {
   };
 
   type AICapabilities = {
-    available: "readily" | "after-download" | "no";
+    available: 'readily' | 'after-download' | 'no';
     defaultTemperature?: number;
     defaultTopK?: number;
     maxTopK?: number;
@@ -240,32 +249,32 @@ declare global {
 
   var LanguageModel:
     | {
-      availability(): Promise<
-        "readily" | "available" | "no" | "downloadable"
-      >;
-      create(
-        options?: AILanguageModelCreateOptions
-      ): Promise<AILanguageModel>;
-    }
+        availability(): Promise<
+          'readily' | 'available' | 'no' | 'downloadable'
+        >;
+        create(
+          options?: AILanguageModelCreateOptions
+        ): Promise<AILanguageModel>;
+      }
     | undefined;
 
   var Summarizer:
     | {
-      availability(): Promise<"readily" | "available" | "unavailable">;
-      create(options?: {
-        sharedContext?: string;
-        type?: "key-points" | "tldr" | "teaser" | "headline";
-        format?: "markdown" | "plain-text";
-        length?: "short" | "medium" | "long";
-        signal?: AbortSignal;
-        monitor?: (monitor: {
-          addEventListener: (
-            type: string,
-            listener: (e: any) => void
-          ) => void;
-        }) => void;
-      }): Promise<AISummarizer>;
-    }
+        availability(): Promise<'readily' | 'available' | 'unavailable'>;
+        create(options?: {
+          sharedContext?: string;
+          type?: 'key-points' | 'tldr' | 'teaser' | 'headline';
+          format?: 'markdown' | 'plain-text';
+          length?: 'short' | 'medium' | 'long';
+          signal?: AbortSignal;
+          monitor?: (monitor: {
+            addEventListener: (
+              type: string,
+              listener: (e: any) => void
+            ) => void;
+          }) => void;
+        }): Promise<AISummarizer>;
+      }
     | undefined;
 
   type AISummarizer = {
@@ -282,17 +291,17 @@ declare global {
 
   var LanguageDetector:
     | {
-      availability(): Promise<"readily" | "available" | "unavailable">;
-      create(options?: {
-        signal?: AbortSignal;
-        monitor?: (monitor: {
-          addEventListener: (
-            type: string,
-            listener: (e: any) => void
-          ) => void;
-        }) => void;
-      }): Promise<AILanguageDetector>;
-    }
+        availability(): Promise<'readily' | 'available' | 'unavailable'>;
+        create(options?: {
+          signal?: AbortSignal;
+          monitor?: (monitor: {
+            addEventListener: (
+              type: string,
+              listener: (e: any) => void
+            ) => void;
+          }) => void;
+        }): Promise<AILanguageDetector>;
+      }
     | undefined;
 
   type AILanguageDetector = {
@@ -304,22 +313,22 @@ declare global {
 
   var Translator:
     | {
-      availability(options: {
-        sourceLanguage: string;
-        targetLanguage: string;
-      }): Promise<"readily" | "available" | "unavailable">;
-      create(options: {
-        sourceLanguage: string;
-        targetLanguage: string;
-        signal?: AbortSignal;
-        monitor?: (monitor: {
-          addEventListener: (
-            type: string,
-            listener: (e: any) => void
-          ) => void;
-        }) => void;
-      }): Promise<AITranslator>;
-    }
+        availability(options: {
+          sourceLanguage: string;
+          targetLanguage: string;
+        }): Promise<'readily' | 'available' | 'unavailable'>;
+        create(options: {
+          sourceLanguage: string;
+          targetLanguage: string;
+          signal?: AbortSignal;
+          monitor?: (monitor: {
+            addEventListener: (
+              type: string,
+              listener: (e: any) => void
+            ) => void;
+          }) => void;
+        }): Promise<AITranslator>;
+      }
     | undefined;
 
   type AITranslator = {
@@ -357,26 +366,26 @@ async function createAISession(pageContext: string): Promise<AILanguageModel> {
 
   `;
 
-  if (typeof LanguageModel !== "undefined") {
+  if (typeof LanguageModel !== 'undefined') {
     const config = {
       systemPrompt: systemPrompt(2),
-      language: "en",
-      outputLanguage: "en",
-      output: { language: "en" },
-      expectedInputs: [{ type: "image" }],
+      language: 'en',
+      outputLanguage: 'en',
+      output: { language: 'en' },
+      expectedInputs: [{ type: 'image' }],
       temperature,
       topK,
       initialPrompts: [
         {
-          role: "system",
+          role: 'system',
           content: systemPrompt(6),
         },
       ],
       monitor(m: any) {
         const createdAt = Date.now();
-        m.addEventListener("downloadprogress", (e: any) => {
+        m.addEventListener('downloadprogress', (e: any) => {
           monitorHelperSync({
-            source: "prompt",
+            source: 'prompt',
             loaded: e.loaded,
             createdAt,
             options: {},
@@ -386,27 +395,27 @@ async function createAISession(pageContext: string): Promise<AILanguageModel> {
     };
     try {
       const availability = await LanguageModel.availability();
-      if (availability === "readily" || availability === "available") {
+      if (availability === 'readily' || availability === 'available') {
         return await LanguageModel.create(config);
       }
-      if (availability === "downloadable") {
+      if (availability === 'downloadable') {
         await LanguageModel.create(config);
         throw new Error(
-          "AI model is downloading. Check progress at chrome://components"
+          'AI model is downloading. Check progress at chrome://components'
         );
       }
     } catch (err) {
-      console.error("Global LanguageModel failed, trying window.ai...", err);
+      console.error('Global LanguageModel failed, trying window.ai...', err);
     }
   }
 
   throw new Error(
-    "Chrome Built-in AI not available.\n\n" +
-    "Please ensure:\n" +
-    "1. You are using Chrome 138+ (Dev/Canary/Beta)\n" +
-    "2. Flags are enabled at chrome:flags for Built-in AI\n" +
-    "3. Chrome has been fully restarted\n" +
-    "4. Model is downloaded at chrome://components"
+    'Chrome Built-in AI not available.\n\n' +
+      'Please ensure:\n' +
+      '1. You are using Chrome 138+ (Dev/Canary/Beta)\n' +
+      '2. Flags are enabled at chrome:flags for Built-in AI\n' +
+      '3. Chrome has been fully restarted\n' +
+      '4. Model is downloaded at chrome://components'
   );
 }
 
@@ -418,43 +427,43 @@ async function checkAPIStatus(): Promise<{
   message: string;
 }> {
   try {
-    if (typeof window === "undefined") {
+    if (typeof window === 'undefined') {
       return {
         available: false,
-        message: "❌ Window object not available",
+        message: '❌ Window object not available',
       };
     }
 
-    if (typeof LanguageModel !== "undefined") {
+    if (typeof LanguageModel !== 'undefined') {
       try {
         const availability = await LanguageModel.availability();
-        if (availability === "readily" || availability === "available") {
+        if (availability === 'readily' || availability === 'available') {
           return {
             available: true,
-            message: "✅ Chrome AI is ready!",
+            message: '✅ Chrome AI is ready!',
           };
         }
-        if (availability === "downloadable") {
+        if (availability === 'downloadable') {
           return {
             available: false,
-            message: "⏬ Downloading AI model...",
+            message: '⏬ Downloading AI model...',
           };
         }
       } catch (err) {
-        console.error("Global LanguageModel check failed", err);
+        console.error('Global LanguageModel check failed', err);
       }
     }
 
     return {
       available: false,
       message:
-        "❌ Chrome Built-in AI not found. Enable flags at chrome://flags",
+        '❌ Chrome Built-in AI not found. Enable flags at chrome://flags',
     };
   } catch (err) {
-    console.error("Error checking Chrome AI status:", err);
+    console.error('Error checking Chrome AI status:', err);
     return {
       available: false,
-      message: "❌ Error checking API status",
+      message: '❌ Error checking API status',
     };
   }
 }
@@ -468,14 +477,14 @@ function createChatStore() {
     isLoading: false,
     error: null,
     aiAvailable: false,
-    aiStatus: "Checking...",
+    aiStatus: 'Checking...',
     isStreaming: false,
     streamingMessageId: null,
     abortController: null,
   });
 
   let session: AILanguageModel | null = null;
-  let pageContext = "";
+  let pageContext = '';
 
   return {
     subscribe,
@@ -496,7 +505,7 @@ function createChatStore() {
       if (providedPageContext) {
         pageContext = providedPageContext;
       } else {
-        globalStorage().get("pageMarkdown", { whereKey: tabId.toString() });
+        globalStorage().get('pageMarkdown', { whereKey: tabId.toString() });
         pageContext = await extractPageContent({ tabId });
       }
     },
@@ -514,7 +523,7 @@ function createChatStore() {
     async sendMessage(userMessage: string, images?: string[]) {
       if (!userMessage.trim()) return;
 
-      const userMsg = createChatMessage("user", userMessage, images);
+      const userMsg = createChatMessage('user', userMessage, images);
 
       update((state) => ({
         ...state,
@@ -530,11 +539,11 @@ function createChatStore() {
 
         const aiResponse = await session.prompt(userMessage);
 
-        if (!aiResponse || typeof aiResponse !== "string") {
-          throw new Error("Invalid response from AI model");
+        if (!aiResponse || typeof aiResponse !== 'string') {
+          throw new Error('Invalid response from AI model');
         }
 
-        const assistantMsg = createChatMessage("assistant", aiResponse.trim());
+        const assistantMsg = createChatMessage('assistant', aiResponse.trim());
 
         update((state) => ({
           ...state,
@@ -561,8 +570,8 @@ function createChatStore() {
       if (!userMessage.trim()) return;
 
       const abortController = new AbortController();
-      const userMsg = createChatMessage("user", userMessage);
-      const assistantMsg = createChatMessage("assistant", "");
+      const userMsg = createChatMessage('user', userMessage);
+      const assistantMsg = createChatMessage('assistant', '');
       const assistantMsgId = assistantMsg.id;
 
       update((state) => ({
@@ -570,7 +579,7 @@ function createChatStore() {
         messages: [...state.messages, userMsg, assistantMsg],
         isLoading: false,
         error: null,
-        inputValue: "",
+        inputValue: '',
       }));
 
       updateStreamingState(update, assistantMsgId, abortController, true);
@@ -579,14 +588,14 @@ function createChatStore() {
 
       try {
         summarizer = await createAISessionWithMonitor(
-          "summarizer",
+          'summarizer',
           {
             sharedContext: userMessage,
-            type: "tldr",
-            format: "markdown",
-            length: "short",
+            type: 'tldr',
+            format: 'markdown',
+            length: 'short',
           },
-          { type: "tldr", format: "markdown", length: "short" }
+          { type: 'tldr', format: 'markdown', length: 'short' }
         );
 
         const stream = summarizer!.summarizeStreaming(userMessage, {
@@ -597,32 +606,37 @@ function createChatStore() {
           stream,
           abortController,
           (chunk: string) => {
-            if (chunk && typeof chunk === "string") {
+            if (chunk && typeof chunk === 'string') {
               appendToStreamingMessage(update, assistantMsgId, chunk);
             }
           },
           30000,
-          "summarization stream"
+          'summarization stream'
         );
 
         updateStreamingState(update, assistantMsgId, abortController, false);
       } catch (err) {
-        console.error("Summarization error:", err);
+        console.error('Summarization error:', err);
         const errorMessage = getErrorMessage(err);
 
-        updateMessageContent(update, assistantMsgId, createErrorMessage(err).content, {
-          isLoading: false,
-          isStreaming: false,
-          streamingMessageId: null,
-          abortController: null,
-          error: errorMessage,
-        });
+        updateMessageContent(
+          update,
+          assistantMsgId,
+          createErrorMessage(err).content,
+          {
+            isLoading: false,
+            isStreaming: false,
+            streamingMessageId: null,
+            abortController: null,
+            error: errorMessage,
+          }
+        );
       } finally {
         if (summarizer) {
           try {
             summarizer.destroy();
           } catch (cleanupError) {
-            console.warn("Error destroying summarizer:", cleanupError);
+            console.warn('Error destroying summarizer:', cleanupError);
           }
         }
       }
@@ -632,8 +646,8 @@ function createChatStore() {
       if (!userMessage.trim()) return;
 
       const abortController = new AbortController();
-      const userMsg = createChatMessage("user", userMessage);
-      const assistantMsg = createChatMessage("assistant", "");
+      const userMsg = createChatMessage('user', userMessage);
+      const assistantMsg = createChatMessage('assistant', '');
       const assistantMsgId = assistantMsg.id;
 
       update((state) => ({
@@ -641,29 +655,29 @@ function createChatStore() {
         messages: [...state.messages, userMsg, assistantMsg],
         isLoading: false,
         error: null,
-        inputValue: "",
+        inputValue: '',
       }));
 
       updateStreamingState(update, assistantMsgId, abortController, true);
 
-      let detectedLanguage = "en"; // Default fallback
+      let detectedLanguage = 'en'; // Default fallback
       let detector: AILanguageDetector | null = null;
       let translator: AITranslator | null = null;
 
       try {
-        if (typeof LanguageDetector === "undefined") {
-          throw new Error("LanguageDetector API not available");
+        if (typeof LanguageDetector === 'undefined') {
+          throw new Error('LanguageDetector API not available');
         }
 
         const detectorAvailability = await LanguageDetector.availability();
-        if (detectorAvailability === "unavailable") {
+        if (detectorAvailability === 'unavailable') {
           throw new Error(
-            "Language Detector is not available. Please enable it in Chrome flags."
+            'Language Detector is not available. Please enable it in Chrome flags.'
           );
         }
 
         detector = await createAISessionWithMonitor(
-          "languageDetector",
+          'languageDetector',
           {},
           { sourceLanguage: detectedLanguage, targetLanguage }
         );
@@ -691,8 +705,8 @@ function createChatStore() {
           return;
         }
 
-        if (typeof Translator === "undefined") {
-          throw new Error("Translator API not available");
+        if (typeof Translator === 'undefined') {
+          throw new Error('Translator API not available');
         }
 
         const translatorAvailability = await Translator.availability({
@@ -700,14 +714,14 @@ function createChatStore() {
           targetLanguage,
         });
 
-        if (translatorAvailability === "unavailable") {
+        if (translatorAvailability === 'unavailable') {
           throw new Error(
             `Translation from ${detectedLanguage} to ${targetLanguage} is not available. Please enable it in Chrome flags.`
           );
         }
 
         translator = await createAISessionWithMonitor(
-          "translator",
+          'translator',
           {
             sourceLanguage: detectedLanguage,
             targetLanguage,
@@ -722,45 +736,207 @@ function createChatStore() {
           stream,
           abortController,
           (chunk: string) => {
-            if (chunk && typeof chunk === "string") {
+            if (chunk && typeof chunk === 'string') {
               appendToStreamingMessage(update, assistantMsgId, chunk);
             }
           },
           30000,
-          "translation stream"
+          'translation stream'
         );
 
         updateStreamingState(update, assistantMsgId, abortController, false);
       } catch (err) {
-        console.error("Translation error:", err);
+        console.error('Translation error:', err);
         const errorMessage = getErrorMessage(err);
 
-        updateMessageContent(update, assistantMsgId, createErrorMessage(err).content, {
-          isLoading: false,
-          isStreaming: false,
-          streamingMessageId: null,
-          abortController: null,
-          error: errorMessage,
-        });
+        updateMessageContent(
+          update,
+          assistantMsgId,
+          createErrorMessage(err).content,
+          {
+            isLoading: false,
+            isStreaming: false,
+            streamingMessageId: null,
+            abortController: null,
+            error: errorMessage,
+          }
+        );
       } finally {
         // Clean up instances
         if (detector) {
           try {
             detector.destroy();
           } catch (cleanupError) {
-            console.warn("Error destroying detector:", cleanupError);
+            console.warn('Error destroying detector:', cleanupError);
           }
         }
         if (translator) {
           try {
             translator.destroy();
           } catch (cleanupError) {
-            console.warn("Error destroying translator:", cleanupError);
+            console.warn('Error destroying translator:', cleanupError);
           }
         }
       }
     },
 
+    async write(userMessage: string, options?: WriterOptions) {
+      if (!userMessage.trim()) return;
+
+      const abortController = new AbortController();
+      const userMsg = createChatMessage('user', userMessage);
+      const assistantMsg = createChatMessage('assistant', '');
+      const assistantMsgId = assistantMsg.id;
+
+      update((state) => ({
+        ...state,
+        messages: [...state.messages, userMsg, assistantMsg],
+        isLoading: false,
+        error: null,
+      }));
+
+      updateStreamingState(update, assistantMsgId, abortController, true);
+
+      try {
+        const writerOptions: WriterOptions = {
+          tone: options?.tone || 'neutral',
+          format: options?.format || 'plain-text',
+          length: options?.length || 'medium',
+          ...(options?.sharedContext && {
+            sharedContext: options.sharedContext,
+          }),
+          ...(options?.outputLanguage && {
+            outputLanguage: options.outputLanguage,
+          }),
+          ...(options?.expectedInputLanguages && {
+            expectedInputLanguages: options.expectedInputLanguages,
+          }),
+          ...(options?.expectedContextLanguages && {
+            expectedContextLanguages: options.expectedContextLanguages,
+          }),
+        };
+
+        const stream = writeContentStreaming(
+          { prompt: userMessage },
+          writerOptions
+        );
+
+        let hasReceivedChunks = false;
+        for await (const chunk of stream) {
+          if (abortController.signal.aborted) {
+            break;
+          }
+
+          if (chunk && typeof chunk === 'string') {
+            hasReceivedChunks = true;
+            // Handle incremental vs full text chunks
+            // Chrome Canary returns incremental chunks, Chrome Stable returns full text
+            appendToStreamingMessage(update, assistantMsgId, chunk);
+          }
+        }
+
+        if (!hasReceivedChunks) {
+          throw new Error('No content received from Writer API');
+        }
+
+        updateStreamingState(update, assistantMsgId, abortController, false);
+      } catch (err) {
+        console.error('Write error:', err);
+        const errorMessage = getErrorMessage(err);
+
+        updateMessageContent(
+          update,
+          assistantMsgId,
+          createErrorMessage(err).content,
+          {
+            isLoading: false,
+            isStreaming: false,
+            streamingMessageId: null,
+            abortController: null,
+            error: errorMessage,
+          }
+        );
+      }
+    },
+
+    async rewrite(userMessage: string, options?: RewriterOptions) {
+      if (!userMessage.trim()) return;
+
+      const abortController = new AbortController();
+      const userMsg = createChatMessage('user', userMessage);
+      const assistantMsg = createChatMessage('assistant', '');
+      const assistantMsgId = assistantMsg.id;
+
+      update((state) => ({
+        ...state,
+        messages: [...state.messages, userMsg, assistantMsg],
+        isLoading: false,
+        error: null,
+      }));
+
+      updateStreamingState(update, assistantMsgId, abortController, true);
+
+      try {
+        const rewriterOptions: RewriterOptions = {
+          tone: options?.tone || 'as-is',
+          format: options?.format || 'as-is',
+          length: options?.length || 'as-is',
+          ...(options?.sharedContext && {
+            sharedContext: options.sharedContext,
+          }),
+          ...(options?.outputLanguage && {
+            outputLanguage: options.outputLanguage,
+          }),
+          ...(options?.expectedInputLanguages && {
+            expectedInputLanguages: options.expectedInputLanguages,
+          }),
+          ...(options?.expectedContextLanguages && {
+            expectedContextLanguages: options.expectedContextLanguages,
+          }),
+        };
+
+        const stream = rewriteContentStreaming(
+          { text: userMessage },
+          rewriterOptions
+        );
+
+        let hasReceivedChunks = false;
+        for await (const chunk of stream) {
+          if (abortController.signal.aborted) {
+            break;
+          }
+
+          if (chunk && typeof chunk === 'string') {
+            hasReceivedChunks = true;
+            // Handle incremental vs full text chunks
+            // Chrome Canary returns incremental chunks, Chrome Stable returns full text
+            appendToStreamingMessage(update, assistantMsgId, chunk);
+          }
+        }
+
+        if (!hasReceivedChunks) {
+          throw new Error('No content received from Rewriter API');
+        }
+
+        updateStreamingState(update, assistantMsgId, abortController, false);
+      } catch (err) {
+        console.error('Rewrite error:', err);
+        const errorMessage = getErrorMessage(err);
+
+        updateMessageContent(
+          update,
+          assistantMsgId,
+          createErrorMessage(err).content,
+          {
+            isLoading: false,
+            isStreaming: false,
+            streamingMessageId: null,
+            abortController: null,
+            error: errorMessage,
+          }
+        );
+      }
+    },
     /**
      * Send a message to the AI with streaming response
      */
@@ -768,8 +944,8 @@ function createChatStore() {
       if (!userMessage.trim()) return;
 
       const abortController = new AbortController();
-      const userMsg = createChatMessage("user", userMessage, images);
-      const assistantMsg = createChatMessage("assistant", "");
+      const userMsg = createChatMessage('user', userMessage, images);
+      const assistantMsg = createChatMessage('assistant', '');
       const assistantMsgId = assistantMsg.id;
 
       update((state) => ({
@@ -786,7 +962,7 @@ function createChatStore() {
           try {
             session = await createAISession(pageContext);
           } catch (sessionError) {
-            console.error("Failed to create AI session:", sessionError);
+            console.error('Failed to create AI session:', sessionError);
             throw new Error(
               `Failed to create AI session: ${getErrorMessage(sessionError)}`
             );
@@ -795,13 +971,13 @@ function createChatStore() {
 
         if (images && images.length > 0 && session) {
           for await (const image of images) {
-            const rawFile = await imageStringToFile(image, "image");
-            const file = await ensurePngFile(rawFile, "image.png");
+            const rawFile = await imageStringToFile(image, 'image');
+            const file = await ensurePngFile(rawFile, 'image.png');
 
             await session?.append([
               {
-                role: "user",
-                content: [{ type: "image", value: file }],
+                role: 'user',
+                content: [{ type: 'image', value: file }],
               },
             ]);
           }
@@ -811,7 +987,7 @@ function createChatStore() {
         try {
           stream = session.promptStreaming(userMessage);
         } catch (streamCreationError) {
-          console.error("Failed to create stream:", streamCreationError);
+          console.error('Failed to create stream:', streamCreationError);
           throw new Error(
             `Failed to create stream: ${getErrorMessage(streamCreationError)}`
           );
@@ -821,25 +997,30 @@ function createChatStore() {
           stream,
           abortController,
           (chunk: string) => {
-            if (chunk && typeof chunk === "string") {
+            if (chunk && typeof chunk === 'string') {
               appendToStreamingMessage(update, assistantMsgId, chunk);
             }
           },
           30000,
-          "AI prompt stream"
+          'AI prompt stream'
         );
 
         updateStreamingState(update, assistantMsgId, abortController, false);
       } catch (err) {
-        console.error("Streaming error:", err);
+        console.error('Streaming error:', err);
         const errorMessage = getErrorMessage(err);
 
-        updateMessageContent(update, assistantMsgId, createErrorMessage(err).content, {
-          isStreaming: false,
-          streamingMessageId: null,
-          abortController: null,
-          error: errorMessage,
-        });
+        updateMessageContent(
+          update,
+          assistantMsgId,
+          createErrorMessage(err).content,
+          {
+            isStreaming: false,
+            streamingMessageId: null,
+            abortController: null,
+            error: errorMessage,
+          }
+        );
 
         safeDestroySession(session);
         session = null;
@@ -885,29 +1066,29 @@ function createChatStore() {
       safeDestroySession(session);
       session = null;
       if (
-        typeof chrome !== "undefined" &&
+        typeof chrome !== 'undefined' &&
         chrome.runtime &&
         chrome.runtime.sendMessage
       ) {
         try {
           chrome.runtime.sendMessage(
-            { type: "CLEAR_TELESCOPE_STATE" },
+            { type: 'CLEAR_TELESCOPE_STATE' },
             (response) => {
               if (chrome.runtime.lastError) {
                 console.warn(
-                  "CLEAR_TELESCOPE_STATE: chrome error",
+                  'CLEAR_TELESCOPE_STATE: chrome error',
                   chrome.runtime.lastError.message
                 );
               } else if (!response?.success) {
                 console.warn(
-                  "CLEAR_TELESCOPE_STATE: failed to clear state",
+                  'CLEAR_TELESCOPE_STATE: failed to clear state',
                   response?.error
                 );
               }
             }
           );
         } catch (error) {
-          console.warn("Exception during CLEAR_TELESCOPE_STATE:", error);
+          console.warn('Exception during CLEAR_TELESCOPE_STATE:', error);
         }
       }
 
