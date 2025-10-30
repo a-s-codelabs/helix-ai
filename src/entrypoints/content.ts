@@ -21,14 +21,9 @@ export default defineContentScript({
     let ui: any = null;
     let isVisible = false;
     globalStorage().onBoard();
-
-    // Selection popup state
     let selectionPopupUI: any = null;
-
-    // Writer assistant state
     let writerAssistantUI: any = null;
 
-    // Create the UI
     const createUI = async () => {
       if (ui) return ui;
 
@@ -38,23 +33,20 @@ export default defineContentScript({
           name: 'telescope-ui',
           anchor: 'body',
           onMount: (container) => {
-            // Position the container at the very top of the body
             container.style.position = 'fixed';
             container.style.top = '0';
             container.style.left = '0';
             container.style.right = '0';
             container.style.bottom = '0';
             container.style.zIndex = '99999';
-            // container.style.pointerEvents = 'none';
 
-            // Create the Svelte app inside the UI container
             const app = mount(App, { target: container });
             return app;
           },
           onRemove: (app) => {
             unmount(app as any);
-            ui = null; // Reset ui after unmounting
-            isVisible = false; // Reset visibility flag
+            ui = null;
+            isVisible = false;
           },
         });
 
@@ -65,7 +57,6 @@ export default defineContentScript({
       }
     };
 
-    // Create selection popup UI
     const createSelectionPopupUI = async () => {
       if (selectionPopupUI) return selectionPopupUI;
 
@@ -90,7 +81,6 @@ export default defineContentScript({
               },
             });
 
-            // Enable pointer events for the popup
             container.style.pointerEvents = 'auto';
 
             return app;
@@ -108,7 +98,6 @@ export default defineContentScript({
       }
     };
 
-    // Create writer assistant UI
     const createWriterAssistantUI = async () => {
       if (writerAssistantUI) return writerAssistantUI;
 
@@ -130,7 +119,6 @@ export default defineContentScript({
               target: container,
             });
 
-            // Enable pointer events for the popup
             container.style.pointerEvents = 'auto';
 
             return app;
@@ -148,7 +136,6 @@ export default defineContentScript({
       }
     };
 
-    // Get selection position
     const getSelectionPosition = (): { x: number; y: number } | null => {
       const selection = window.getSelection();
       if (!selection || selection.rangeCount === 0) return null;
@@ -156,14 +143,12 @@ export default defineContentScript({
       const range = selection.getRangeAt(0);
       const rect = range.getBoundingClientRect();
 
-      // Center horizontally, position above the selection
       const x = rect.left + rect.width / 2;
       const y = rect.top;
 
       return { x, y };
     };
 
-    // Show selection popup
     const showSelectionPopup = async () => {
       const selection = window.getSelection();
       const selectedText = selection?.toString().trim();
@@ -176,58 +161,43 @@ export default defineContentScript({
       const position = getSelectionPosition();
       if (!position) return;
 
-      // Ensure popup stays within viewport bounds
-      const popupWidth = 200; // Approximate popup width
-      const popupHeight = 60; // Approximate popup height
-      const margin = 20; // Margin from viewport edges
+      const popupWidth = 200;
+      const popupHeight = 60;
+      const margin = 20;
 
       let { x, y } = position;
 
-      // Adjust horizontal position if popup would go off-screen
       if (x - popupWidth / 2 < margin) {
         x = margin + popupWidth / 2;
       } else if (x + popupWidth / 2 > window.innerWidth - margin) {
         x = window.innerWidth - margin - popupWidth / 2;
       }
 
-      // Adjust vertical position if popup would go off-screen
       let isAtTop = false;
       if (y - popupHeight - margin < 0) {
-        // If popup would go above viewport, position it at the top with extra margin
-        y = margin + 40; // Extra margin when at top
+        y = margin + 40;
         isAtTop = true;
       } else if (y > window.innerHeight - margin) {
-        // If popup would go below viewport, position it at the bottom
         y = window.innerHeight - margin;
       }
 
-      // Ensure the UI is created
       if (!selectionPopupUI) {
         await createSelectionPopupUI();
         selectionPopupUI.mount();
       }
 
-      // Update state with positioning info
       selectionPopupStore.show(x, y, selectedText, isAtTop);
     };
 
-    // Hide selection popup
     const hideSelectionPopup = () => {
       selectionPopupStore.hide();
-      // Keep the UI mounted but hidden for better performance
-      // Only remove it when the content script is invalidated
     };
 
-    // Helper to check if the selection popup is currently visible
     const isSelectionPopupVisible = () => {
-      // Checks via the store (works since we always mount but can update the store state)
-      // Use get method since it's a Svelte writable
       return get(selectionPopupStore.getState()).visible;
     };
 
-    // Helper to update the popup position according to current selection
     const updateSelectionPopupPosition = async () => {
-      // If the popup is not showing, don't do anything
       if (!isSelectionPopupVisible()) return;
 
       const featureConfig = await getFeatureConfig();
@@ -236,7 +206,6 @@ export default defineContentScript({
         return;
       }
 
-      // Find new position and selected text
       const selection = window.getSelection();
       const selectedText = selection?.toString().trim();
       if (!selectedText || selectedText.length === 0) {
@@ -250,37 +219,30 @@ export default defineContentScript({
         return;
       }
 
-      // Ensure popup stays within viewport bounds
-      const popupWidth = 200; // Approximate popup width
-      const popupHeight = 60; // Approximate popup height
-      const margin = 20; // Margin from viewport edges
+      const popupWidth = 200;
+      const popupHeight = 60;
+      const margin = 20;
 
       let { x, y } = position;
 
-      // Adjust horizontal position if popup would go off-screen
       if (x - popupWidth / 2 < margin) {
         x = margin + popupWidth / 2;
       } else if (x + popupWidth / 2 > window.innerWidth - margin) {
         x = window.innerWidth - margin - popupWidth / 2;
       }
 
-      // Adjust vertical position if popup would go off-screen
       let isAtTop = false;
       if (y - popupHeight - margin < 0) {
-        // If popup would go above viewport, position it at the top with extra margin
-        y = margin + 40; // Extra margin when at top
+        y = margin + 40;
         isAtTop = true;
       } else if (y > window.innerHeight - margin) {
-        // If popup would go below viewport, position it at the bottom
         y = window.innerHeight - margin;
       }
 
       selectionPopupStore.show(x, y, selectedText, isAtTop);
     };
 
-    // Handle text selection
     const handleSelectionChange = async () => {
-      // Use a debounce to avoid too many calls
       clearTimeout((window as any).__selectionTimeout);
       (window as any).__selectionTimeout = setTimeout(async () => {
         const featureConfig = await getFeatureConfig();
@@ -300,33 +262,26 @@ export default defineContentScript({
       }, 100);
     };
 
-    // Handle mouse up (for better UX)
     const handleMouseUp = async (event: MouseEvent) => {
-      // Ignore clicks on the popup itself
       if ((event.target as HTMLElement).closest('.selection-popup')) {
         return;
       }
 
-      // Small delay to let the selection stabilize
       setTimeout(async () => {
         await handleSelectionChange();
       }, 10);
     };
 
-    // Listen for text selection
     document.addEventListener('selectionchange', handleSelectionChange);
     document.addEventListener('mouseup', handleMouseUp);
 
-    // --- Enhance for object observer: recalculate position on resize/scroll ---
     let resizeScrollObserver: (() => void) | null = null;
 
     const setupSelectionPopupRepositioning = () => {
-      // Clean up before adding new observers
       if (resizeScrollObserver) {
         resizeScrollObserver();
       }
 
-      // Debounced update handler
       let timeout: number | null = null;
       const onRecalc = () => {
         if (timeout) clearTimeout(timeout);
@@ -335,11 +290,9 @@ export default defineContentScript({
         }, 50);
       };
 
-      // Listen for window resize and scroll
       window.addEventListener('resize', onRecalc);
-      window.addEventListener('scroll', onRecalc, true); // true to catch scroll on any ancestor
+      window.addEventListener('scroll', onRecalc, true);
 
-      // Listen for DOM mutations that could affect layout (optional, heavy in complex pages)
       let mutationObserver: MutationObserver | null = null;
       if (typeof MutationObserver !== 'undefined') {
         mutationObserver = new MutationObserver(() => {
@@ -352,7 +305,6 @@ export default defineContentScript({
         });
       }
 
-      // Cleanup function to remove listeners/observers
       resizeScrollObserver = () => {
         window.removeEventListener('resize', onRecalc);
         window.removeEventListener('scroll', onRecalc, true);
@@ -360,8 +312,6 @@ export default defineContentScript({
       };
     };
 
-    // Set up observers when popup first appears, clean up when it hides
-    // Listen to store changes to know when popup is visible
     selectionPopupStore.getState().subscribe((current) => {
       if (current.visible) {
         setupSelectionPopupRepositioning();
@@ -370,7 +320,6 @@ export default defineContentScript({
         resizeScrollObserver = null;
       }
     });
-    // Writer Assistant - Textarea/Input detection
     let currentFocusedElement: HTMLTextAreaElement | HTMLInputElement | null =
       null;
 
@@ -394,9 +343,8 @@ export default defineContentScript({
         return writableTypes.includes(input.type);
       }
 
-      // Check for contenteditable
       if ((element as HTMLElement).contentEditable === 'true') {
-        return false; // We'll handle contenteditable separately if needed
+        return false;
       }
 
       return false;
@@ -405,7 +353,6 @@ export default defineContentScript({
     const showWriterButton = async (
       element: HTMLTextAreaElement | HTMLInputElement
     ) => {
-      // Respect feature flag for writer telescope
       try {
         const featureConfig = await getFeatureConfig();
         if (!featureConfig.writerTelescopeEnabled) {
@@ -413,20 +360,16 @@ export default defineContentScript({
         }
       } catch {}
 
-      // Ensure the UI is created
       if (!writerAssistantUI) {
         await createWriterAssistantUI();
         writerAssistantUI.mount();
       }
 
-      // Get element position
       const rect = element.getBoundingClientRect();
 
-      // Position the button at the top-right corner of the element
       const x = rect.right - 20;
       const y = rect.top + 20;
 
-      // Update state
       currentFocusedElement = element;
       writerPopupStore.show(x, y, element);
     };
@@ -440,7 +383,6 @@ export default defineContentScript({
       const target = event.target;
 
       if (isWritableElement(target as Element | null)) {
-        // Small delay to ensure the element is fully focused
         setTimeout(() => {
           if (document.activeElement === target) {
             showWriterButton(target as HTMLTextAreaElement | HTMLInputElement);
@@ -453,9 +395,7 @@ export default defineContentScript({
       const target = event.target;
 
       if (isWritableElement(target as Element | null)) {
-        // Delay to check if we're clicking on the writer button or popup
         setTimeout(() => {
-          // Check if popup dialog is open - don't hide while user is interacting
           let isPopupOpen = false;
           const unsubscribe = writerPopupStore.subscribe((state) => {
             isPopupOpen = state.popupOpen;
@@ -476,19 +416,15 @@ export default defineContentScript({
         isWritableElement(target as Element) &&
         target === currentFocusedElement
       ) {
-        // Element is already focused, just ensure button is visible
         showWriterButton(target as HTMLTextAreaElement | HTMLInputElement);
       }
     };
 
-    // Listen for textarea/input interactions
     document.addEventListener('focusin', handleTextareaFocus, true);
     document.addEventListener('focusout', handleTextareaBlur, true);
     document.addEventListener('click', handleTextareaClick, true);
 
-    // Handle keyboard shortcuts
     const handleKeyDown = async (event: KeyboardEvent) => {
-      // Check for Cmd+E (Mac) or Ctrl+E (Windows/Linux)
       if ((event.metaKey || event.ctrlKey) && event.key === 'e') {
         event.preventDefault();
 
@@ -510,7 +446,6 @@ export default defineContentScript({
         }
       }
 
-      // Handle Escape key
       if (event.key === 'Escape' && isVisible && ui) {
         console.log('Closing telescope from Escape key...');
         ui.remove();
@@ -519,10 +454,8 @@ export default defineContentScript({
       }
     };
 
-    // Listen for keyboard events
     document.addEventListener('keydown', handleKeyDown);
 
-    // Listen for custom close event from telescope UI
     const handleTelescopeClose = () => {
       console.log('Received telescope close event...');
       if (isVisible && ui) {
@@ -534,7 +467,6 @@ export default defineContentScript({
 
     window.addEventListener('telescope-close', handleTelescopeClose);
 
-    // Listen for messages from popup and background
     const handleMessage = (message: any, sender: any, sendResponse: any) => {
       console.log('Content script received message:', message);
 
@@ -551,7 +483,6 @@ export default defineContentScript({
               return;
             }
 
-            // Wait for the page to be ready
             if (document.readyState === 'loading') {
               console.log('Waiting for DOM to load...');
               await new Promise((resolve) => {
@@ -561,7 +492,6 @@ export default defineContentScript({
               });
             }
 
-            // If not visible or no UI, create and mount
             if (!isVisible || !ui) {
               console.log('Creating telescope UI...');
               await createUI();
@@ -581,25 +511,21 @@ export default defineContentScript({
             });
           }
         })();
-        return true; // Indicate we will send a response asynchronously
+        return true;
       }
 
-      // Handle page content extraction request from side panel
       if (message.type === 'EXTRACT_PAGE_CONTENT') {
         console.log('Content script: Received EXTRACT_PAGE_CONTENT request');
         (async () => {
           try {
-            // Import the necessary functions
             const { cleanHTML, htmlToMarkdown, processTextForLLM } =
               await import('../lib/utils/converters');
 
-            // Extract page content
             const html = document.documentElement.outerHTML;
             const cleanedHTML = cleanHTML(html);
             const markdown = htmlToMarkdown(cleanedHTML);
             const processedMarkdown = processTextForLLM(markdown);
 
-            // Add metadata
             const metadata = `# ${document.title || 'Web Page'}
 
 **URL:** ${window.location.href}
@@ -609,7 +535,6 @@ export default defineContentScript({
 
 `;
 
-            // Truncate for AI context
             const maxLength = 6_000;
             const finalContent = metadata + processedMarkdown;
             const pageContext =
@@ -640,14 +565,12 @@ ${document.body.textContent || 'No content available'}`,
             });
           }
         })();
-        return true; // Indicate we will send a response asynchronously
+        return true;
       }
     };
 
-    // Use Chrome messaging system
     chrome.runtime.onMessage.addListener(handleMessage);
 
-    // Clean up on script removal
     ctx.onInvalidated(() => {
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('selectionchange', handleSelectionChange);
@@ -670,7 +593,6 @@ ${document.body.textContent || 'No content available'}`,
         writerAssistantUI.remove();
       }
 
-      // Clear any pending selection timeout
       clearTimeout((window as any).__selectionTimeout);
     });
   },

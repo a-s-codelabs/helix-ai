@@ -56,7 +56,6 @@ export type ChatboxProps = {
   onClose?: () => void;
   isStreaming?: boolean;
   streamingMessageId?: number | null;
-  // Additional props for side panel functionality
   inputValue?: string;
   inputImageAttached?: string[];
   searchIndex?: number;

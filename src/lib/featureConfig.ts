@@ -25,7 +25,6 @@ export async function getFeatureConfig(): Promise<FeatureConfig> {
   } catch (error) {
     console.error('Error loading feature config:', error);
   }
-  // Default to enabled
   return {
     floatingTelescopeEnabled: true,
     selectionTelescopeEnabled: true,

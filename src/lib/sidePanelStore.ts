@@ -34,7 +34,7 @@ export const sidePanelUtils = {
       const timeout = setTimeout(() => {
         console.error('Timeout: No response from service worker');
         resolve(false);
-      }, 5000); // 5 second timeout
+      }, 5000);
 
       chrome.runtime.sendMessage(
         {
@@ -130,7 +130,6 @@ export const sidePanelUtils = {
   //   }
   // },
 
-  // Check if we're in side panel mode
   isInSidePanelMode(): boolean {
     let isInSidePanel = false;
     sidePanelStore.subscribe((store) => {
@@ -139,22 +138,19 @@ export const sidePanelUtils = {
     return isInSidePanel;
   },
 
-  // Get page content from active tab (for side panel mode)
   async getPageContent(): Promise<string | null> {
     try {
       return new Promise((resolve) => {
-        // Check if Chrome runtime is available
         if (typeof chrome === 'undefined' || !chrome.runtime) {
           console.error('Chrome runtime not available');
           resolve(null);
           return;
         }
 
-        // Set a timeout to prevent hanging
         const timeout = setTimeout(() => {
           console.error('Timeout: No response from background script');
           resolve(null);
-        }, 10000); // 10 second timeout
+        }, 10000);
 
         chrome.runtime.sendMessage(
           {
@@ -163,7 +159,6 @@ export const sidePanelUtils = {
           (response) => {
             clearTimeout(timeout);
 
-            // Check for runtime errors
             if (chrome.runtime.lastError) {
               console.error(
                 'Chrome runtime error:',

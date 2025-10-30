@@ -19,7 +19,6 @@ export class SecureStreamingMarkdown {
 
   constructor(outputElement: HTMLElement) {
     this.outputElement = outputElement;
-    // Create a renderer that appends to the output element
     const renderer = default_renderer(outputElement);
     this.parser = parser(renderer);
   }
@@ -34,10 +33,8 @@ export class SecureStreamingMarkdown {
       return false;
     }
 
-    // Add chunk to accumulated content
     this.chunks += chunk;
 
-    // Sanitize all chunks received so far for security
     const sanitized = DOMPurify.sanitize(this.chunks, {
       ALLOWED_TAGS: [
         'strong',
@@ -68,20 +65,16 @@ export class SecureStreamingMarkdown {
         /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
     });
 
-    // Check if the output was insecure
     if (DOMPurify.removed.length > 0) {
       console.warn(
         'Insecure content detected, stopping rendering:',
         DOMPurify.removed
       );
       this.isInsecure = true;
-      // Reset the parser and flush remaining markdown
       parser_end(this.parser);
       return false;
     }
 
-    // Parse each chunk individually using streaming markdown
-    // This appends to existing rendered output instead of replacing it
     parser_write(this.parser, chunk);
 
     return true;
@@ -102,7 +95,6 @@ export class SecureStreamingMarkdown {
   reset(): void {
     this.chunks = '';
     this.isInsecure = false;
-    // Create a new renderer and parser
     const renderer = default_renderer(this.outputElement);
     this.parser = parser(renderer);
   }
@@ -127,22 +119,18 @@ export class SecureStreamingMarkdown {
  * Handles bold (**text**), italic (*text*), links [text](url), plain URLs, tables, code blocks, ordered/unordered lists, and line breaks
  */
 export function formatBasicMarkdown(text: string): string {
-  // First, extract and convert tables to HTML
   let result = text;
 
-  // Match markdown tables (lines starting with |)
   const tableRegex = /^(\|.+\|)\s*\n(\|[-:\s|]+\|)\s*\n((?:\|.+\|\s*\n?)+)/gm;
 
   result = result.replace(
     tableRegex,
     (match, headerRow, separatorRow, bodyRows) => {
-      // Parse header
       const headers = headerRow
         .split('|')
         .slice(1, -1)
         .map((h: string) => h.trim());
 
-      // Parse body rows
       const rows = bodyRows
         .trim()
         .split('\n')
@@ -153,17 +141,14 @@ export function formatBasicMarkdown(text: string): string {
             .map((cell: string) => cell.trim())
         );
 
-      // Build HTML table
       let tableHtml = '<table>';
 
-      // Header
       tableHtml += '<thead><tr>';
       headers.forEach((header: string) => {
         tableHtml += `<th>${header}</th>`;
       });
       tableHtml += '</tr></thead>';
 
-      // Body
       tableHtml += '<tbody>';
       rows.forEach((row: string[]) => {
         tableHtml += '<tr>';
@@ -178,8 +163,6 @@ export function formatBasicMarkdown(text: string): string {
     }
   );
 
-  // Handle ordered lists (1. item, 2. item, etc.)
-  // Match consecutive lines starting with number, period, and space
   result = result.replace(/^(\d+\.\s+.+(?:\n\d+\.\s+.+)*)/gm, (match) => {
     const items = match
       .split('\n')
@@ -189,8 +172,6 @@ export function formatBasicMarkdown(text: string): string {
     return `<ol>${listItems}</ol>`;
   });
 
-  // Handle unordered lists (-, *, or + followed by space)
-  // Match consecutive lines starting with -, *, or +
   result = result.replace(/^([*\-+]\s+.+(?:\n[*\-+]\s+.+)*)/gm, (match) => {
     const items = match
       .split('\n')
@@ -202,28 +183,18 @@ export function formatBasicMarkdown(text: string): string {
 
   return (
     result
-      // Handle fenced code blocks (```language\ncode\n```) - must be done before inline code
-      // Support both \n and \r\n line endings, optional language identifier, and various formats
       .replace(
         /```(\w+)?\s*\r?\n([\s\S]*?)\r?\n?```/g,
         (match, language, code) => {
-          // Strip markdown formatting from code content
           let cleanCode = code
-            // Remove markdown links [text](url)
             .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
-            // Remove bold **text**
             .replace(/\*\*(.*?)\*\*/g, '$1')
-            // Remove italic *text*
             .replace(/(?<!\*)\*(?!\*)([^*]+?)\*(?!\*)/g, '$1')
-            // Remove headings #
             .replace(/^#{1,6}\s+/gm, '')
-            // Remove horizontal rules
             .replace(/^[-*_]{3,}\s*$/gm, '')
-            // Remove list markers
             .replace(/^[\s]*[-*+]\s+/gm, '')
             .replace(/^[\s]*\d+\.\s+/gm, '');
 
-          // Escape HTML entities in code to prevent injection
           const escapedCode = cleanCode
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
@@ -233,10 +204,7 @@ export function formatBasicMarkdown(text: string): string {
           return `<pre><code>${escapedCode}</code></pre>`;
         }
       )
-      // Handle inline code (`code`) - must be done after code blocks
-      // Use negative lookahead to avoid matching triple backticks
       .replace(/(?<!`)`(?!``)([^`\n]+)`(?!`)/g, (match, code) => {
-        // Escape HTML entities in inline code
         const escapedCode = code
           .replace(/&/g, '&amp;')
           .replace(/</g, '&lt;')
@@ -245,37 +213,27 @@ export function formatBasicMarkdown(text: string): string {
           .replace(/'/g, '&#039;');
         return `<code>${escapedCode}</code>`;
       })
-      // Handle headings (h1-h6) - must be processed before other inline formatting
-      // Match headings at the start of a line with at least one space after #
       .replace(/^######\s+(.+)$/gm, '<h6>$1</h6>')
       .replace(/^#####\s+(.+)$/gm, '<h5>$1</h5>')
       .replace(/^####\s+(.+)$/gm, '<h4>$1</h4>')
       .replace(/^###\s+(.+)$/gm, '<h3>$1</h3>')
       .replace(/^##\s+(.+)$/gm, '<h2>$1</h2>')
       .replace(/^#\s+(.+)$/gm, '<h1>$1</h1>')
-      // Handle markdown links [text](url) - convert to clickable links (must be done BEFORE plain URL detection)
       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
-        // Normalize URL - add protocol if missing and remove trailing slash
         let normalizedUrl = url.trim().replace(/\/$/, '');
         if (normalizedUrl.startsWith('www.')) {
           normalizedUrl = `https://${normalizedUrl}`;
         } else if (!/^(https?|ftp):\/\//i.test(normalizedUrl)) {
-          // If no protocol and doesn't start with www., assume https://
           normalizedUrl = `https://${normalizedUrl}`;
         }
         return `<a href="${normalizedUrl}" target="_blank" rel="noopener noreferrer">${text}</a>`;
       })
-      // Handle plain URLs - convert to clickable links
-      // Matches http://, https://, ftp://, www. URLs that are NOT already in HTML tags
       .replace(
         /(^|[^"'=])(https?:\/\/|ftp:\/\/|www\.)([^\s<>"']+)/gi,
         (match, prefix, protocol, rest) => {
-          // Check if this URL is inside an HTML tag attribute (simple heuristic)
-          // If prefix is part of an attribute like href=" or src=", skip it
           if (prefix.match(/[="]/)) {
-            return match; // Return original match unchanged
+            return match;
           }
-          // Remove trailing slash from rest
           const cleanRest = rest.replace(/\/$/, '');
           const fullUrl =
             protocol.toLowerCase() === 'www.'
@@ -284,11 +242,8 @@ export function formatBasicMarkdown(text: string): string {
           return `${prefix}<a href="${fullUrl}" target="_blank" rel="noopener noreferrer">${protocol}${cleanRest}</a>`;
         }
       )
-      // Handle bold text (**text**)
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      // Handle italic text (*text*)
       .replace(/(?<!\*)\*(?!\*)([^*]+?)\*(?!\*)/g, '<em>$1</em>')
-      // Handle line breaks (but not within tables or code blocks)
       .replace(/\n(?![^<]*<\/table>)(?![^<]*<\/code>)(?![^<]*<\/pre>)/g, '<br>')
   );
 }
@@ -299,7 +254,6 @@ export function formatBasicMarkdown(text: string): string {
  * @returns Sanitized HTML content
  */
 export function sanitizeHtml(html: string): string {
-  // Configure DOMPurify to allow anchor tags with necessary attributes and table elements
   return DOMPurify.sanitize(html, {
     ALLOWED_TAGS: [
       'strong',
@@ -333,9 +287,9 @@ export function sanitizeHtml(html: string): string {
 }
 
 /**
- * Check if content contains potentially dangerous HTML
+ * Check if content is safe
  * @param content - Content to check
- * @returns true if content is safe, false if potentially dangerous
+ * @returns true if content is safe, false if not
  */
 export function isContentSafe(content: string): boolean {
   const sanitized = DOMPurify.sanitize(content, {

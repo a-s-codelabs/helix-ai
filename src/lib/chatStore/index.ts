@@ -1,13 +1,11 @@
 import { writable } from "svelte/store";
 import {
   imageStringToFile,
-  base64ToFile as utilsBase64ToFile,
   ensurePngFile,
 } from "../utils/file";
 import { globalStorage } from "../globalStorage";
 import {
   createErrorMessage,
-  getErrorDetails,
   getErrorMessage,
   safeDestroySession,
 } from "./helper";
@@ -20,7 +18,6 @@ import {
   type RewriterOptions,
 } from '../writerApiHelper';
 
-// Helper function for streaming operations
 async function processStream<T>(
   stream: ReadableStream<T>,
   abortController: AbortController,
@@ -67,7 +64,6 @@ async function processStream<T>(
   }
 }
 
-// Helper function to create AI sessions with monitoring
 async function createAISessionWithMonitor(
   sessionType: 'summarizer' | 'languageDetector' | 'translator',
   options: any = {},
@@ -114,7 +110,6 @@ async function createAISessionWithMonitor(
   }
 }
 
-// Helper function to create message objects
 function createChatMessage(
   type: 'user' | 'assistant',
   content: string,
@@ -129,7 +124,6 @@ function createChatMessage(
   };
 }
 
-// Helper function to update streaming state
 function updateStreamingState(
   update: (fn: (state: ChatState) => ChatState) => void,
   assistantMsgId: number,
@@ -144,7 +138,6 @@ function updateStreamingState(
   }));
 }
 
-// Helper function to update message content
 function updateMessageContent(
   update: (fn: (state: ChatState) => ChatState) => void,
   messageId: number,
@@ -167,7 +160,6 @@ function updateMessageContent(
   });
 }
 
-// Helper function to append content to a streaming message
 function appendToStreamingMessage(
   update: (fn: (state: ChatState) => ChatState) => void,
   messageId: number,
@@ -468,9 +460,6 @@ async function checkAPIStatus(): Promise<{
   }
 }
 
-/**
- * Create the chat store
- */
 function createChatStore() {
   const { subscribe, set, update } = writable<ChatState>({
     messages: [],
@@ -660,7 +649,7 @@ function createChatStore() {
 
       updateStreamingState(update, assistantMsgId, abortController, true);
 
-      let detectedLanguage = 'en'; // Default fallback
+      let detectedLanguage = 'en';
       let detector: AILanguageDetector | null = null;
       let translator: AITranslator | null = null;
 
@@ -762,7 +751,6 @@ function createChatStore() {
           }
         );
       } finally {
-        // Clean up instances
         if (detector) {
           try {
             detector.destroy();
@@ -829,8 +817,6 @@ function createChatStore() {
 
           if (chunk && typeof chunk === 'string') {
             hasReceivedChunks = true;
-            // Handle incremental vs full text chunks
-            // Chrome Canary returns incremental chunks, Chrome Stable returns full text
             appendToStreamingMessage(update, assistantMsgId, chunk);
           }
         }
@@ -883,13 +869,11 @@ function createChatStore() {
         const rawFormat = options?.format as string | undefined;
         const rawLength = options?.length as string | undefined;
 
-        // Map any legacy writer values to the Rewriter enums
         const toneMap: Record<string, 'as-is' | 'more-formal' | 'more-casual'> =
           {
             'as-is': 'as-is',
             'more-formal': 'more-formal',
             'more-casual': 'more-casual',
-            // legacy writer tones
             formal: 'more-formal',
             neutral: 'as-is',
             casual: 'more-casual',
@@ -898,7 +882,6 @@ function createChatStore() {
           'as-is': 'as-is',
           shorter: 'shorter',
           longer: 'longer',
-          // legacy writer lengths
           short: 'shorter',
           medium: 'as-is',
           long: 'longer',
@@ -948,8 +931,6 @@ function createChatStore() {
 
           if (chunk && typeof chunk === 'string') {
             hasReceivedChunks = true;
-            // Handle incremental vs full text chunks
-            // Chrome Canary returns incremental chunks, Chrome Stable returns full text
             appendToStreamingMessage(update, assistantMsgId, chunk);
           }
         }
@@ -977,9 +958,6 @@ function createChatStore() {
         );
       }
     },
-    /**
-     * Send a message to the AI with streaming response
-     */
     async sendMessageStreaming(userMessage: string, images?: string[]) {
       if (!userMessage.trim()) return;
 
@@ -1067,9 +1045,6 @@ function createChatStore() {
       }
     },
 
-    /**
-     * Stop current streaming
-     */
     stopStreaming() {
       update((state) => {
         if (state.abortController) {
@@ -1084,9 +1059,6 @@ function createChatStore() {
       });
     },
 
-    /**
-     * Set messages directly (for state restoration)
-     */
     setMessages(newMessages: ChatMessage[]) {
       update((state) => ({
         ...state,
@@ -1099,9 +1071,6 @@ function createChatStore() {
       }));
     },
 
-    /**
-     * Clear all messages
-     */
     clear() {
       safeDestroySession(session);
       session = null;
@@ -1143,9 +1112,6 @@ function createChatStore() {
       }));
     },
 
-    /**
-     * Destroy session and cleanup
-     */
     destroy() {
       safeDestroySession(session);
       session = null;

@@ -8,7 +8,6 @@ export default defineConfig({
     permissions: ['storage', 'sidePanel', 'activeTab', 'contextMenus'],
     host_permissions: ['<all_urls>'],
     icons: {
-      // Keep existing icons; used by Chrome for context menu item icon
       '16': 'icon/16.png',
       '48': 'icon/48.png',
       '128': 'icon/128.png',

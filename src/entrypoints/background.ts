@@ -44,12 +44,9 @@ export default defineBackground(() => {
       if (info.menuItemId !== ADD_TO_CHAT_ID) return;
       const imageUrl = info.srcUrl || '';
       try {
-        // Open side panel on the current window
         if (tab && tab.windowId !== undefined && chrome.sidePanel) {
           await chrome.sidePanel.open({ windowId: tab.windowId });
         }
-
-        // Store action for the side panel to pick up
         await globalStorage().set('action_state', {
           actionSource: 'context-image',
           content: imageUrl,
@@ -59,7 +56,6 @@ export default defineBackground(() => {
       }
     });
   }
-  // Handle keyboard shortcuts via Commands API
   if (chrome.commands && chrome.commands.onCommand) {
     chrome.commands.onCommand.addListener(async (command: string) => {
       console.log(`Command received: ${command}`);
@@ -71,7 +67,6 @@ export default defineBackground(() => {
             return;
           }
 
-          // Use promise-based approach for tabs.query
           const tabs = await new Promise<chrome.tabs.Tab[]>((resolve) => {
             chrome.tabs.query(
               {
@@ -124,23 +119,6 @@ export default defineBackground(() => {
       );
       return true;
     }
-
-    // if (message.type === 'GET_TELESCOPE_STATE') {
-    //   try {
-    //     chrome.storage?.local.get(['telescopeState'], (result) => {
-    //       console.log(
-    //         'Background: Retrieved telescope state:',
-    //         result.telescopeState
-    //       );
-    //       sendResponse({ state: result.telescopeState || null });
-    //     });
-    //   } catch (error) {
-    //     console.error('Background: Error in GET_TELESCOPE_STATE:', error);
-    //     sendResponse({ state: null });
-    //   }
-
-    //   return true;
-    // }
 
     if (message.type === 'CLEAR_TELESCOPE_STATE') {
       console.log('Background: Received CLEAR_TELESCOPE_STATE message');
@@ -242,22 +220,4 @@ function openSidePanel(message: any, sender: any) {
     .catch((error) => {
       console.error('Error opening side panel:', error);
     });
-  // if (message.state && chrome.storage) {
-  //   chrome.storage.local.set({
-  //     telescopeState: {
-  //       messages: message.state.messages || [],
-  //       isStreaming: message.state.isStreaming || false,
-  //       streamingMessageId: message.state.streamingMessageId || null,
-  //       inputValue: message.state.inputValue || '',
-  //       inputImageAttached: message.state.inputImageAttached || [],
-  //       searchIndex: message.state.searchIndex || 1,
-  //       totalResults: message.state.totalResults || 0,
-  //       currentState: message.state.currentState || 'ask',
-  //       timestamp: Date.now(),
-  //       source: message.state.source || 'move',
-  //       actionSource: message.state.actionSource,
-  //       targetLanguage: message.state.targetLanguage,
-  //     },
-  //   //   });
-  // }
 }
