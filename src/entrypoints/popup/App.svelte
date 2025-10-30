@@ -242,7 +242,7 @@
       </label>
     </div>
     <div class="enable-row">
-      n in <span class="enable-label">Enable Writer telescope</span>
+      <span class="enable-label">Enable Writer telescope</span>
       <label class="toggle">
         <input type="checkbox" bind:checked={writerTelescopeEnabled} />
         <span class="slider"></span>
