@@ -2,10 +2,20 @@
   import { onMount } from "svelte";
   import { globalStorage } from "@/lib/globalStorage";
   import HelixIcon from "@/entrypoints/telescope-ui/icons/Helix.svelte";
+  import { saveProviderKey, loadProviderKey } from "@/lib/secureStore";
+  import { getDefaultModels } from "@/lib/ai/providerClient";
 
   let floatingTelescopeEnabled = $state(true);
   let selectionTelescopeEnabled = $state(true);
   let writerTelescopeEnabled = $state(true);
+
+  let aiProvider = $state<"builtin" | "openai" | "anthropic" | "gemini">(
+    "builtin"
+  );
+  let aiModel = $state<string>("");
+  let openaiKey = $state("");
+  let anthropicKey = $state("");
+  let geminiKey = $state("");
 
   let mainElement: HTMLElement;
 
@@ -18,6 +28,12 @@
         selectionTelescopeEnabled =
           (config as any).selectionTelescopeEnabled ?? true;
         writerTelescopeEnabled = (config as any).writerTelescopeEnabled ?? true;
+        aiProvider = (config as any).aiProvider ?? "builtin";
+        aiModel = (config as any).aiModel ?? "";
+        // Load keys (decrypted) for convenience in UI; do not persist back unless changed
+        openaiKey = (await loadProviderKey("openai")) || "";
+        anthropicKey = (await loadProviderKey("anthropic")) || "";
+        geminiKey = (await loadProviderKey("gemini")) || "";
       }
     } catch (error) {
       console.error("Error loading settings:", error);
@@ -32,7 +48,13 @@
         floatingTelescopeEnabled,
         selectionTelescopeEnabled,
         writerTelescopeEnabled,
+        aiProvider,
+        aiModel,
       } as any);
+      // Save keys securely if provided
+      if (openaiKey) await saveProviderKey("openai", openaiKey);
+      if (anthropicKey) await saveProviderKey("anthropic", anthropicKey);
+      if (geminiKey) await saveProviderKey("gemini", geminiKey);
     } catch (error) {
       console.error("Error saving settings:", error);
     }
@@ -123,6 +145,14 @@
 
   let keyboardShortcut = $state("ctrl + y");
 
+  $effect(() => {
+    // Reset model if provider changes and model not in defaults
+    const models = aiProvider === "builtin" ? [] : getDefaultModels(aiProvider);
+    if (aiProvider !== "builtin" && aiModel && !models.includes(aiModel)) {
+      aiModel = models[0] || "";
+    }
+  });
+
   async function openShortcutsPage() {
     try {
       chrome.runtime.sendMessage(
@@ -196,6 +226,75 @@
         Open in sidepanel
       </button>
     </div>
+  </div>
+
+  <div class="keybinding-section">
+    <h3>AI Platform</h3>
+    <div class="keybinding-row" style="gap: 12px; align-items: center;">
+      <label class="enable-label" for="platform-select">Select a platform</label
+      >
+      <select
+        id="platform-select"
+        class="option-dropdown"
+        bind:value={aiProvider}
+        onchange={() => saveSettings()}
+      >
+        <option value="builtin">Built-in (private and secure)</option>
+        <option value="openai">OpenAI</option>
+        <option value="anthropic">Claude</option>
+        <option value="gemini">Gemini</option>
+      </select>
+    </div>
+
+    {#if aiProvider !== "builtin"}
+      <div class="keybinding-row" style="gap: 12px; align-items: center;">
+        <label class="enable-label" for="model-select">Model</label>
+        <select
+          id="model-select"
+          class="option-dropdown"
+          bind:value={aiModel}
+          onchange={() => saveSettings()}
+        >
+          {#each getDefaultModels(aiProvider) as m}
+            <option value={m}>{m}</option>
+          {/each}
+        </select>
+      </div>
+
+      <div class="keybinding-row" style="gap: 12px; align-items: center;">
+        {#if aiProvider === "openai"}
+          <label class="enable-label" for="openai-key">OpenAI API Key</label>
+          <input
+            id="openai-key"
+            type="password"
+            class="option-input"
+            bind:value={openaiKey}
+            placeholder="sk-..."
+            onblur={saveSettings}
+          />
+        {:else if aiProvider === "anthropic"}
+          <label class="enable-label" for="anthropic-key">Claude API Key</label>
+          <input
+            id="anthropic-key"
+            type="password"
+            class="option-input"
+            bind:value={anthropicKey}
+            placeholder="anthropic_key..."
+            onblur={saveSettings}
+          />
+        {:else if aiProvider === "gemini"}
+          <label class="enable-label" for="gemini-key">Gemini API Key</label>
+          <input
+            id="gemini-key"
+            type="password"
+            class="option-input"
+            bind:value={geminiKey}
+            placeholder="AIzx..."
+            onblur={saveSettings}
+          />
+        {/if}
+      </div>
+    {/if}
   </div>
 
   <div class="keybinding-section">
@@ -365,6 +464,31 @@
     font-weight: 600;
     color: #f2f8fc;
     margin-bottom: 12px;
+  }
+
+  .option-dropdown {
+    background: #131723;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    color: #e5e7eb;
+    font-size: 14px;
+    padding: 8px 12px;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s ease;
+    font-family: inherit;
+  }
+  .option-input {
+    background: #131723;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    color: #e5e7eb;
+    font-size: 14px;
+    padding: 8px 12px;
+    outline: none;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    width: 220px;
   }
 
   .keybinding-row {

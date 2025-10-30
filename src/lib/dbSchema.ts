@@ -25,6 +25,9 @@ export const DB_SCHEMA = {
       floatingTelescopeEnabled: true,
       selectionTelescopeEnabled: true,
       assignedTelescopeCommand: undefined as boolean | undefined
+      ,
+      aiProvider: 'builtin' as 'builtin' | 'openai' | 'anthropic' | 'gemini',
+      aiModel: '' as string | undefined
     },
   },
   tabIds: {
@@ -73,20 +76,20 @@ export const DB_SCHEMA = {
       // isStreaming: boolean;
       // streamingId: number | null;
     } & (
-      | {
+        | {
           actionSource: 'addToChat';
           content: string;
         }
-      | {
+        | {
           actionSource: 'summarise';
           content: string;
         }
-      | {
+        | {
           actionSource: 'translate';
           content: string;
           targetLanguage: string | null;
         }
-      | {
+        | {
           actionSource: 'input-options';
           messages: {
             id: number;
@@ -97,18 +100,38 @@ export const DB_SCHEMA = {
             actionSource: InputIntent;
           }[];
         }
-      | {
+        | {
           actionSource: 'popup';
         }
-      | {
+        | {
           actionSource: 'context-image';
           content: string;
         }
-    ),
+      ),
   },
   telescopeSettings: {
     storageKey: 'local:global:telescopeSettings' as const,
     default: {} as Record<string, Record<string, string | number>>,
+  },
+  secureProviderKeys: {
+    storageKey: 'local:global:secureProviderKeys' as const,
+    default: {
+      // ciphertext blobs per provider
+      openai: null as null | {
+        iv: string; // base64
+        cipher: string; // base64
+      },
+      anthropic: null as null | {
+        iv: string;
+        cipher: string;
+      },
+      gemini: null as null | {
+        iv: string;
+        cipher: string;
+      },
+      // stored salt for key derivation
+      kdfSalt: null as null | string,
+    },
   },
 };
 export type DBStorageKey = keyof typeof DB_SCHEMA;
