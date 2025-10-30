@@ -71,7 +71,8 @@ export type ProviderKey = 'openai' | 'anthropic' | 'gemini';
 
 export async function saveProviderKey(provider: ProviderKey, apiKey: string): Promise<void> {
   const store = globalStorage();
-  const blob = await encryptSecret(apiKey);
+  const cleaned = apiKey.trim();
+  const blob = await encryptSecret(cleaned);
   const current = (await store.get('secureProviderKeys')) || {
     openai: null,
     anthropic: null,
