@@ -3,7 +3,7 @@
   import CloseIcon from './icons/Close.svelte';
   import TrashIcon from './icons/Trash.svelte';
 
-  export type Intent =
+  type Intent =
     | 'prompt'
     | 'summarise'
     | 'translate'
@@ -23,31 +23,27 @@
     onReset,
   } = $props();
 
-  // Get options for the current intent
+
   const currentOptions = $derived(
     intent && option[intent as IntentKey] ? option[intent as IntentKey] : []
   );
 
-  // Initialize default values if not set, reset when intent changes
   $effect(() => {
     if (!intent) return;
 
     const intentKey = intent as IntentKey;
     const options = option[intentKey] || [];
 
-    // Get all option IDs for current intent
     const currentOptionIds = new Set(
       options.map((opt) => opt.id).filter(Boolean)
     );
 
-    // Remove values that don't belong to current intent
     Object.keys(values).forEach((key) => {
       if (!currentOptionIds.has(key)) {
         delete values[key];
       }
     });
 
-    // Initialize default values for current intent options
     options.forEach((opt) => {
       if (opt.id && values[opt.id] === undefined) {
         if (opt.defaultValue !== undefined) {
@@ -57,20 +53,17 @@
           opt.options &&
           opt.options.length > 0
         ) {
-          // For dropdowns without default, use first option
           const firstOption = opt.options[0];
           if (typeof firstOption === 'object' && 'value' in firstOption) {
             values[opt.id] = firstOption.value;
           }
         } else if (opt.uiType === 'slider' && opt.min !== undefined) {
-          // For sliders without default, use min value
           values[opt.id] = opt.min;
         }
       }
     });
   });
 
-  // Get default values for current intent
   function getDefaultValues(): SettingsValues {
     if (!intent) return {};
 
@@ -87,13 +80,11 @@
           opt.options &&
           opt.options.length > 0
         ) {
-          // For dropdowns without default, use first option
           const firstOption = opt.options[0];
           if (typeof firstOption === 'object' && 'value' in firstOption) {
             defaults[opt.id] = firstOption.value;
           }
         } else if (opt.uiType === 'slider' && opt.min !== undefined) {
-          // For sliders without default, use min value
           defaults[opt.id] = opt.min;
         }
       }
@@ -105,9 +96,7 @@
   function handleDropdownChange(optionId: string, value: OptionValue) {
     values[optionId] = value;
     onChange?.({ id: optionId, value });
-    // Auto-save on change - use $effect to ensure values are updated before saving
     if (intent) {
-      // Use setTimeout to ensure the value is set before saving
       setTimeout(() => {
         onSave?.({ intent, values: { ...values } });
       }, 0);
@@ -117,9 +106,7 @@
   function handleSliderChange(optionId: string, value: number) {
     values[optionId] = value;
     onChange?.({ id: optionId, value });
-    // Auto-save on change - use $effect to ensure values are updated before saving
     if (intent) {
-      // Use setTimeout to ensure the value is set before saving
       setTimeout(() => {
         onSave?.({ intent, values: { ...values } });
       }, 0);
@@ -130,7 +117,6 @@
     if (!intent) return;
 
     const defaults = getDefaultValues();
-    // Reset all values to defaults
     Object.keys(values).forEach((key) => {
       if (defaults[key] !== undefined) {
         values[key] = defaults[key];
@@ -139,10 +125,8 @@
       }
     });
 
-    // Set missing defaults
     Object.assign(values, defaults);
 
-    // Trigger save after reset
     onSave?.({ intent, values: { ...values } });
     onReset?.();
   }
@@ -338,7 +322,7 @@
     gap: 16px;
   }
 
-  .reset-button {
+  /* .reset-button {
     background: #374151;
     border: 1px solid #4b5563;
     border-radius: 6px;
@@ -349,18 +333,18 @@
     cursor: pointer;
     transition: all 0.2s ease;
     font-family: inherit;
-  }
+  } */
 
-  .reset-button:hover {
+  /* .reset-button:hover {
     background: #4b5563;
     border-color: #6b7280;
     color: #f3f4f6;
-  }
+  } */
 
-  .reset-button:active {
+  /* .reset-button:active {
     background: #1f2937;
     transform: scale(0.98);
-  }
+  } */
 
   .trash-button {
     background: none;

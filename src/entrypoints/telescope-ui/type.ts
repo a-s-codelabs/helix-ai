@@ -20,7 +20,17 @@ export type InputProps = {
   isInSidePanel?: boolean;
   onInput?: ({ value }: { value: string }) => void;
   onStateChange?: ({ state }: { state: State }) => void;
-  onAsk?: ({ value, images }: { value: string; images?: string[] }) => void;
+  onAsk?: ({
+    value,
+    images,
+    settings,
+    intent,
+  }: {
+    value: string;
+    images?: string[];
+    settings?: Record<string, string | number>;
+    intent?: string;
+  }) => void;
   onVoiceInput?: () => void;
   onAttachment?: () => void;
   onClear?: () => void;
@@ -56,7 +66,6 @@ export type ChatboxProps = {
   onClose?: () => void;
   isStreaming?: boolean;
   streamingMessageId?: number | null;
-  // Additional props for side panel functionality
   inputValue?: string;
   inputImageAttached?: string[];
   searchIndex?: number;

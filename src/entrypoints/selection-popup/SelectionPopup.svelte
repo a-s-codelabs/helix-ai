@@ -26,10 +26,8 @@
 
   let showLanguageDropdown = $state(false);
 
-  // Use a subset of supported languages for the dropdown (most common ones)
-  const languages = SUPPORTED_LANGUAGES.slice(0, 8); // Top 8 languages
+  const languages = SUPPORTED_LANGUAGES.slice(0, 8);
 
-  // Helper to grab selected text from the document
   function getSelectedText(): string {
     return (
       (window.getSelection?.() || document.getSelection?.())?.toString() || ""
@@ -57,7 +55,6 @@
       onClose?.();
       return;
     }
-    // Translate action is now handled by hover dropdown, no direct action needed
   }
 
   async function handleLanguageSelection(languageCode: string) {
@@ -207,12 +204,16 @@
 
   .action-wrapper {
     position: relative;
-    /* Allow child button to shrink so text can ellipsize */
     min-width: 0;
+    color: #929398;
+  }
+
+  .action-wrapper:hover {
+    color: #60a5fa;
   }
 
   .action-wrapper.active .action-button {
-    background: rgba(59, 130, 246, 0.15);
+    /* background: rgba(59, 130, 246, 0.15); */
     color: #60a5fa;
   }
 
@@ -222,7 +223,7 @@
     gap: 6px;
     padding: 8px 12px;
     background: transparent;
-    color: #ffffff;
+    /* color: #ffffff; */
     border: none;
     border-radius: 6px;
     cursor: pointer;
@@ -231,14 +232,13 @@
     font-size: 13px;
     font-weight: 500;
     outline: none;
-    /* Allow truncation instead of forcing scroll when space is tight */
     min-width: 0;
-    overflow: hidden; /* clip inner text so ellipsis can apply */
-    max-width: 148px; /* constrain to enable ellipsis */
+    overflow: hidden;
+    max-width: 148px;
+    color: #929398;
   }
 
   .action-button:hover {
-    background: rgba(59, 130, 246, 0.15);
     color: #60a5fa;
   }
 
@@ -263,19 +263,18 @@
     background: #2b2e39;
     border-radius: 50%;
     padding: 4px;
-    flex-shrink: 0; /* Prevent icon from shrinking so text can ellipsize */
+    flex-shrink: 0;
   }
 
   .action-label {
     line-height: 1;
-    /* Truncate long labels with an ellipsis when width is constrained */
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 100%;
-    flex: 1 1 auto; /* allow label to shrink within flex button */
-    min-width: 0; /* required for flex items to ellipsize */
-    display: block; /* ensure text-overflow works inside flex container */
+    flex: 1 1 auto;
+    min-width: 0;
+    display: block;
   }
 
   .dropdown-icon {
@@ -284,8 +283,8 @@
     justify-content: center;
     width: 16px;
     height: 16px;
-    margin-left: 4px;
-    flex-shrink: 0; /* Prevent dropdown icon from shrinking */
+    /* margin-left: 4px; */
+    flex-shrink: 0;
   }
 
   .language-dropdown {
@@ -331,11 +330,6 @@
     flex: 1;
   }
 
-  .language-option:hover {
-    background: rgba(59, 130, 246, 0.15);
-    color: #60a5fa;
-  }
-
   .language-option:focus-visible {
     outline: 2px solid #3b82f6;
     outline-offset: -2px;
@@ -343,17 +337,18 @@
 
   @media (max-width: 640px) {
     .action-label {
-      /* Keep label but let it ellipsize on small screens */
-      display: inline;
+      display: none;
     }
 
     .action-button {
-      padding: 8px;
+      /* padding: 8px; */
       min-width: 0;
+
+      /* background: red; */
     }
 
-    .popup-content {
+    /* .popup-content {
       gap: 2px;
-    }
+    } */
   }
 </style>

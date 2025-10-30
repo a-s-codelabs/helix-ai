@@ -1,8 +1,6 @@
 <script lang="ts">
   import { scale, slide } from 'svelte/transition';
   /*@ts-ignore */
-  // import Sparkles from '../telescope-ui/icons/Sparkles.svelte';
-  /*@ts-ignore */
   import Helix from '../telescope-ui/icons/Helix.svelte';
   /*@ts-ignore */
   import Settings from '../telescope-ui/icons/Settings.svelte';
@@ -27,12 +25,9 @@
   }
 
   let { targetElement, onClose, onDragStart }: Props = $props();
-
-  // Mode
   type Mode = 'writer' | 'rewriter' | 'proofreader';
   let mode = $state<Mode>('writer');
 
-  // State
   let prompt = $state('');
   let context = $state('');
   let isGenerating = $state(false);
@@ -43,35 +38,29 @@
     'unavailable'
   );
 
-  // Selection tracking for rewriter mode
   let selectionStart = $state<number | null>(null);
   let selectionEnd = $state<number | null>(null);
   let textBeforeSelection = $state('');
   let textAfterSelection = $state('');
 
-  // Writer options
   let writerTone = $state<'formal' | 'neutral' | 'casual'>('neutral');
   let writerLength = $state<'short' | 'medium' | 'long'>('medium');
   let writerFormat = $state<'markdown' | 'plain-text'>('plain-text');
 
-  // Rewriter options
   let rewriterTone = $state<'as-is' | 'more-formal' | 'more-casual'>('as-is');
   let rewriterLength = $state<'as-is' | 'shorter' | 'longer'>('as-is');
   let rewriterFormat = $state<'as-is' | 'markdown' | 'plain-text'>('as-is');
 
-  // Proofreader options
   let proofreaderInputLangs = $state({
-    en: true, // Default to English
+    en: true,
     fr: false,
     ja: false,
     pt: false,
     es: false,
   });
 
-  // Common options
   let outputLanguage = $state('en');
 
-  // Language checkboxes
   let inputLangs = $state({
     en: false,
     fr: false,
@@ -88,11 +77,9 @@
     es: false,
   });
 
-  // Streaming control
   let abortController: AbortController | null = null;
   let streamedContent = $state('');
 
-  // Check API availability based on mode
   $effect(() => {
     const checkAvailability = async () => {
       const availability =
@@ -118,20 +105,16 @@
     checkAvailability();
   });
 
-  // Get context from existing text in the textarea
-  // For rewriter and proofreader modes, also capture selected text if any
   $effect(() => {
     if (targetElement && targetElement.value) {
       context = targetElement.value;
     }
 
-    // In rewriter or proofreader mode, check for selected text
     if ((mode === 'rewriter' || mode === 'proofreader') && targetElement) {
       const start = targetElement.selectionStart || 0;
       const end = targetElement.selectionEnd || 0;
 
       if (start !== end) {
-        // User has selected text
         const selectedText = targetElement.value.substring(start, end);
         prompt = selectedText;
         selectionStart = start;
@@ -139,7 +122,6 @@
         textBeforeSelection = targetElement.value.substring(0, start);
         textAfterSelection = targetElement.value.substring(end);
       } else {
-        // No selection, use entire text
         selectionStart = null;
         selectionEnd = null;
         textBeforeSelection = '';
@@ -148,7 +130,6 @@
     }
   });
 
-  // Auto-focus prompt input on mount and mode change
   $effect(() => {
     setTimeout(() => {
       const input = document.querySelector('.prompt-input') as HTMLInputElement;
@@ -171,11 +152,9 @@
     error = '';
     streamedContent = '';
 
-    // Create abort controller for stopping
     abortController = new AbortController();
 
     try {
-      // Convert checkbox states to language arrays
       const selectedInputLangs = Object.entries(inputLangs)
         .filter(([_, checked]) => checked)
         .map(([lang]) => lang);
@@ -185,7 +164,6 @@
         .map(([lang]) => lang);
 
       if (mode === 'writer') {
-        // Writer mode
         const options: WriterOptions = {
           tone: writerTone,
           length: writerLength,
@@ -205,7 +183,6 @@
           options,
         });
 
-        // Stream the content
         const stream = writeContentStreaming(
           {
             prompt: prompt.trim(),
@@ -213,7 +190,6 @@
           options
         );
 
-        // Save initial value before generation
         const initialValue = targetElement?.value || '';
         const separator = initialValue ? '\n\n' : '';
 
@@ -223,11 +199,8 @@
             break;
           }
 
-          // Handle both Chrome Stable (full text each time) and Canary (incremental chunks)
-          // @ts-ignore - Check if Writer API exists to determine behavior
           streamedContent = 'Writer' in self ? streamedContent + chunk : chunk;
 
-          // Update target element in real-time
           if (targetElement) {
             targetElement.value = initialValue + separator + streamedContent;
             targetElement.dispatchEvent(new Event('input', { bubbles: true }));
@@ -236,7 +209,6 @@
 
         console.log('[Writer API] Generated text:', streamedContent);
       } else if (mode === 'rewriter') {
-        // Rewriter mode
         const options: RewriterOptions = {
           tone: rewriterTone,
           length: rewriterLength,
@@ -256,7 +228,6 @@
           options,
         });
 
-        // Stream the content
         const stream = rewriteContentStreaming(
           {
             text: prompt.trim(),
@@ -270,21 +241,15 @@
             break;
           }
 
-          // Handle both Chrome Stable (full text each time) and Canary (incremental chunks)
-          // @ts-ignore - Check if Rewriter API exists to determine behavior
           streamedContent = 'Rewriter' in self ? streamedContent + chunk : chunk;
 
-          // Update target element in real-time
           if (targetElement) {
             if (selectionStart !== null && selectionEnd !== null) {
-              // Replace only selected text
               targetElement.value = textBeforeSelection + streamedContent + textAfterSelection;
 
-              // Set cursor at the end of the rewritten content
               const newCursorPosition = textBeforeSelection.length + streamedContent.length;
               targetElement.setSelectionRange(newCursorPosition, newCursorPosition);
             } else {
-              // Replace entire content
               targetElement.value = streamedContent;
             }
             targetElement.dispatchEvent(new Event('input', { bubbles: true }));
@@ -293,7 +258,6 @@
 
         console.log('[Rewriter API] Rewritten text:', streamedContent);
       } else if (mode === 'proofreader') {
-        // Proofreader mode
         const selectedProofreaderLangs = Object.entries(proofreaderInputLangs)
           .filter(([_, checked]) => checked)
           .map(([lang]) => lang);
@@ -309,7 +273,6 @@
           options,
         });
 
-        // Stream the content
         const stream = proofreadContentStreaming(
           {
             text: prompt.trim(),
@@ -323,20 +286,14 @@
             break;
           }
 
-          // Proofreader API returns the corrected text directly
           streamedContent = chunk;
 
-          // Update target element in real-time
           if (targetElement) {
             if (selectionStart !== null && selectionEnd !== null) {
-              // Replace only selected text
               targetElement.value = textBeforeSelection + streamedContent + textAfterSelection;
-
-              // Set cursor at the end of the proofread content
               const newCursorPosition = textBeforeSelection.length + streamedContent.length;
               targetElement.setSelectionRange(newCursorPosition, newCursorPosition);
             } else {
-              // Replace entire content
               targetElement.value = streamedContent;
             }
             targetElement.dispatchEvent(new Event('input', { bubbles: true }));
@@ -346,15 +303,10 @@
         console.log('[Proofreader API] Proofread text:', streamedContent);
       }
 
-      // Finalize and ensure all events are dispatched
       if (targetElement && streamedContent) {
         if (mode === 'writer') {
-          // For writer, the final value is already set during streaming
-          // Just ensure the change event is dispatched
           targetElement.dispatchEvent(new Event('change', { bubbles: true }));
         } else {
-          // For rewriter and proofreader, the content is already replaced during streaming
-          // Supports rewriting/proofreading only selected text or entire content
           targetElement.dispatchEvent(new Event('change', { bubbles: true }));
         }
 
@@ -362,12 +314,10 @@
         console.log(`[${mode === 'writer' ? 'Writer' : mode === 'rewriter' ? 'Rewriter' : 'Proofreader'} API] Final value set:`, targetElement.value);
       }
 
-      // Show success notification if not aborted
       if (!abortController?.signal.aborted && streamedContent) {
         const successMessage = mode === 'writer' ? 'Content generated!' : mode === 'rewriter' ? 'Content rewritten!' : 'Content proofread!';
         showSuccessNotification(successMessage);
 
-        // Close the popup
         setTimeout(() => {
           onClose?.();
         }, 500);
@@ -393,7 +343,6 @@
   }
 
   function showSuccessNotification(message: string = '✓ Content generated!') {
-    // Create a temporary notification element
     const notification = document.createElement('div');
     notification.textContent = message;
     notification.style.cssText = `
@@ -412,7 +361,6 @@
       animation: slideIn 0.3s ease-out;
     `;
 
-    // Add animation
     const style = document.createElement('style');
     style.textContent = `
       @keyframes slideIn {
@@ -430,7 +378,7 @@
 
     document.body.appendChild(notification);
 
-    // Remove after 2 seconds
+
     setTimeout(() => {
       notification.style.animation = 'slideIn 0.3s ease-out reverse';
       setTimeout(() => {
@@ -441,26 +389,22 @@
   }
 
   function handleResetOptions() {
-    // Reset writer options
     writerTone = 'neutral';
     writerLength = 'medium';
     writerFormat = 'plain-text';
 
-    // Reset rewriter options
     rewriterTone = 'as-is';
     rewriterLength = 'as-is';
     rewriterFormat = 'as-is';
 
-    // Reset proofreader options
     proofreaderInputLangs = {
-      en: true, // Default to English
+      en: true,
       fr: false,
       ja: false,
       pt: false,
       es: false,
     };
 
-    // Reset common options
     outputLanguage = 'en';
     inputLangs = {
       en: false,
@@ -493,13 +437,11 @@
 
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
-      // Stop generation if running
       if (isGenerating) {
         handleStop();
       }
       onClose?.();
     }
-    // Ctrl/Cmd + Enter to generate
     if (
       event.key === 'Enter' &&
       (event.ctrlKey || event.metaKey) &&
@@ -520,7 +462,6 @@
   role="dialog"
   aria-label="AI Writer"
 >
-  <!-- Header with drag handle -->
   <div class="header" onmousedown={onDragStart} role="button" tabindex="0">
     <div class="header-left">
       <span class="icon">
@@ -603,7 +544,6 @@
   {/if}
 
   <div class="content">
-    <!-- Prompt input -->
     <div class="input-wrapper">
       <textarea
         type="text"
@@ -614,7 +554,7 @@
         class="prompt-textarea"
         rows="3"
         disabled={isGenerating}
-      />
+      ></textarea>
       {#if selectionStart !== null && selectionEnd !== null}
         <div class="selection-info">
           ✓ {mode === 'rewriter' ? 'Rewriting' : 'Proofreading'} selected text only ({selectionEnd - selectionStart} chars)
@@ -634,10 +574,8 @@
 
 
 
-    <!-- Options panel (expandable) -->
     {#if showOptions}
       <div class="options-panel" transition:slide={{ duration: 200 }}>
-        <!-- Context -->
         <div class="field">
           <label for="context">Context (optional)</label>
           <textarea
@@ -646,10 +584,9 @@
             placeholder="Add background information... e.g., I'm a long-standing customer..."
             rows="3"
             disabled={isGenerating}
-          />
+          ></textarea>
         </div>
 
-        <!-- Tone, Length, Format -->
         <div class="field-row field-row-3">
           <div class="field">
             <label for="tone">Tone</label>
@@ -738,7 +675,6 @@
         </div>
 
         <div class="field">
-          <!-- Output Language -->
           <label for="outputLanguage">Output Language</label>
           <select
             id="outputLanguage"
@@ -753,7 +689,6 @@
           </select>
         </div>
 
-        <!-- Proofreader Language Options -->
         {#if mode === 'proofreader'}
           <div class="field">
             <fieldset class="checkbox-fieldset">
@@ -961,7 +896,6 @@
     overflow: hidden;
   }
 
-  /* Header */
   .header {
     display: flex;
     align-items: center;
@@ -1023,7 +957,6 @@
   }
 
   .header-action-btn.generate:hover:not(:disabled) {
-    /* Use a faded version of #3b82f6 (blue-500), e.g. 80% opacity */
     background: #3b82f6cc;
   }
 
@@ -1098,7 +1031,6 @@
     padding: 2px 6px;
   }
 
-  /* Error banner */
   .error-banner {
     background: #7f1d1d;
     color: #fca5a5;
@@ -1107,7 +1039,6 @@
     border-bottom: 1px solid #991b1b;
   }
 
-  /* Content */
   .content {
     overflow: auto;
     overscroll-behavior: none;
@@ -1116,12 +1047,10 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-    /* Make scrollbar thin in Firefox */
     scrollbar-width: thin;
     scrollbar-color: #52525b transparent;
   }
 
-  /* Prompt input */
   .input-wrapper {
     display: flex;
     flex-direction: column;
@@ -1143,10 +1072,6 @@
     font-family: inherit;
     transition: all 0.15s ease;
   }
-
-  /* .prompt-input.has-icon {
-    padding-right: 36px;
-  } */
 
   .prompt-settings-btn {
     position: absolute;
@@ -1246,7 +1171,6 @@
     gap: 4px;
   }
 
-  /* Options panel */
   .options-panel {
     display: flex;
     flex-direction: column;
@@ -1361,7 +1285,6 @@
     background: #52525b;
   }
 
-  /* Thin scrollbar for content container (WebKit) */
   .content::-webkit-scrollbar {
     width: 6px;
   }
@@ -1383,7 +1306,6 @@
     cursor: pointer;
   }
 
-  /* Section toggle button */
   .section-toggle {
     width: 100%;
     display: flex;
@@ -1416,7 +1338,6 @@
     color: #a1a1aa;
   }
 
-  /* Languages panel */
   .languages-panel {
     display: flex;
     flex-direction: column;
@@ -1428,7 +1349,7 @@
     margin-top: 8px;
   }
 
-  /* Info section */
+
   .info-section {
     display: flex;
     align-items: center;
@@ -1451,7 +1372,6 @@
       monospace;
   }
 
-  /* Checkbox fieldset */
   .checkbox-fieldset {
     border: none;
     padding: 0;
@@ -1465,7 +1385,6 @@
     margin-bottom: 6px;
   }
 
-  /* Checkbox group */
   .checkbox-group {
     display: flex;
     flex-direction: column;
@@ -1508,7 +1427,6 @@
     user-select: none;
   }
 
-  /* Reset Button */
   .reset-btn {
     width: 100%;
     padding: 8px 12px;
@@ -1516,7 +1434,7 @@
     border: 1px solid #3f3f46;
     border-radius: 8px;
     color: #a1a1aa;
-    font-size: 13px;
+      font-size: 13px;
     font-weight: 500;
     font-family: inherit;
     cursor: pointer;
@@ -1538,7 +1456,6 @@
     transform: scale(0.99);
   }
 
-  /* Keyboard shortcuts hint */
   .shortcuts-hint {
     display: flex;
     flex-direction: column;

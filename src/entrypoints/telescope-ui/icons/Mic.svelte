@@ -1,5 +1,4 @@
 <script lang="ts">
-  // Mic icon component
 </script>
 
 <svg

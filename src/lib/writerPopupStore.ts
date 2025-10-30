@@ -67,6 +67,4 @@ function createWriterPopupStore() {
 }
 
 export const writerPopupStore = createWriterPopupStore();
-
-// Export the state as a derived store for reactive access
 export const writerPopupState = { subscribe: writerPopupStore.subscribe };

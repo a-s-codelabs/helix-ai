@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { globalStorage } from "@/lib/globalStorage";
-  import { Source } from "@/lib/dbSchema";
+  import type { Source } from "@/lib/dbSchema";
 
   let showDownloadingDropdown = $state(false);
   let isDownloading = $state(false);
@@ -11,10 +11,8 @@
   let lastDownloadCount = $state(0);
 
   let { hasChatBox = false } = $props();
-  // Play completion sound
   function playCompletionSound() {
     try {
-      // Create a simple beep sound using Web Audio API
       const audioContext = new (window.AudioContext ||
         (window as any).webkitAudioContext)();
       const oscillator = audioContext.createOscillator();
@@ -39,7 +37,6 @@
     }
   }
 
-  // Get source display name
   function getSourceDisplayName(source: Source): string {
     const sourceNames: Record<Source, string> = {
       prompt: "Language Model",
@@ -52,14 +49,12 @@
     return sourceNames[source] || source;
   }
 
-  // Check download status
   async function checkDownloadStatus() {
     try {
       const status = await globalStorage().get("downloadStatus");
       if (status) {
         downloadStatuses = status;
 
-        // Check if any downloads are active
         const activeDownloads = Object.values(status).filter(
           (download: any) => download.loaded < 1
         );
@@ -69,12 +64,10 @@
         const wasDownloading = isDownloading;
         isDownloading = activeDownloads.length > 0;
 
-        // Play sound when download completes
         if (wasDownloading && !isDownloading && activeDownloads.length === 0) {
           playCompletionSound();
         }
 
-        // Update download history (last 5)
         const allDownloads = Object.values(status)
           .filter((download: any) => download.createdAt)
           .sort((a: any, b: any) => b.createdAt - a.createdAt)
@@ -87,18 +80,14 @@
     }
   }
 
-  // Watch for download status changes
   onMount(() => {
-    // Initial check
     checkDownloadStatus();
 
-    // Watch for changes
     const unwatch = globalStorage().watch(
       "local:global:downloadStatus",
       checkDownloadStatus
     );
 
-    // Also poll periodically as backup
     const pollInterval = setInterval(checkDownloadStatus, 1000);
 
     return () => {
@@ -132,7 +121,6 @@
       tabindex="0"
     >
       <span class="dropdown-icon">
-        <!-- ChevDown SVG icon -->
         <div class="w-8 flex items-center justify-center p-[10px]">
           <svg
             xmlns="http://www.w3.org/2000/svg"

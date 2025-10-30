@@ -18,22 +18,14 @@ export async function extractPageContent({
       document.querySelector('#main') ||
       document.documentElement
     ).outerHTML;
-
-    // 2. Clean HTML (remove CSS, scripts, etc.)
     const cleanedHTML = cleanHTML(html);
-    // console.log('##HELIX cleanedHTML', cleanedHTML);
-
-    // 3. Convert to markdown
     const markdown = htmlToMarkdown(cleanedHTML);
-
-    // 4. Process for LLM
     const processedMarkdown = processTextForLLM(markdown);
 
     const metaDescription =
       document
         .querySelector('meta[name="description"]')
         ?.getAttribute?.('content') || '';
-    // 5. Add metadata
     const metadata = `# ${document.title || 'Web Page'}
 **Title:** ${document.title}
 **Description:** ${metaDescription}
@@ -45,7 +37,6 @@ export async function extractPageContent({
 
 `;
 
-    // 6. Truncate for AI context
     const maxLength = 60_000;
     const finalContent = metadata + processedMarkdown;
 

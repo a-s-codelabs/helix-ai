@@ -1,5 +1,4 @@
 <script lang="ts">
-  // Simple reload/refresh icon using currentColor for stroke
 </script>
 
 <svg

@@ -8,14 +8,13 @@
   import SendIcon from './icons/Send.svelte';
   import StopIcon from './icons/Stop.svelte';
   import { globalStorage } from '@/lib/globalStorage';
-  // intent icons
   import AddToChat from './icons/AddToChat.svelte';
   import SummariseIcon from './icons/Summarise.svelte';
   import TranslateIcon from './icons/Translate.svelte';
   import WriterIcon from './icons/Writer.svelte';
   import RewriterIcon from './icons/Rewriter.svelte';
   import SettingsPopup from './SettingsPopup.svelte';
-  import type { Intent } from './SettingsPopup.svelte';
+  type Intent = 'prompt' | 'summarise' | 'translate' | 'write' | 'rewrite';
 
   let {
     inputState = $bindable('ask' as State),
@@ -38,20 +37,17 @@
     onStop,
   }: InputProps = $props();
 
-  let containerElement: HTMLDivElement; // root container to measure width
-  let isCompactAction = $state(false); // when true, show send icon instead of label
+  let containerElement: HTMLDivElement;
+  let isCompactAction = $state(false);
 
-  // Hover menu for search icon: choose intent and adapt placeholder
   let showIntentMenu = $state(false);
   let selectedIntent = $state<Intent>('prompt');
-  let intentTriggerElement: HTMLDivElement;
+  let intentTriggerElement = $state<HTMLDivElement | null>(null);
 
-  // Settings popup state
   let showSettingsPopup = $state(false);
-  let settingsButtonElement: HTMLButtonElement;
+  let settingsButtonElement = $state<HTMLButtonElement | null>(null);
   let settingsValues = $state<Record<string, string | number>>({});
 
-  // Storage instance for saving settings
   const storage = globalStorage();
 
   const intentToPlaceholder: Record<Intent, string> = {
@@ -62,7 +58,6 @@
     rewrite: 'Rewrite selected text...',
   };
 
-  // Match intent to icon component so the leading icon reflects selection
   const intentToIcon: Record<Intent, typeof SearchAiIcon> = {
     prompt: AddToChat,
     summarise: SummariseIcon,
@@ -71,13 +66,10 @@
     rewrite: RewriterIcon,
   };
 
-  // Derived current icon component for the input
   const CurrentIntentIcon = $derived(
     intentToIcon[selectedIntent] ?? SearchAiIcon
   );
 
-  // Observe container width and toggle compact mode;
-  // compact threshold chosen to align with existing 400px media query
   $effect(() => {
     if (!containerElement) return;
     const updateCompact = () => {
@@ -90,18 +82,13 @@
     return () => observer.disconnect();
   });
 
-  // Dynamic placeholder based on side panel mode and selected intent
   let dynamicPlaceholder = $derived(
     (() => {
-      // If consumer provided a custom placeholder, prefer it for non-sidepanel when intent is summarise (default)
       const base = intentToPlaceholder[selectedIntent] ?? 'Ask...';
-      // if (isInSidePanel) return selectedIntent === "summarise" ? "Ask..." : base;
-      // Outside sidepanel, allow component-supplied placeholder for summarise intent
       return base;
     })()
   );
 
-  // Close intent menu when clicking outside of the intent area and the search bar
   function handleDocumentClick(event: MouseEvent) {
     const target = event.target as Node | null;
     if (!target) return;
@@ -111,7 +98,6 @@
       settingsButtonElement?.contains(target) ?? false;
     const clickedInsideSettingsPopup =
       (event.target as HTMLElement)?.closest('.settings-popup') !== null;
-    // Only close if click is outside both intent controls AND the search bar
     if (!clickedInsideIntent && !clickedInsideBar) {
       showIntentMenu = false;
     }
@@ -156,29 +142,26 @@
     }
   }
 
-  // Load saved settings when intent changes
-  $effect(async () => {
+  $effect(() => {
     if (!selectedIntent) return;
-
-    try {
-      const savedSettings = await storage.get('telescopeSettings');
-      if (savedSettings && savedSettings[selectedIntent]) {
-        // Merge saved settings with current values to preserve any existing defaults
-        settingsValues = {
-          ...settingsValues,
-          ...savedSettings[selectedIntent],
-        };
-      } else {
-        // No saved settings, so values will be initialized by SettingsPopup's default logic
-        settingsValues = {};
+    (async () => {
+      try {
+        const savedSettings = await storage.get('telescopeSettings');
+        if (savedSettings && savedSettings[selectedIntent]) {
+          settingsValues = {
+            ...settingsValues,
+            ...savedSettings[selectedIntent],
+          };
+        } else {
+          settingsValues = {};
+        }
+      } catch (error) {
+        console.error('Failed to load settings:', error);
       }
-    } catch (error) {
-      console.error('Failed to load settings:', error);
-    }
+    })();
   });
 
   $effect(() => {
-    // Attach listener once; it's cheap and guarded inside handler
     document.addEventListener('click', handleDocumentClick, true);
     return () =>
       document.removeEventListener('click', handleDocumentClick, true);
@@ -210,13 +193,12 @@
   //   }
   // });
 
-  // Focus the input when the component becomes visible
+
   $effect(() => {
     if (inputElement && !disabled) {
-      // Use a small delay to ensure the element is fully rendered
+
       setTimeout(() => {
         inputElement.focus();
-        // Ensure the input is visible and ready for typing
         inputElement.select();
       }, 100);
     }
@@ -231,7 +213,6 @@
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      // Prepend quoted content if it exists
       const quotedText =
         quotedContent.length > 0
           ? quotedContent.join('\n\n---\n\n') + '\n\n'
@@ -253,7 +234,6 @@
   }
 
   function handleAsk() {
-    // Prepend quoted content if it exists
     const quotedText =
       quotedContent.length > 0
         ? quotedContent.join('\n\n---\n\n') + '\n\n'
@@ -315,7 +295,6 @@
     quotedContent = quotedContent.filter((_, i) => i !== index);
   }
 
-  // Reusable function to reset input state - following DRY principles
   function resetInput() {
     inputValue = '';
     inputElement.value = '';
@@ -386,6 +365,16 @@
           class="icon search-icon intent-trigger"
           bind:this={intentTriggerElement}
           onmouseenter={() => (showIntentMenu = true)}
+          role="button"
+          tabindex="0"
+          aria-haspopup="menu"
+          aria-expanded={showIntentMenu}
+          onkeydown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              showIntentMenu = !showIntentMenu;
+            }
+          }}
         >
           <CurrentIntentIcon />
           {#if showIntentMenu}
@@ -394,8 +383,8 @@
                 class="intent-item {selectedIntent === 'prompt'
                   ? 'active'
                   : ''}"
-                role="menuitem"
-                aria-selected={selectedIntent === 'prompt'}
+                role="menuitemradio"
+                aria-checked={selectedIntent === 'prompt'}
                 onclick={() => {
                   selectedIntent = 'prompt';
                   showIntentMenu = false;
@@ -408,8 +397,8 @@
                 class="intent-item {selectedIntent === 'summarise'
                   ? 'active'
                   : ''}"
-                role="menuitem"
-                aria-selected={selectedIntent === 'summarise'}
+                role="menuitemradio"
+                aria-checked={selectedIntent === 'summarise'}
                 onclick={() => {
                   selectedIntent = 'summarise';
                   showIntentMenu = false;
@@ -422,8 +411,8 @@
                 class="intent-item {selectedIntent === 'translate'
                   ? 'active'
                   : ''}"
-                role="menuitem"
-                aria-selected={selectedIntent === 'translate'}
+                role="menuitemradio"
+                aria-checked={selectedIntent === 'translate'}
                 onclick={() => {
                   selectedIntent = 'translate';
                   showIntentMenu = false;
@@ -434,8 +423,8 @@
               </button>
               <button
                 class="intent-item {selectedIntent === 'write' ? 'active' : ''}"
-                role="menuitem"
-                aria-selected={selectedIntent === 'write'}
+                role="menuitemradio"
+                aria-checked={selectedIntent === 'write'}
                 onclick={() => {
                   selectedIntent = 'write';
                   showIntentMenu = false;
@@ -450,8 +439,8 @@
                 class="intent-item {selectedIntent === 'rewrite'
                   ? 'active'
                   : ''}"
-                role="menuitem"
-                aria-selected={selectedIntent === 'rewrite'}
+                role="menuitemradio"
+                aria-checked={selectedIntent === 'rewrite'}
                 onclick={() => {
                   selectedIntent = 'rewrite';
                   showIntentMenu = false;
@@ -479,10 +468,9 @@
         rows="1"
         style="resize: none;"
         autofocus
-      />
+      ></textarea>
 
       {#if !isInputExpanded}
-        <!-- Settings icon placed to the left of the vertical separator -->
         <div class="settings-container" style="position: relative;">
           <button
             class="icon-button"
@@ -501,11 +489,12 @@
               onChange={handleSettingsChange}
               onClose={handleSettingsClose}
               onSave={handleSettingsSave}
+              onReset={() => {}}
             />
           {/if}
         </div>
 
-        <div class="separator" />
+        <div class="separator"></div>
 
         <div class="action-icons">
           <button
@@ -566,15 +555,6 @@
               <SendIcon />
             {/if}
           </button>
-          <!-- {:else}
-          <button
-            class="close-button"
-            onclick={handleClose}
-            title="Close"
-            aria-label="Close"
-          >
-            <CloseIcon />
-          </button> -->
         {/if}
       {/if}
 
@@ -584,6 +564,10 @@
             class="icon search-icon intent-trigger"
             bind:this={intentTriggerElement}
             onmouseenter={() => (showIntentMenu = true)}
+            role="button"
+            tabindex="0"
+            aria-haspopup="menu"
+            aria-expanded={showIntentMenu}
           >
             <CurrentIntentIcon />
             {#if showIntentMenu}
@@ -592,8 +576,8 @@
                   class="intent-item {selectedIntent === 'prompt'
                     ? 'active'
                     : ''}"
-                  role="menuitem"
-                  aria-selected={selectedIntent === 'prompt'}
+                  role="menuitemradio"
+                  aria-checked={selectedIntent === 'prompt'}
                   onclick={() => {
                     selectedIntent = 'prompt';
                     showIntentMenu = false;
@@ -606,8 +590,8 @@
                   class="intent-item {selectedIntent === 'summarise'
                     ? 'active'
                     : ''}"
-                  role="menuitem"
-                  aria-selected={selectedIntent === 'summarise'}
+                  role="menuitemradio"
+                  aria-checked={selectedIntent === 'summarise'}
                   onclick={() => {
                     selectedIntent = 'summarise';
                     showIntentMenu = false;
@@ -620,8 +604,8 @@
                   class="intent-item {selectedIntent === 'translate'
                     ? 'active'
                     : ''}"
-                  role="menuitem"
-                  aria-selected={selectedIntent === 'translate'}
+                  role="menuitemradio"
+                  aria-checked={selectedIntent === 'translate'}
                   onclick={() => {
                     selectedIntent = 'translate';
                     showIntentMenu = false;
@@ -634,8 +618,8 @@
                   class="intent-item {selectedIntent === 'write'
                     ? 'active'
                     : ''}"
-                  role="menuitem"
-                  aria-selected={selectedIntent === 'write'}
+                  role="menuitemradio"
+                  aria-checked={selectedIntent === 'write'}
                   onclick={() => {
                     selectedIntent = 'write';
                     showIntentMenu = false;
@@ -650,8 +634,8 @@
                   class="intent-item {selectedIntent === 'rewrite'
                     ? 'active'
                     : ''}"
-                  role="menuitem"
-                  aria-selected={selectedIntent === 'rewrite'}
+                  role="menuitemradio"
+                  aria-checked={selectedIntent === 'rewrite'}
                   onclick={() => {
                     selectedIntent = 'rewrite';
                     showIntentMenu = false;
@@ -687,9 +671,12 @@
                   onChange={handleSettingsChange}
                   onClose={handleSettingsClose}
                   onSave={handleSettingsSave}
+                  onReset={() => {}}
                 />
               {/if}
             </div>
+
+            <div class="separator"></div>
 
             <div class="action-icons">
               <button
@@ -784,16 +771,15 @@
       sans-serif;
   }
 
-  /* Remove min-width constraint in side panel mode */
   .telescope-container.sidepanel-mode.reached-min-chars {
     min-width: 0;
+    padding-top: 14px;
   }
 
   .reached-min-chars {
     min-width: 600px;
   }
 
-  /* Responsive adjustments */
   @media (max-width: 400px) {
     .telescope-container {
       max-width: 100%;
@@ -840,29 +826,27 @@
     }
   }
 
-  /* Side panel specific: Ensure all icons are always visible and input field adjusts */
   .telescope-container.sidepanel-mode {
-    max-width: 100%; /* Remove fixed max-width constraint for side panel */
-    width: 100%; /* Ensure container takes full width */
+    max-width: 100%;
+    width: 100%;
   }
 
-  /* Ensure input bar container takes full width in side panel */
   .telescope-container.sidepanel-mode .input-bar-container {
     max-width: 100%;
   }
 
   .telescope-container.sidepanel-mode .action-icons {
     display: flex;
-    flex-shrink: 0; /* Prevent icons from shrinking */
+    flex-shrink: 0;
   }
 
   .telescope-container.sidepanel-mode .icon-button {
-    flex-shrink: 0; /* Prevent individual icon buttons from shrinking */
+    flex-shrink: 0;
   }
 
   .telescope-container.sidepanel-mode .input-field {
     flex: 1;
-    min-width: 100px; /* Allow input to shrink more in side panel */
+    min-width: 100px;
   }
 
   .send-button {
@@ -880,21 +864,16 @@
     align-self: center;
   }
 
-  /* Ensure settings icon remains clickable above the popup for reliable toggling */
   .settings-container .icon-button {
     position: relative;
     z-index: 1100;
   }
-  /* .telescope-container.expanded {
-    max-width: 800px;
-  } */
 
   .input-bar-container {
     display: flex;
     align-items: start;
     flex-direction: column;
     background: #262832;
-    /* border: 1px solid #404040; */
     border-radius: 48px;
     padding: 12px 16px;
   }
@@ -918,7 +897,6 @@
     position: relative;
     width: 100%;
     flex-wrap: nowrap;
-    /* min-height: 48px; */
   }
 
   .image-inputs-container {
@@ -1028,7 +1006,6 @@
     color: white;
   }
 
-  /* Thin scrollbar for quoted content */
   .quoted-content-container::-webkit-scrollbar {
     height: 4px;
   }
@@ -1091,22 +1068,21 @@
   }
 
   .search-icon {
-    color: #e5e7eb; /* brighten left intent icon */
+    color: #e5e7eb;
   }
   .search-icon:hover {
-    color: #ffffff; /* even brighter on hover */
+    color: #ffffff;
   }
 
-  /* Intent menu */
   .intent-trigger {
     position: relative;
-    padding: 6px; /* match other icon buttons */
-    border-radius: 50%; /* circular hover background */
+    padding: 6px;
+    border-radius: 50%;
     transition: background 0.2s ease, color 0.2s ease;
   }
   .intent-trigger:hover {
-    background: #404040; /* same hover bg as .icon-button */
-    color: #ffffff; /* brighten icon on hover */
+    background: #404040;
+    color: #ffffff;
   }
   .intent-menu {
     position: absolute;
@@ -1117,13 +1093,12 @@
     border-radius: 10px;
     padding: 6px;
     display: flex;
-    flex-direction: column; /* show one by one */
+    flex-direction: column;
     gap: 4px;
     z-index: 20;
     min-width: 180px;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
   }
-  /* Open upward in sidepanel mode */
   .telescope-container.sidepanel-mode .intent-menu {
     top: auto;
     bottom: 36px;
@@ -1152,7 +1127,6 @@
     border-color: #4b5563;
   }
 
-  /* Circle behind the small intent icons */
   .intent-icon-circle {
     width: 32px;
     height: 32px;
@@ -1162,13 +1136,11 @@
     place-items: center;
     flex-shrink: 0;
   }
-  /* Normalize the icon sizes inside the circle */
   .intent-icon-circle :global(svg) {
     width: 20px;
     height: 20px;
   }
 
-  /* Larger variant for write and rewrite */
   .intent-icon-circle--large {
     width: 36px;
     height: 36px;
@@ -1197,19 +1169,16 @@
     padding: 0;
     margin: 0;
     height: 24px;
-    /* Thin scrollbar styling */
     scrollbar-width: thin;
     scrollbar-color: #555 #2a2a2a;
   }
 
-  /* When not expanded, keep a single line and ellipsize overflowing text */
   .input-field:not(.input-expanded) {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  /* Webkit scrollbar styling for input field */
   .input-field::-webkit-scrollbar {
     width: 4px;
   }
@@ -1309,10 +1278,10 @@
     white-space: nowrap;
     height: fit-content;
     align-self: center;
-    display: flex; /* center icon precisely */
+    display: flex;
     align-items: center;
     justify-content: center;
-    line-height: 0; /* avoid baseline offset */
+    line-height: 0;
   }
 
   .ask-button.streaming {
@@ -1323,7 +1292,7 @@
   .ask-button.streaming:hover {
     background: #404040;
     color: #d1d5db;
-    transform: none; /* keep position stable while hovering */
+    transform: none;
   }
 
   .input-bar.input-expanded .ask-button-container {

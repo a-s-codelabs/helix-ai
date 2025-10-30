@@ -1,9 +1,3 @@
-/**
- * Writer API Helper
- * Provides utilities for using Chrome's built-in Writer API
- */
-
-// Use global type declarations
 declare const Writer: {
   availability(): Promise<'available' | 'after-download' | 'unavailable'>;
   create(options?: any): Promise<any>;
@@ -27,7 +21,6 @@ export type RewriterTone = 'as-is' | 'more-formal' | 'more-casual';
 export type RewriterFormat = 'as-is' | 'markdown' | 'plain-text';
 export type RewriterLength = 'as-is' | 'shorter' | 'longer';
 
-// Proofreader API types
 export interface ProofreaderOptions {
   /** Expected input languages (BCP 47 language tags). @example ["en", "ja", "es"] */
   expectedInputLanguages?: string[];
@@ -100,14 +93,10 @@ export interface ProofreaderRequest {
   text: string;
 }
 
-/**
- * Check if Writer API is available
- */
 export async function checkWriterAvailability(): Promise<
   'available' | 'after-download' | 'unavailable'
 > {
   try {
-    // Check if Writer API exists in the global scope
     if (!('Writer' in self)) {
       console.log('[Writer API] Writer not found in global scope');
       return 'unavailable';
@@ -122,9 +111,6 @@ export async function checkWriterAvailability(): Promise<
   }
 }
 
-/**
- * Create a Writer session
- */
 export async function createWriter(options: WriterOptions = {}): Promise<any> {
   try {
     const writerOptions: any = {
@@ -149,9 +135,6 @@ export async function createWriter(options: WriterOptions = {}): Promise<any> {
   }
 }
 
-/**
- * Write content using the Writer API
- */
 export async function writeContent(
   request: WriteRequest,
   options: WriterOptions = {}
@@ -172,7 +155,6 @@ export async function writeContent(
       result,
     });
 
-    // Clean up
     writer.destroy();
     console.log('[Writer API] Writer session destroyed');
 
@@ -218,7 +200,6 @@ export async function* writeContentStreaming(
     console.error('[Writer API] Error writing content with streaming:', error);
     throw error;
   } finally {
-    // Clean up
     if (writer) {
       writer.destroy();
       console.log('[Writer API] Writer session destroyed');
@@ -226,14 +207,10 @@ export async function* writeContentStreaming(
   }
 }
 
-/**
- * Check if Rewriter API is available
- */
 export async function checkRewriterAvailability(): Promise<
   'available' | 'after-download' | 'unavailable'
 > {
   try {
-    // Check if Rewriter API exists in the global scope
     if (!('Rewriter' in self)) {
       console.log('[Rewriter API] Rewriter not found in global scope');
       return 'unavailable';
@@ -248,9 +225,6 @@ export async function checkRewriterAvailability(): Promise<
   }
 }
 
-/**
- * Create a Rewriter session
- */
 export async function createRewriter(
   options: RewriterOptions = {}
 ): Promise<any> {
@@ -277,9 +251,6 @@ export async function createRewriter(
   }
 }
 
-/**
- * Rewrite content using the Rewriter API
- */
 export async function rewriteContent(
   request: RewriteRequest,
   options: RewriterOptions = {}
@@ -300,7 +271,6 @@ export async function rewriteContent(
       result,
     });
 
-    // Clean up
     rewriter.destroy();
     console.log('[Rewriter API] Rewriter session destroyed');
 
@@ -311,9 +281,6 @@ export async function rewriteContent(
   }
 }
 
-/**
- * Rewrite content with streaming support
- */
 export async function* rewriteContentStreaming(
   request: RewriteRequest,
   options: RewriterOptions = {}
@@ -341,7 +308,6 @@ export async function* rewriteContentStreaming(
     );
     throw error;
   } finally {
-    // Clean up
     if (rewriter) {
       rewriter.destroy();
       console.log('[Rewriter API] Rewriter session destroyed');
@@ -349,14 +315,10 @@ export async function* rewriteContentStreaming(
   }
 }
 
-/**
- * Check if Proofreader API is available
- */
 export async function checkProofreaderAvailability(): Promise<
   'available' | 'after-download' | 'unavailable'
 > {
   try {
-    // Check if Proofreader API exists in the global scope
     if (!('Proofreader' in self)) {
       console.log('[Proofreader API] Proofreader not found in global scope');
       return 'unavailable';
@@ -371,9 +333,6 @@ export async function checkProofreaderAvailability(): Promise<
   }
 }
 
-/**
- * Create a Proofreader session
- */
 export async function createProofreader(
   options: ProofreaderOptions = {}
 ): Promise<any> {
@@ -392,9 +351,6 @@ export async function createProofreader(
   }
 }
 
-/**
- * Proofread content using the Proofreader API
- */
 export async function proofreadContent(
   request: ProofreaderRequest,
   options: ProofreaderOptions = {}
@@ -410,7 +366,6 @@ export async function proofreadContent(
       result,
     });
 
-    // Clean up
     proofreader.destroy();
     console.log('[Proofreader API] Proofreader session destroyed');
 
@@ -421,10 +376,6 @@ export async function proofreadContent(
   }
 }
 
-/**
- * Proofread content with streaming support
- * Note: The Proofreader API doesn't have streaming, but we'll simulate it for consistency
- */
 export async function* proofreadContentStreaming(
   request: ProofreaderRequest,
   options: ProofreaderOptions = {}
@@ -439,7 +390,6 @@ export async function* proofreadContentStreaming(
 
     console.log('[Proofreader API] Proofreading complete');
 
-    // Simulate streaming by yielding the corrected text
     yield result.corrected;
   } catch (error) {
     console.error(
@@ -448,7 +398,6 @@ export async function* proofreadContentStreaming(
     );
     throw error;
   } finally {
-    // Clean up
     if (proofreader) {
       proofreader.destroy();
       console.log('[Proofreader API] Proofreader session destroyed');

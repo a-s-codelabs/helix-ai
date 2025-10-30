@@ -8,15 +8,13 @@ export async function monitorHelperSync({
   createdAt,
 }: {
   source: Source;
-  loaded: number; // 0 - 1
+  loaded: number;
   createdAt: number;
   options: Record<string, any>;
 }) {
   const key = genDownloadKey({ key: source, options });
   const uniqueKey = `${key}-${createdAt}`;
-
   const isDownloading = loaded < 1;
-
   const downloadStatus = await globalStorage().append({
     key: 'downloadStatus',
     value: {
@@ -30,7 +28,6 @@ export async function monitorHelperSync({
     }
   });
 }
-
 
 function genDownloadKey({ key, options }: { key: Source, options: Record<string, any> }) {
   switch (key) {

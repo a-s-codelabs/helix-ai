@@ -13,7 +13,6 @@
     onClose,
     isStreaming = false,
     streamingMessageId = null,
-    // Additional props for side panel functionality
     inputValue = "",
     inputImageAttached = [],
     currentState = "ask",
@@ -21,8 +20,6 @@
     isInSidePanel = false,
   }: ChatboxProps = $props();
 
-
-  // Handle move to side panel
   async function handleMoveToSidePanel() {
     console.log("RightSidePanel clicked - attempting to move to side panel");
     try {
@@ -36,7 +33,6 @@
   }
 
   $effect(() => {
-    // Check if we're in a side panel context
     isInSidePanel =
       window.location.pathname.includes("sidepanel") ||
       window.location.href.includes("sidepanel") ||
@@ -45,14 +41,10 @@
 
   function handleDragKeyDown(event: KeyboardEvent) {
     if (event.key === "Enter" || event.key === " ") {
-      // Keyboard users can't drag, so we just acknowledge the interaction
       event.preventDefault();
     }
   }
 
-  // $effect(() => {
-  //   if (isInSidePanel) handleMoveToSidePanel()
-  // });
 </script>
 
 <div
@@ -118,7 +110,6 @@
     padding-top: 30px;
   }
 
-  /* Override for side panel to allow full width */
   .default-chat-box.sidepanel-layout {
     width: 100%;
   }
@@ -190,12 +181,10 @@
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scroll-padding-inline-start: 0px;
-    /* Thin scrollbar styling */
     scrollbar-width: thin;
     scrollbar-color: #555 #2a2a2a;
   }
 
-  /* Webkit scrollbar styling for thin appearance */
   .suggested-questions::-webkit-scrollbar {
     height: 4px;
   }
@@ -231,7 +220,6 @@
     box-sizing: border-box;
   }
 
-  /* Side panel specific suggested question styling */
   .sidepanel-layout .suggested-question {
     white-space: normal;
     word-wrap: break-word;
@@ -241,7 +229,6 @@
     min-width: 0;
   }
 
-  /* Responsive suggested questions */
   @media (max-width: 400px) {
     .suggested-question {
       font-size: 12px;
@@ -263,28 +250,25 @@
     border-color: #555;
   }
 
-  /* Side panel layout styles */
   .sidepanel-layout {
     display: flex;
     flex-direction: column;
     height: calc(100vh - 40px);
     width: calc(100% - 40px);
-    min-width: 0; /* Allow flex items to shrink below content size */
+    min-width: 0;
     position: relative;
   }
 
   .sidepanel-layout .messages-container {
     flex: 1;
     overflow-y: auto;
-    min-height: 0; /* Allow container to shrink */
+    min-height: 0;
     display: flex;
     flex-direction: column;
-    /* Thin scrollbar styling */
     scrollbar-width: thin;
     scrollbar-color: #555 #2a2a2a;
   }
 
-  /* Webkit scrollbar styling for messages container */
   .sidepanel-layout .messages-container::-webkit-scrollbar {
     width: 4px;
   }
@@ -306,8 +290,6 @@
   .sidepanel-layout .input {
     flex-shrink: 0;
     margin-top: auto;
-    /* padding: 12px; */
-    /* width: calc(100% - 24px); */
     box-sizing: border-box;
   }
 
@@ -321,22 +303,6 @@
     gap: 8px;
     box-sizing: border-box;
   }
-
-  /* Responsive breakpoints */
-  /* @media (max-width: 400px) {
-    .sidepanel-layout .messages-container {
-      padding: 8px;
-    }
-
-    .sidepanel-layout .input {
-      padding: 4px 30px 25px 0px;
-    }
-
-    .sidepanel-layout .suggested-questions {
-      padding: 16px 0px 0px 0px;
-      gap: 6px;
-    }
-  } */
 
   @media (max-width: 300px) {
     .sidepanel-layout .messages-container {
@@ -353,7 +319,6 @@
     }
   }
 
-  /* Drag handle styles */
   .drag-handle {
     display: flex;
     justify-content: center;
