@@ -22,6 +22,8 @@ export const DB_SCHEMA = {
       userLang: 'en',
       maxTopK: 100 as number | undefined,
       maxTemperature: 1.0 as number | undefined,
+      floatingTelescopeEnabled: true,
+      selectionTelescopeEnabled: true,
     },
   },
   tabIds: {

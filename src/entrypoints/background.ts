@@ -1,4 +1,5 @@
 import { globalStorage } from '@/lib/globalStorage';
+import { getFeatureConfig } from '@/lib/featureConfig';
 
 export default defineBackground(() => {
   // Setup context menu for images: Helix AI -> Add to chat
@@ -58,10 +59,69 @@ export default defineBackground(() => {
       }
     });
   }
+  // Handle keyboard shortcuts via Commands API
+  if (chrome.commands && chrome.commands.onCommand) {
+    chrome.commands.onCommand.addListener(async (command: string) => {
+      console.log(`Command received: ${command}`);
+      if (command === 'open-floating-telescope') {
+        try {
+          const featureConfig = await getFeatureConfig();
+          if (!featureConfig.floatingTelescopeEnabled) {
+            console.log('Floating telescope is disabled');
+            return;
+          }
+
+          // Use promise-based approach for tabs.query
+          const tabs = await new Promise<chrome.tabs.Tab[]>((resolve) => {
+            chrome.tabs.query(
+              {
+                active: true,
+                currentWindow: true,
+              },
+              (result) => {
+                resolve(result || []);
+              }
+            );
+          });
+
+          const activeTab = tabs[0];
+          if (activeTab?.id) {
+            chrome.tabs.sendMessage(activeTab.id, {
+              action: 'openTelescope',
+            });
+          }
+        } catch (error) {
+          console.error('Error opening floating telescope:', error);
+        }
+      }
+    });
+  }
+
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log(`BACKGROUND: MESSAGE`, message.type);
     if (message.type === 'OPEN_TO_SIDE_PANEL') {
       openSidePanel(message, sender);
+      return true;
+    }
+
+    if (message.type === 'OPEN_SHORTCUTS_PAGE') {
+      chrome.tabs.create(
+        { url: 'chrome://extensions/shortcuts' },
+        (tab: chrome.tabs.Tab) => {
+          if (chrome.runtime.lastError) {
+            console.error(
+              'Error opening shortcuts page:',
+              chrome.runtime.lastError.message
+            );
+            sendResponse({
+              success: false,
+              error: chrome.runtime.lastError.message,
+            });
+          } else {
+            sendResponse({ success: true });
+          }
+        }
+      );
       return true;
     }
 

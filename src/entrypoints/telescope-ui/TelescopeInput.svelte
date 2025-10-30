@@ -464,16 +464,16 @@
         {#if inputState === "ask"}
           <div class="ask-button-container">
             <button
-              class="ask-button"
-              class:streaming={isStreaming}
-              onclick={isStreaming ? handleStop : handleAsk}
-              aria-label={isStreaming ? "Stop streaming" : "Send message"}
-            >
-              {#if isStreaming}
-                <StopIcon />
-              {:else}
-                <SendIcon />
-              {/if}
+            class="ask-button"
+            class:streaming={isStreaming}
+            onclick={isStreaming ? handleStop : handleAsk}
+            aria-label={isStreaming ? "Stop streaming" : "Send message"}
+          >
+            {#if isStreaming}
+              <StopIcon />
+            {:else}
+              <SendIcon />
+            {/if}
             </button>
             {#if !isInSidePanel}
               <button

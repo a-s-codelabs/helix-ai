@@ -7,7 +7,6 @@
   import TelescopeSidepanelHeader from "./TelescopeSidepanelHeader.svelte";
   import { handleAskHelper } from "./handleAsk";
 
-
   let currentState: State = $state("ask");
   let inputValue = $state("");
   let inputImageAttached = $state<string[]>([]);
