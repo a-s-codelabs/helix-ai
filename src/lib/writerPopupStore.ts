@@ -10,7 +10,7 @@ export interface WriterPopupState {
   popupOpen: boolean;
   x: number;
   y: number;
-  targetElement: HTMLTextAreaElement | HTMLInputElement | null;
+  targetElement: HTMLTextAreaElement | HTMLInputElement | HTMLElement | null;
   isLoading: boolean;
   error: string | null;
 }
@@ -33,7 +33,7 @@ function createWriterPopupStore() {
     show: (
       x: number,
       y: number,
-      targetElement: HTMLTextAreaElement | HTMLInputElement
+      targetElement: HTMLTextAreaElement | HTMLInputElement | HTMLElement
     ) => {
       update((state) => ({
         ...state,

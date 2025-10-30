@@ -19,12 +19,87 @@
   } from '../../lib/writerApiHelper';
 
   interface Props {
-    targetElement: HTMLTextAreaElement | HTMLInputElement;
+    targetElement: HTMLTextAreaElement | HTMLInputElement | HTMLElement;
     onClose?: () => void;
     onDragStart?: (event: MouseEvent) => void;
   }
 
   let { targetElement, onClose, onDragStart }: Props = $props();
+
+  // Helper to check if element is contentEditable
+  function isContentEditable(el: HTMLTextAreaElement | HTMLInputElement | HTMLElement): el is HTMLElement {
+    return 'contentEditable' in el && (el as HTMLElement).contentEditable === 'true';
+  }
+
+  // Helper to get text content from element
+  function getElementValue(el: HTMLTextAreaElement | HTMLInputElement | HTMLElement): string {
+    if (isContentEditable(el)) {
+      return el.textContent || '';
+    }
+    return (el as HTMLTextAreaElement | HTMLInputElement).value || '';
+  }
+
+  // Helper to set text content to element
+  function setElementValue(el: HTMLTextAreaElement | HTMLInputElement | HTMLElement, value: string) {
+    if (isContentEditable(el)) {
+      el.textContent = value;
+    } else {
+      (el as HTMLTextAreaElement | HTMLInputElement).value = value;
+    }
+  }
+
+  // Helper to get selection for contentEditable
+  function getContentEditableSelection(el: HTMLElement): { start: number; end: number } | null {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return null;
+
+    const range = selection.getRangeAt(0);
+    const preSelectionRange = range.cloneRange();
+    preSelectionRange.selectNodeContents(el);
+    preSelectionRange.setEnd(range.startContainer, range.startOffset);
+    const start = preSelectionRange.toString().length;
+    const end = start + range.toString().length;
+
+    return { start, end };
+  }
+
+  // Helper to set cursor position for contentEditable
+  function setContentEditableCursor(el: HTMLElement, position: number) {
+    const range = document.createRange();
+    const sel = window.getSelection();
+    if (!sel) return;
+
+    let charCount = 0;
+    let nodeStack = [el];
+    let node: Node | undefined;
+    let foundNode: Node | null = null;
+    let foundOffset = 0;
+
+    while ((node = nodeStack.pop())) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const textNode = node as Text;
+        const nextCharCount = charCount + (textNode.textContent?.length || 0);
+        if (position >= charCount && position <= nextCharCount) {
+          foundNode = textNode;
+          foundOffset = position - charCount;
+          break;
+        }
+        charCount = nextCharCount;
+      } else {
+        const children = Array.from(node.childNodes);
+        for (let i = children.length - 1; i >= 0; i--) {
+          nodeStack.push(children[i]);
+        }
+      }
+    }
+
+    if (foundNode) {
+      range.setStart(foundNode, foundOffset);
+      range.setEnd(foundNode, foundOffset);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+  }
   type Mode = 'writer' | 'rewriter' | 'proofreader';
   let mode = $state<Mode>('writer');
 
@@ -106,21 +181,36 @@
   });
 
   $effect(() => {
-    if (targetElement && targetElement.value) {
-      context = targetElement.value;
+    if (targetElement) {
+      const value = getElementValue(targetElement);
+      if (value) {
+        context = value;
+      }
     }
 
     if ((mode === 'rewriter' || mode === 'proofreader') && targetElement) {
-      const start = targetElement.selectionStart || 0;
-      const end = targetElement.selectionEnd || 0;
+      let start = 0;
+      let end = 0;
+
+      if (isContentEditable(targetElement)) {
+        const selection = getContentEditableSelection(targetElement);
+        if (selection) {
+          start = selection.start;
+          end = selection.end;
+        }
+      } else {
+        start = (targetElement as HTMLTextAreaElement | HTMLInputElement).selectionStart || 0;
+        end = (targetElement as HTMLTextAreaElement | HTMLInputElement).selectionEnd || 0;
+      }
 
       if (start !== end) {
-        const selectedText = targetElement.value.substring(start, end);
+        const value = getElementValue(targetElement);
+        const selectedText = value.substring(start, end);
         prompt = selectedText;
         selectionStart = start;
         selectionEnd = end;
-        textBeforeSelection = targetElement.value.substring(0, start);
-        textAfterSelection = targetElement.value.substring(end);
+        textBeforeSelection = value.substring(0, start);
+        textAfterSelection = value.substring(end);
       } else {
         selectionStart = null;
         selectionEnd = null;
@@ -190,7 +280,7 @@
           options
         );
 
-        const initialValue = targetElement?.value || '';
+        const initialValue = targetElement ? getElementValue(targetElement) : '';
         const separator = initialValue ? '\n\n' : '';
 
         for await (const chunk of stream) {
@@ -202,7 +292,7 @@
           streamedContent = 'Writer' in self ? streamedContent + chunk : chunk;
 
           if (targetElement) {
-            targetElement.value = initialValue + separator + streamedContent;
+            setElementValue(targetElement, initialValue + separator + streamedContent);
             targetElement.dispatchEvent(new Event('input', { bubbles: true }));
           }
         }
@@ -245,12 +335,16 @@
 
           if (targetElement) {
             if (selectionStart !== null && selectionEnd !== null) {
-              targetElement.value = textBeforeSelection + streamedContent + textAfterSelection;
+              setElementValue(targetElement, textBeforeSelection + streamedContent + textAfterSelection);
 
               const newCursorPosition = textBeforeSelection.length + streamedContent.length;
-              targetElement.setSelectionRange(newCursorPosition, newCursorPosition);
+              if (isContentEditable(targetElement)) {
+                setContentEditableCursor(targetElement, newCursorPosition);
+              } else {
+                (targetElement as HTMLTextAreaElement | HTMLInputElement).setSelectionRange(newCursorPosition, newCursorPosition);
+              }
             } else {
-              targetElement.value = streamedContent;
+              setElementValue(targetElement, streamedContent);
             }
             targetElement.dispatchEvent(new Event('input', { bubbles: true }));
           }
@@ -290,11 +384,15 @@
 
           if (targetElement) {
             if (selectionStart !== null && selectionEnd !== null) {
-              targetElement.value = textBeforeSelection + streamedContent + textAfterSelection;
+              setElementValue(targetElement, textBeforeSelection + streamedContent + textAfterSelection);
               const newCursorPosition = textBeforeSelection.length + streamedContent.length;
-              targetElement.setSelectionRange(newCursorPosition, newCursorPosition);
+              if (isContentEditable(targetElement)) {
+                setContentEditableCursor(targetElement, newCursorPosition);
+              } else {
+                (targetElement as HTMLTextAreaElement | HTMLInputElement).setSelectionRange(newCursorPosition, newCursorPosition);
+              }
             } else {
-              targetElement.value = streamedContent;
+              setElementValue(targetElement, streamedContent);
             }
             targetElement.dispatchEvent(new Event('input', { bubbles: true }));
           }
@@ -311,7 +409,7 @@
         }
 
         targetElement.focus();
-        console.log(`[${mode === 'writer' ? 'Writer' : mode === 'rewriter' ? 'Rewriter' : 'Proofreader'} API] Final value set:`, targetElement.value);
+        console.log(`[${mode === 'writer' ? 'Writer' : mode === 'rewriter' ? 'Rewriter' : 'Proofreader'} API] Final value set:`, getElementValue(targetElement));
       }
 
       if (!abortController?.signal.aborted && streamedContent) {

@@ -324,15 +324,23 @@ export default defineContentScript({
         resizeScrollObserver = null;
       }
     });
-    let currentFocusedElement: HTMLTextAreaElement | HTMLInputElement | null =
-      null;
+    let currentFocusedElement:
+      | HTMLTextAreaElement
+      | HTMLInputElement
+      | HTMLElement
+      | null = null;
 
     const isWritableElement = (
       element: Element | null
-    ): element is HTMLTextAreaElement | HTMLInputElement => {
+    ): element is HTMLTextAreaElement | HTMLInputElement | HTMLElement => {
       if (!element) return false;
 
       if (element.tagName === 'TEXTAREA') return true;
+      if (
+        element.tagName === 'DIV' &&
+        (element as HTMLDivElement).contentEditable === 'true'
+      )
+        return true;
 
       if (element.tagName === 'INPUT') {
         const input = element as HTMLInputElement;
@@ -348,14 +356,14 @@ export default defineContentScript({
       }
 
       if ((element as HTMLElement).contentEditable === 'true') {
-        return false;
+        return true;
       }
 
       return false;
     };
 
     const showWriterButton = async (
-      element: HTMLTextAreaElement | HTMLInputElement
+      element: HTMLTextAreaElement | HTMLInputElement | HTMLElement
     ) => {
       try {
         const featureConfig = await getFeatureConfig();
@@ -387,9 +395,10 @@ export default defineContentScript({
       const target = event.target;
 
       if (isWritableElement(target as Element | null)) {
+        const writableElement = target;
         setTimeout(() => {
-          if (document.activeElement === target) {
-            showWriterButton(target as HTMLTextAreaElement | HTMLInputElement);
+          if (document.activeElement === writableElement) {
+            showWriterButton(writableElement);
           }
         }, 100);
       }
@@ -419,7 +428,8 @@ export default defineContentScript({
         isWritableElement(target as Element) &&
         target === currentFocusedElement
       ) {
-        showWriterButton(target as HTMLTextAreaElement | HTMLInputElement);
+        const writableElement = target;
+        showWriterButton(writableElement);
       }
     };
 
