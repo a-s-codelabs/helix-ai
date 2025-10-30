@@ -111,10 +111,7 @@
     if (!clickedInsideIntent && !clickedInsideBar) {
       showIntentMenu = false;
     }
-    // Close settings popup if clicking outside (but not when clicking the button itself)
-    if (showSettingsPopup && !clickedInsideSettings && !clickedInsideSettingsPopup) {
-      showSettingsPopup = false;
-    }
+
   }
 
   function handleSettingsClick(event: MouseEvent) {
@@ -753,6 +750,12 @@
     transition: all 0.2s ease;
     flex-shrink: 0;
     align-self: center;
+  }
+
+  /* Ensure settings icon remains clickable above the popup for reliable toggling */
+  .settings-container .icon-button {
+    position: relative;
+    z-index: 1100;
   }
   /* .telescope-container.expanded {
     max-width: 800px;
