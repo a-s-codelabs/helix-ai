@@ -1,26 +1,26 @@
 <script lang="ts">
-  import MicIcon from "./icons/Mic.svelte";
-  import AttachmentIcon from "./icons/Attachment.svelte";
-  import SearchAiIcon from "./icons/SearchAi.svelte";
-  import CloseIcon from "./icons/Close.svelte";
-  import SettingsIcon from "./icons/Settings.svelte";
-  import type { InputProps, State } from "./type";
-  import SendIcon from "./icons/Send.svelte";
-  import StopIcon from "./icons/Stop.svelte";
-  import { globalStorage } from "@/lib/globalStorage";
+  import MicIcon from './icons/Mic.svelte';
+  import AttachmentIcon from './icons/Attachment.svelte';
+  import SearchAiIcon from './icons/SearchAi.svelte';
+  import CloseIcon from './icons/Close.svelte';
+  import SettingsIcon from './icons/Settings.svelte';
+  import type { InputProps, State } from './type';
+  import SendIcon from './icons/Send.svelte';
+  import StopIcon from './icons/Stop.svelte';
+  import { globalStorage } from '@/lib/globalStorage';
   // intent icons
-  import AddToChat from "./icons/AddToChat.svelte";
-  import SummariseIcon from "./icons/Summarise.svelte";
-  import TranslateIcon from "./icons/Translate.svelte";
-  import WriterIcon from "./icons/Writer.svelte";
-  import RewriterIcon from "./icons/Rewriter.svelte";
-  import SettingsPopup from "./SettingsPopup.svelte";
-  import type { Intent } from "./SettingsPopup.svelte";
+  import AddToChat from './icons/AddToChat.svelte';
+  import SummariseIcon from './icons/Summarise.svelte';
+  import TranslateIcon from './icons/Translate.svelte';
+  import WriterIcon from './icons/Writer.svelte';
+  import RewriterIcon from './icons/Rewriter.svelte';
+  import SettingsPopup from './SettingsPopup.svelte';
+  import type { Intent } from './SettingsPopup.svelte';
 
   let {
-    inputState = $bindable("ask" as State),
-    inputValue = $bindable(""),
-    placeholder = "Summarize this site...",
+    inputState = $bindable('ask' as State),
+    inputValue = $bindable(''),
+    placeholder = 'Summarize this site...',
     isExpanded = false,
     quotedContent = $bindable([]),
     disabled = false,
@@ -43,7 +43,7 @@
 
   // Hover menu for search icon: choose intent and adapt placeholder
   let showIntentMenu = $state(false);
-  let selectedIntent = $state<Intent>("prompt");
+  let selectedIntent = $state<Intent>('prompt');
   let intentTriggerElement: HTMLDivElement;
 
   // Settings popup state
@@ -55,11 +55,11 @@
   const storage = globalStorage();
 
   const intentToPlaceholder: Record<Intent, string> = {
-    prompt: "Ask...",
-    summarise: "Summarize this site...",
-    translate: "Translate this content...",
-    write: "Write content...",
-    rewrite: "Rewrite selected text...",
+    prompt: 'Ask...',
+    summarise: 'Summarize this site...',
+    translate: 'Translate this content...',
+    write: 'Write content...',
+    rewrite: 'Rewrite selected text...',
   };
 
   // Match intent to icon component so the leading icon reflects selection
@@ -72,7 +72,9 @@
   };
 
   // Derived current icon component for the input
-  const CurrentIntentIcon = $derived(intentToIcon[selectedIntent] ?? SearchAiIcon);
+  const CurrentIntentIcon = $derived(
+    intentToIcon[selectedIntent] ?? SearchAiIcon
+  );
 
   // Observe container width and toggle compact mode;
   // compact threshold chosen to align with existing 400px media query
@@ -92,7 +94,7 @@
   let dynamicPlaceholder = $derived(
     (() => {
       // If consumer provided a custom placeholder, prefer it for non-sidepanel when intent is summarise (default)
-      const base = intentToPlaceholder[selectedIntent] ?? "Ask...";
+      const base = intentToPlaceholder[selectedIntent] ?? 'Ask...';
       // if (isInSidePanel) return selectedIntent === "summarise" ? "Ask..." : base;
       // Outside sidepanel, allow component-supplied placeholder for summarise intent
       return base;
@@ -105,13 +107,14 @@
     if (!target) return;
     const clickedInsideIntent = intentTriggerElement?.contains(target) ?? false;
     const clickedInsideBar = inputBarElement?.contains(target) ?? false;
-    const clickedInsideSettings = settingsButtonElement?.contains(target) ?? false;
-    const clickedInsideSettingsPopup = (event.target as HTMLElement)?.closest('.settings-popup') !== null;
+    const clickedInsideSettings =
+      settingsButtonElement?.contains(target) ?? false;
+    const clickedInsideSettingsPopup =
+      (event.target as HTMLElement)?.closest('.settings-popup') !== null;
     // Only close if click is outside both intent controls AND the search bar
     if (!clickedInsideIntent && !clickedInsideBar) {
       showIntentMenu = false;
     }
-
   }
 
   function handleSettingsClick(event: MouseEvent) {
@@ -124,13 +127,25 @@
     showSettingsPopup = false;
   }
 
-  function handleSettingsChange({ id, value }: { id: string; value: string | number }) {
+  function handleSettingsChange({
+    id,
+    value,
+  }: {
+    id: string;
+    value: string | number;
+  }) {
     settingsValues[id] = value;
   }
 
-  async function handleSettingsSave({ intent, values }: { intent: Intent; values: Record<string, string | number> }) {
+  async function handleSettingsSave({
+    intent,
+    values,
+  }: {
+    intent: Intent;
+    values: Record<string, string | number>;
+  }) {
     try {
-      const currentSettings = await storage.get('telescopeSettings') || {};
+      const currentSettings = (await storage.get('telescopeSettings')) || {};
       const updatedSettings = {
         ...currentSettings,
         [intent]: values,
@@ -149,7 +164,10 @@
       const savedSettings = await storage.get('telescopeSettings');
       if (savedSettings && savedSettings[selectedIntent]) {
         // Merge saved settings with current values to preserve any existing defaults
-        settingsValues = { ...settingsValues, ...savedSettings[selectedIntent] };
+        settingsValues = {
+          ...settingsValues,
+          ...savedSettings[selectedIntent],
+        };
       } else {
         // No saved settings, so values will be initialized by SettingsPopup's default logic
         settingsValues = {};
@@ -161,8 +179,9 @@
 
   $effect(() => {
     // Attach listener once; it's cheap and guarded inside handler
-    document.addEventListener("click", handleDocumentClick, true);
-    return () => document.removeEventListener("click", handleDocumentClick, true);
+    document.addEventListener('click', handleDocumentClick, true);
+    return () =>
+      document.removeEventListener('click', handleDocumentClick, true);
   });
 
   let inputElement: HTMLTextAreaElement;
@@ -171,7 +190,7 @@
   // let quotedContent = $state<string[]>([]);
   let isInputExpanded = $derived(
     inputValue.length > CHAR_EXPAND_LIMIT ||
-      inputValue.includes("\n") ||
+      inputValue.includes('\n') ||
       quotedContent.length > 0 ||
       inputImageAttached.length > 0
   );
@@ -210,13 +229,13 @@
   }
 
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       // Prepend quoted content if it exists
       const quotedText =
         quotedContent.length > 0
-          ? quotedContent.join("\n\n---\n\n") + "\n\n"
-          : "";
+          ? quotedContent.join('\n\n---\n\n') + '\n\n'
+          : '';
       const finalMessage = quotedText + inputValue;
       handleSendData();
       resetInput();
@@ -224,7 +243,12 @@
   }
 
   function handleSendData() {
-    onAsk?.({ value: inputValue, images: inputImageAttached, settings: settingsValues, intent: selectedIntent });
+    onAsk?.({
+      value: inputValue,
+      images: inputImageAttached,
+      settings: settingsValues,
+      intent: selectedIntent,
+    });
     resetInput();
   }
 
@@ -232,8 +256,8 @@
     // Prepend quoted content if it exists
     const quotedText =
       quotedContent.length > 0
-        ? quotedContent.join("\n\n---\n\n") + "\n\n"
-        : "";
+        ? quotedContent.join('\n\n---\n\n') + '\n\n'
+        : '';
     const finalMessage = quotedText + inputValue;
     handleSendData();
     resetInput();
@@ -244,16 +268,16 @@
   }
 
   function handleAttachment() {
-    const fileInput = document.createElement("input");
-    fileInput.type = "file";
-    fileInput.accept = "image/*";
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
     fileInput.multiple = true;
 
     fileInput.onchange = (event) => {
       const files = (event.target as HTMLInputElement).files;
       if (files && files.length > 0) {
         Array.from(files).forEach((file) => {
-          if (file.type.startsWith("image/")) {
+          if (file.type.startsWith('image/')) {
             const reader = new FileReader();
             reader.onload = (e) => {
               const result = e.target?.result as string;
@@ -273,7 +297,7 @@
   }
 
   function handleClose() {
-    onStateChange?.({ state: "ask" });
+    onStateChange?.({ state: 'ask' });
     resetInput();
     onClear?.();
     onClose?.();
@@ -293,8 +317,8 @@
 
   // Reusable function to reset input state - following DRY principles
   function resetInput() {
-    inputValue = "";
-    inputElement.value = "";
+    inputValue = '';
+    inputElement.value = '';
     inputImageAttached = [];
     quotedContent = [];
   }
@@ -366,24 +390,76 @@
           <CurrentIntentIcon />
           {#if showIntentMenu}
             <div class="intent-menu" role="menu">
-              <button class="intent-item {selectedIntent === 'prompt' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'prompt'} onclick={() => { selectedIntent = "prompt"; showIntentMenu = false; }}>
+              <button
+                class="intent-item {selectedIntent === 'prompt'
+                  ? 'active'
+                  : ''}"
+                role="menuitem"
+                aria-selected={selectedIntent === 'prompt'}
+                onclick={() => {
+                  selectedIntent = 'prompt';
+                  showIntentMenu = false;
+                }}
+              >
                 <span class="intent-icon-circle"><AddToChat /></span>
                 <span>Prompt</span>
               </button>
-              <button class="intent-item {selectedIntent === 'summarise' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'summarise'} onclick={() => { selectedIntent = "summarise"; showIntentMenu = false; }}>
+              <button
+                class="intent-item {selectedIntent === 'summarise'
+                  ? 'active'
+                  : ''}"
+                role="menuitem"
+                aria-selected={selectedIntent === 'summarise'}
+                onclick={() => {
+                  selectedIntent = 'summarise';
+                  showIntentMenu = false;
+                }}
+              >
                 <span class="intent-icon-circle"><SummariseIcon /></span>
                 <span>Summarise</span>
               </button>
-              <button class="intent-item {selectedIntent === 'translate' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'translate'} onclick={() => { selectedIntent = "translate"; showIntentMenu = false; }}>
+              <button
+                class="intent-item {selectedIntent === 'translate'
+                  ? 'active'
+                  : ''}"
+                role="menuitem"
+                aria-selected={selectedIntent === 'translate'}
+                onclick={() => {
+                  selectedIntent = 'translate';
+                  showIntentMenu = false;
+                }}
+              >
                 <span class="intent-icon-circle"><TranslateIcon /></span>
                 <span>Translate</span>
               </button>
-              <button class="intent-item {selectedIntent === 'write' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'write'} onclick={() => { selectedIntent = "write"; showIntentMenu = false; }}>
-                <span class="intent-icon-circle intent-icon-circle--large"><WriterIcon /></span>
+              <button
+                class="intent-item {selectedIntent === 'write' ? 'active' : ''}"
+                role="menuitem"
+                aria-selected={selectedIntent === 'write'}
+                onclick={() => {
+                  selectedIntent = 'write';
+                  showIntentMenu = false;
+                }}
+              >
+                <span class="intent-icon-circle intent-icon-circle--large"
+                  ><WriterIcon /></span
+                >
                 <span>Write</span>
               </button>
-              <button class="intent-item {selectedIntent === 'rewrite' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'rewrite'} onclick={() => { selectedIntent = "rewrite"; showIntentMenu = false; }}>
-                <span class="intent-icon-circle intent-icon-circle--large"><RewriterIcon /></span>
+              <button
+                class="intent-item {selectedIntent === 'rewrite'
+                  ? 'active'
+                  : ''}"
+                role="menuitem"
+                aria-selected={selectedIntent === 'rewrite'}
+                onclick={() => {
+                  selectedIntent = 'rewrite';
+                  showIntentMenu = false;
+                }}
+              >
+                <span class="intent-icon-circle intent-icon-circle--large"
+                  ><RewriterIcon /></span
+                >
                 <span>Rewrite</span>
               </button>
             </div>
@@ -403,7 +479,7 @@
         rows="1"
         style="resize: none;"
         autofocus
-      ></textarea>
+      />
 
       {#if !isInputExpanded}
         <!-- Settings icon placed to the left of the vertical separator -->
@@ -429,7 +505,7 @@
           {/if}
         </div>
 
-        <div class="separator"></div>
+        <div class="separator" />
 
         <div class="action-icons">
           <button
@@ -451,19 +527,19 @@
           </button>
         </div>
 
-        {#if inputState === "ask"}
+        {#if inputState === 'ask'}
           <div class="ask-button-container">
             <button
-            class="ask-button"
-            class:streaming={isStreaming}
-            onclick={isStreaming ? handleStop : handleAsk}
-            aria-label={isStreaming ? "Stop streaming" : "Send message"}
-          >
-            {#if isStreaming}
-              <StopIcon />
-            {:else}
-              <SendIcon />
-            {/if}
+              class="ask-button"
+              class:streaming={isStreaming}
+              onclick={isStreaming ? handleStop : handleAsk}
+              aria-label={isStreaming ? 'Stop streaming' : 'Send message'}
+            >
+              {#if isStreaming}
+                <StopIcon />
+              {:else}
+                <SendIcon />
+              {/if}
             </button>
             {#if !isInSidePanel}
               <button
@@ -478,10 +554,10 @@
           </div>
         {/if}
 
-        {#if inputState === "chat"}
+        {#if inputState === 'chat'}
           <button
             class="send-button"
-            aria-label={isStreaming ? "Stop streaming" : "Send message"}
+            aria-label={isStreaming ? 'Stop streaming' : 'Send message'}
             onclick={isStreaming ? handleStop : handleAsk}
           >
             {#if isStreaming}
@@ -512,31 +588,88 @@
             <CurrentIntentIcon />
             {#if showIntentMenu}
               <div class="intent-menu" role="menu">
-                <button class="intent-item {selectedIntent === 'prompt' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'prompt'} onclick={() => { selectedIntent = "prompt"; showIntentMenu = false; }}>
+                <button
+                  class="intent-item {selectedIntent === 'prompt'
+                    ? 'active'
+                    : ''}"
+                  role="menuitem"
+                  aria-selected={selectedIntent === 'prompt'}
+                  onclick={() => {
+                    selectedIntent = 'prompt';
+                    showIntentMenu = false;
+                  }}
+                >
                   <span class="intent-icon-circle"><AddToChat /></span>
                   <span>Prompt</span>
                 </button>
-                <button class="intent-item {selectedIntent === 'summarise' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'summarise'} onclick={() => { selectedIntent = "summarise"; showIntentMenu = false; }}>
+                <button
+                  class="intent-item {selectedIntent === 'summarise'
+                    ? 'active'
+                    : ''}"
+                  role="menuitem"
+                  aria-selected={selectedIntent === 'summarise'}
+                  onclick={() => {
+                    selectedIntent = 'summarise';
+                    showIntentMenu = false;
+                  }}
+                >
                   <span class="intent-icon-circle"><SummariseIcon /></span>
                   <span>Summarise</span>
                 </button>
-                <button class="intent-item {selectedIntent === 'translate' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'translate'} onclick={() => { selectedIntent = "translate"; showIntentMenu = false; }}>
+                <button
+                  class="intent-item {selectedIntent === 'translate'
+                    ? 'active'
+                    : ''}"
+                  role="menuitem"
+                  aria-selected={selectedIntent === 'translate'}
+                  onclick={() => {
+                    selectedIntent = 'translate';
+                    showIntentMenu = false;
+                  }}
+                >
                   <span class="intent-icon-circle"><TranslateIcon /></span>
                   <span>Translate</span>
                 </button>
-                <button class="intent-item {selectedIntent === 'write' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'write'} onclick={() => { selectedIntent = "write"; showIntentMenu = false; }}>
-                  <span class="intent-icon-circle intent-icon-circle--large"><WriterIcon /></span>
+                <button
+                  class="intent-item {selectedIntent === 'write'
+                    ? 'active'
+                    : ''}"
+                  role="menuitem"
+                  aria-selected={selectedIntent === 'write'}
+                  onclick={() => {
+                    selectedIntent = 'write';
+                    showIntentMenu = false;
+                  }}
+                >
+                  <span class="intent-icon-circle intent-icon-circle--large"
+                    ><WriterIcon /></span
+                  >
                   <span>Write</span>
                 </button>
-                <button class="intent-item {selectedIntent === 'rewrite' ? 'active' : ''}" role="menuitem" aria-selected={selectedIntent === 'rewrite'} onclick={() => { selectedIntent = "rewrite"; showIntentMenu = false; }}>
-                  <span class="intent-icon-circle intent-icon-circle--large"><RewriterIcon /></span>
+                <button
+                  class="intent-item {selectedIntent === 'rewrite'
+                    ? 'active'
+                    : ''}"
+                  role="menuitem"
+                  aria-selected={selectedIntent === 'rewrite'}
+                  onclick={() => {
+                    selectedIntent = 'rewrite';
+                    showIntentMenu = false;
+                  }}
+                >
+                  <span class="intent-icon-circle intent-icon-circle--large"
+                    ><RewriterIcon /></span
+                  >
                   <span>Rewrite</span>
                 </button>
               </div>
             {/if}
           </div>
           <div class="expand-bar-content">
-            <div class="settings-container" style="position: relative; margin-right: 8px;">
+            <div
+              class="settings-container"
+              style="position: relative; margin-right: 8px;"
+            >
               <button
                 class="icon-button"
                 title="Settings"
@@ -578,13 +711,13 @@
               </button>
             </div>
 
-            {#if inputState === "ask"}
+            {#if inputState === 'ask'}
               <div class="ask-button-container">
                 <button
                   class="ask-button"
                   class:streaming={isStreaming}
                   onclick={isStreaming ? handleStop : handleAsk}
-                  aria-label={isStreaming ? "Stop streaming" : "Send message"}
+                  aria-label={isStreaming ? 'Stop streaming' : 'Send message'}
                 >
                   {#if isStreaming}
                     <StopIcon />
@@ -605,10 +738,10 @@
               </div>
             {/if}
 
-            {#if inputState === "chat"}
+            {#if inputState === 'chat'}
               <button
                 class="send-button"
-                aria-label={isStreaming ? "Stop streaming" : "Send message"}
+                aria-label={isStreaming ? 'Stop streaming' : 'Send message'}
                 onclick={isStreaming ? handleStop : handleAsk}
               >
                 {#if isStreaming}
@@ -635,7 +768,7 @@
 </div>
 
 <style>
-  @import url("https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap");
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
 
   textarea {
     field-sizing: content;
@@ -647,12 +780,7 @@
     margin: 0 auto;
     margin-bottom: 20px;
     transition: all 0.3s ease;
-    font-family:
-      "Sora",
-      -apple-system,
-      BlinkMacSystemFont,
-      "Segoe UI",
-      Roboto,
+    font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
       sans-serif;
   }
 
@@ -954,6 +1082,7 @@
     justify-content: center;
     color: #9ca3af;
     flex-shrink: 0;
+    transition: color 0.2s ease;
   }
 
   .input-bar.input-expanded .icon {
@@ -962,12 +1091,22 @@
   }
 
   .search-icon {
-    color: #d1d5db;
+    color: #e5e7eb; /* brighten left intent icon */
+  }
+  .search-icon:hover {
+    color: #ffffff; /* even brighter on hover */
   }
 
   /* Intent menu */
   .intent-trigger {
     position: relative;
+    padding: 6px; /* match other icon buttons */
+    border-radius: 50%; /* circular hover background */
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  .intent-trigger:hover {
+    background: #404040; /* same hover bg as .icon-button */
+    color: #ffffff; /* brighten icon on hover */
   }
   .intent-menu {
     position: absolute;
@@ -982,13 +1121,13 @@
     gap: 4px;
     z-index: 20;
     min-width: 180px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
   }
   /* Open upward in sidepanel mode */
   .telescope-container.sidepanel-mode .intent-menu {
     top: auto;
     bottom: 36px;
-    box-shadow: 0 -8px 20px rgba(0,0,0,0.35);
+    box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.35);
   }
   .intent-item {
     background: transparent;
@@ -1051,7 +1190,7 @@
     min-height: 24px;
     max-height: 240px;
     line-height: 1.4;
-    font-family: "Sora", inherit;
+    font-family: 'Sora', inherit;
     resize: none;
     overflow: auto;
     overscroll-behavior: none;
@@ -1126,7 +1265,7 @@
     color: #9ca3af;
     cursor: pointer;
     padding: 6px;
-    border-radius: 6px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1170,10 +1309,10 @@
     white-space: nowrap;
     height: fit-content;
     align-self: center;
-    display: flex;            /* center icon precisely */
+    display: flex; /* center icon precisely */
     align-items: center;
     justify-content: center;
-    line-height: 0;           /* avoid baseline offset */
+    line-height: 0; /* avoid baseline offset */
   }
 
   .ask-button.streaming {
