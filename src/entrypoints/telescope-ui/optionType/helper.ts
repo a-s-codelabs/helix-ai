@@ -41,7 +41,7 @@ export const defaultOption = [
     options: [
       { label: 'Built-in (Private)', value: 'builtin' },
       { label: 'OpenAI', value: 'openai' },
-      { label: 'Claude', value: 'anthropic' },
+      // { label: 'Claude', value: 'anthropic' },
       { label: 'Gemini', value: 'gemini' },
     ],
   },
@@ -55,9 +55,9 @@ export const defaultOption = [
       { label: 'OpenAI - gpt-4o-mini', value: 'gpt-4o-mini' },
       { label: 'OpenAI - o3-mini', value: 'o3-mini' },
       // Anthropic
-      { label: 'Claude - claude-3-5-sonnet-latest', value: 'claude-3-5-sonnet-latest' },
-      { label: 'Claude - claude-3-5-haiku-latest', value: 'claude-3-5-haiku-latest' },
-      { label: 'Claude - claude-3-opus-latest', value: 'claude-3-opus-latest' },
+      // { label: 'Claude - claude-3-5-sonnet-latest', value: 'claude-3-5-sonnet-latest' },
+      // { label: 'Claude - claude-3-5-haiku-latest', value: 'claude-3-5-haiku-latest' },
+      // { label: 'Claude - claude-3-opus-latest', value: 'claude-3-opus-latest' },
       // Gemini
       { label: 'Gemini 2.5 Pro (best quality)', value: 'gemini-2.5-pro' },
       { label: 'Gemini 2.5 Flash (value for money)', value: 'gemini-2.5-flash' },

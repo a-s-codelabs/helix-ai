@@ -6,22 +6,22 @@ declare namespace chrome {
       message: any,
       callback?: (response: any) => void
     ): void;
-    const lastError: { message: string } | undefined;
+    var lastError: { message: string } | undefined;
 
-    // Fixed: onMessage should be an object, not a function
-    const onMessage: {
+    // onMessage is an event, not a function
+    var onMessage: {
       addListener(
         callback: (
           message: any,
           sender: any,
-          sendResponse: any
+          sendResponse: (response: any) => void
         ) => void | boolean
       ): void;
       removeListener(
         callback: (
           message: any,
           sender: any,
-          sendResponse: any
+          sendResponse: (response: any) => void
         ) => void | boolean
       ): void;
     };
@@ -36,7 +36,12 @@ declare namespace chrome {
       function set(items: object, callback?: () => void): void;
       function remove(keys: string | string[], callback?: () => void): void;
     }
-    namespace StorageChange {
+    // Fix StorageChange namespace to type for event argument
+    interface StorageChange {
+      oldValue?: any;
+      newValue?: any;
+    }
+    namespace onChanged {
       function addListener(callback: (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => void): void;
       function removeListener(callback: (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => void): void;
     }
@@ -62,7 +67,7 @@ declare namespace chrome {
     function setOptions(options: PanelOptions): Promise<void>;
     function open(options: OpenOptions): Promise<void>;
 
-    const onOpened: {
+    var onOpened: {
       addListener(callback: (info: any) => void): void;
     };
   }
@@ -86,7 +91,7 @@ declare namespace chrome {
     ): void;
     function create(createProperties: { url: string }, callback?: (tab: Tab) => void): void;
 
-    const onUpdated: {
+    var onUpdated: {
       addListener(
         callback: (tabId: number, changeInfo: any, tab: Tab) => void
       ): void;
@@ -100,9 +105,10 @@ declare namespace chrome {
       description?: string;
     }
 
-    function getAll(callback?: (commands: Command[]) => void): Promise<Command[]>;
+    // getAll is callback-based, does not return Promise directly in Manifest V3
+    function getAll(callback?: (commands: Command[]) => []): any[];
 
-    const onCommand: {
+    var onCommand: {
       addListener(
         callback: (command: string, tab?: tabs.Tab) => void
       ): void;
@@ -121,15 +127,15 @@ declare namespace chrome {
   //     matchDiacritics?: boolean;
   //   }
 
-    // interface FindResult {
-    //   numberOfMatches: number;
-    //   activeMatchOrdinal: number;
-    // }
+  // interface FindResult {
+  //   numberOfMatches: number;
+  //   activeMatchOrdinal: number;
+  // }
 
-    // function find(query: FindOptions, callback?: (result: FindResult) => void): void;
-    function highlightResults(): void;
-    function removeHighlighting(): void;
-  }
+  // function find(query: FindOptions, callback?: (result: FindResult) => void): void;
+  function highlightResults(): void;
+  function removeHighlighting(): void;
+  // }
 
   namespace omnibox {
     interface SuggestResult {
@@ -138,10 +144,10 @@ declare namespace chrome {
     }
 
     function setDefaultSuggestion(suggestion: { description: string }): void;
-    const onInputChanged: {
+    var onInputChanged: {
       addListener(callback: (text: string, suggest: (results: SuggestResult[]) => void) => void): void;
     };
-    const onInputEntered: {
+    var onInputEntered: {
       addListener(callback: (text: string, disposition: string) => void): void;
     };
   }
@@ -251,4 +257,3 @@ type ProofreaderInstance = chrome.ai.ProofreaderInstance;
 type ProofreaderCreateOptions = chrome.ai.ProofreaderCreateOptions;
 type ProofreadResult = chrome.ai.ProofreadResult;
 type ProofreadCorrection = chrome.ai.ProofreadCorrection;
-
