@@ -17,6 +17,7 @@ export type InputProps = {
   inputImageAttached?: string[];
   messages?: Message[];
   quotedContent: string[];
+  isInSidePanel?: boolean;
   onInput?: ({ value }: { value: string }) => void;
   onStateChange?: ({ state }: { state: State }) => void;
   onAsk?: ({ value, images }: { value: string; images?: string[] }) => void;
@@ -61,5 +62,6 @@ export type ChatboxProps = {
   searchIndex?: number;
   totalResults?: number;
   currentState?: State;
+  isInSidePanel?: boolean;
   onDragStart?: (event: MouseEvent) => void;
 };

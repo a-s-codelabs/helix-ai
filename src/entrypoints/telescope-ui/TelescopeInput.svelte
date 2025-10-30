@@ -27,6 +27,7 @@
     inputImageAttached = $bindable([] as string[]),
     isStreaming = false,
     hasChatBox = false,
+    isInSidePanel = false,
     onInput,
     onStateChange,
     onAsk,
@@ -37,7 +38,6 @@
     onStop,
   }: InputProps = $props();
 
-  let isInSidePanel = $state(false);
   let containerElement: HTMLDivElement; // root container to measure width
   let isCompactAction = $state(false); // when true, show send icon instead of label
 
@@ -73,13 +73,6 @@
 
   // Derived current icon component for the input
   const CurrentIntentIcon = $derived(intentToIcon[selectedIntent] ?? SearchAiIcon);
-
-  $effect(() => {
-    isInSidePanel =
-      window.location.pathname.includes("sidepanel") ||
-      window.location.href.includes("sidepanel") ||
-      document.title.includes("Side Panel");
-  });
 
   // Observe container width and toggle compact mode;
   // compact threshold chosen to align with existing 400px media query
