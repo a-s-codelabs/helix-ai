@@ -1,8 +1,6 @@
 <script lang="ts">
   import { scale } from 'svelte/transition';
   /*@ts-ignore */
-  // import Sparkles from '../telescope-ui/icons/Sparkles.svelte';
-  /*@ts-ignore */
   import Helix from '../telescope-ui/icons/Helix.svelte';
 
   interface Props {

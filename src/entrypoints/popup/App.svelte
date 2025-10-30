@@ -3,15 +3,12 @@
   import { globalStorage } from "@/lib/globalStorage";
   import HelixIcon from "@/entrypoints/telescope-ui/icons/Helix.svelte";
 
-  // State management
   let floatingTelescopeEnabled = $state(true);
   let selectionTelescopeEnabled = $state(true);
   let writerTelescopeEnabled = $state(true);
 
-  // Reference to main element for outside click detection
   let mainElement: HTMLElement;
 
-  // Load settings from storage
   async function loadSettings() {
     try {
       const config = await globalStorage().get("config");
@@ -25,7 +22,6 @@
     }
   }
 
-  // Save settings to storage
   async function saveSettings() {
     try {
       const currentConfig = await globalStorage().get("config");
@@ -82,14 +78,12 @@
     }
   }
 
-  // Handle clicks outside the popup to close it
   function handleClickOutside(event: MouseEvent) {
     if (mainElement && !mainElement.contains(event.target as Node)) {
       window.close();
     }
   }
 
-  // Format keyboard shortcut to lowercase style
   function formatShortcut(shortcut: string): string {
     if (!shortcut) return "ctrl + e";
     return shortcut
@@ -101,7 +95,6 @@
       .replace(/\+/g, " + ");
   }
 
-  // Get current keyboard shortcut
   async function getKeyboardShortcut(): Promise<string> {
     try {
       if (chrome.commands) {
@@ -119,16 +112,13 @@
 
   let keyboardShortcut = $state("ctrl + e");
 
-  // Open Chrome shortcuts page to edit keyboard shortcut
   async function openShortcutsPage() {
     try {
-      // Try to open via background script (chrome:// URLs require background context)
       chrome.runtime.sendMessage(
         {
           type: "OPEN_SHORTCUTS_PAGE",
         },
         () => {
-          // Close popup after opening shortcuts page
           setTimeout(() => {
             window.close();
           }, 100);
@@ -139,23 +129,19 @@
     }
   }
 
-  // Refresh keyboard shortcut when window regains focus
   async function refreshShortcut() {
     keyboardShortcut = await getKeyboardShortcut();
   }
 
-  // Open A S Codelabs website
   function openASCodelabs() {
     chrome.tabs.create({ url: "https://ascodelabs.com" });
   }
 
-  // Set up event listeners and load settings
   onMount(async () => {
     await loadSettings();
     keyboardShortcut = await getKeyboardShortcut();
     document.addEventListener("mousedown", handleClickOutside);
 
-    // Listen for window focus to refresh shortcut after user edits it
     const handleFocus = () => {
       refreshShortcut();
     };
@@ -168,7 +154,6 @@
     };
   });
 
-  // Watch for toggle changes to auto-save
   $effect(() => {
     floatingTelescopeEnabled;
     selectionTelescopeEnabled;
@@ -265,7 +250,6 @@
 <style>
   @import url("https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap");
 
-  /* CSS Reset */
   * {
     box-sizing: border-box;
     margin: 0;
@@ -330,7 +314,6 @@
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
-    /* text-transform: lowercase; */
   }
 
   .action-button:hover {

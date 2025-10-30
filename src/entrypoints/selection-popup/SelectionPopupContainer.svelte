@@ -7,8 +7,6 @@
   }
 
   let { onClose }: Props = $props();
-
-  // Subscribe to the store
   let state = $derived($selectionPopupState);
 </script>
 

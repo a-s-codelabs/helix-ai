@@ -17,7 +17,6 @@
   let quotedContent = $state<string[]>([]);
 
   let { isInSidePanel }: { isInSidePanel: boolean } = $props();
-  // Subscribe to chat store
   $effect(() => {
     const unsubscribe = chatStore.subscribe((state) => {
       messages = state.messages;
@@ -44,18 +43,12 @@
           }
         })();
       } else {
-        // In content script mode, extract page content directly
         chatStore.init();
       }
     }
   });
 
-  // Check if we're in side panel mode
-  // let isInSidePanel = $state(false);
-
-  // Detect if we're in side panel by checking the URL or window context
   $effect(() => {
-    // Always show the UI (for both side panel and content script mode)
     isVisible = true;
   });
 
@@ -68,8 +61,6 @@
       console.log("App: Updating state from storage:", storedState);
 
       if (storedState.actionSource === "context-image") {
-        // Prefer attaching image instead of quoting the URL text
-        // Detect common image URL extensions or data URLs
         const content = String(storedState.content || "");
         const isImageUrl =
           /^data:image\//i.test(content) ||
@@ -78,15 +69,12 @@
       }
 
       if (storedState.actionSource === "addToChat") {
-        // Previous behavior retained for non-image content
-        // quotedContent = [...quotedContent, storedState.content];
         quotedContent = [...quotedContent, storedState.content];
       }
 
       if (storedState.actionSource === "summarise") {
         chatStore.summarise(storedState.content);
       } else if (
-        // lastUserMessage &&
         storedState.actionSource === "translate" &&
         storedState.targetLanguage
       ) {
@@ -95,7 +83,6 @@
     }
   };
 
-  // Check for side panel state restoration
   $effect(() => {
     if (isInSidePanel) {
       globalStorage().watch(
@@ -146,15 +133,11 @@
   function handleClose() {
     chatStore.clear();
 
-    // If not in side panel, close the telescope UI
     if (!isInSidePanel) {
       console.log("Closing telescope from close button...");
-      // Send message to parent window to close telescope
       if (window.parent && window.parent !== window) {
         window.parent.postMessage({ action: "closeTelescope" }, "*");
       } else {
-        // For content script, we need to communicate differently
-        // Dispatch a custom event that the content script can listen to
         window.dispatchEvent(new CustomEvent("telescope-close"));
       }
     }
@@ -164,7 +147,6 @@
     chatStore.stopStreaming();
   }
 
-  // Drag functionality
   let isDragging = $state(false);
   let dragOffset = $state({ x: 0, y: 0 });
   let telescopeContainer = $state<HTMLElement | undefined>(undefined);
@@ -175,7 +157,7 @@
       const rect = telescopeContainer.getBoundingClientRect();
       dragOffset.x = event.clientX - rect.left;
       dragOffset.y = event.clientY - rect.top;
-      event.preventDefault(); // Prevent text selection while dragging
+      event.preventDefault();
     }
   }
 
@@ -198,7 +180,7 @@
 
       telescopeContainer.style.left = newLeft + "px";
       telescopeContainer.style.top = newTop + "px";
-      telescopeContainer.style.transform = "none"; // Remove centering transform when dragging
+      telescopeContainer.style.transform = "none";
     }
   }
 
@@ -272,7 +254,6 @@
     width: min-content;
   }
 
-  /* Floating mode styling */
   .telescope-container.draggable {
     position: fixed;
     top: 20px;
@@ -283,7 +264,6 @@
     border-radius: 12px;
   }
 
-  /* Side panel mode styling */
   .telescope-container:not(.draggable) {
     position: relative;
     width: 100%;
@@ -295,14 +275,12 @@
     display: flex;
     flex-direction: column;
     background: #0a0a0a;
-    min-width: 0; /* Allow container to shrink */
-    overflow: hidden; /* Prevent content from overflowing */
-    /* Enable flexible width handling */
-    min-width: 200px; /* Minimum usable width */
-    max-width: 100vw; /* Never exceed viewport width */
+    min-width: 0;
+    overflow: hidden;
+    min-width: 200px;
+    max-width: 100vw;
   }
 
-  /* Responsive adjustments for side panel */
   @media (max-width: 400px) {
     .telescope-container:not(.draggable) {
       font-size: 14px;

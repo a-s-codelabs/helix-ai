@@ -3,12 +3,10 @@
   import WriterPopupContainer from './WriterPopupContainer.svelte';
   import { writerPopupStore } from '../../lib/writerPopupStore';
 
-  // Draggable state
   let isDragging = $state(false);
   let dragOffset = $state({ x: 0, y: 0 });
   let popupContainer = $state<HTMLElement | undefined>(undefined);
 
-  // Subscribe to the store - get reactive values
   let visible = $state(false);
   let popupOpen = $state(false);
   let targetElement = $state<HTMLTextAreaElement | HTMLInputElement | null>(
@@ -29,7 +27,6 @@
   });
 
   function handleOpenPopup() {
-    // Open the popup dialog
     writerPopupStore.setPopupOpen(true);
   }
 
@@ -77,9 +74,7 @@
 
   $effect(() => {
     if (popupOpen) {
-      // Position popup near the focused element initially
       if (popupContainer && x && y) {
-        // Position slightly above and to the left of the button
         popupContainer.style.left = Math.max(10, x - 180) + 'px';
         popupContainer.style.top = Math.max(10, y - 60) + 'px';
       }
@@ -97,10 +92,8 @@
 
 {#if visible && targetElement}
   {#if !popupOpen}
-    <!-- Show floating button -->
     <FloatingButton {x} {y} onClick={handleOpenPopup} />
   {:else}
-    <!-- Show popup dialog -->
     <div class="popup-wrapper" bind:this={popupContainer}>
       <WriterPopupContainer
         onClose={handleClose}

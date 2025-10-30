@@ -24,32 +24,28 @@
    */
   async function copyToClipboard(content: string, messageId: number) {
     try {
-      // Remove HTML tags and get plain text
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = content;
       const plainText = tempDiv.textContent || tempDiv.innerText || '';
 
       await navigator.clipboard.writeText(plainText);
 
-      // Show "Copied!" feedback
       copiedMessageId = messageId;
       setTimeout(() => {
         copiedMessageId = null;
-      }, 2000); // Hide after 2 seconds
+      }, 2000);
 
       console.log('Content copied to clipboard');
     } catch (err) {
       console.error('Failed to copy content: ', err);
-      // Fallback for older browsers
       try {
         const textArea = document.createElement('textarea');
-        textArea.value = content.replace(/<[^>]*>/g, ''); // Remove HTML tags
+        textArea.value = content.replace(/<[^>]*>/g, '');
         document.body.appendChild(textArea);
         textArea.select();
         document.execCommand('copy');
         document.body.removeChild(textArea);
 
-        // Show "Copied!" feedback for fallback too
         copiedMessageId = messageId;
         setTimeout(() => {
           copiedMessageId = null;
@@ -69,14 +65,12 @@
    */
   async function speakMessage(content: string, messageId: number) {
     try {
-      // Stop any currently speaking message
       if (speakingMessageId !== null) {
         window.speechSynthesis.cancel();
         speakingMessageId = null;
         return;
       }
 
-      // Remove HTML tags and get plain text
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = content;
       let plainText = tempDiv.textContent || tempDiv.innerText || '';
@@ -86,27 +80,21 @@
         return;
       }
 
-      // Replace markdown characters (* and #) with spaces for better speech
       plainText = plainText.replace(/[*#]/g, ' ');
 
-      // Create speech synthesis utterance
       const utterance = new SpeechSynthesisUtterance(plainText);
 
-      // Set speaking state
       speakingMessageId = messageId;
 
-      // Handle speech end
       utterance.onend = () => {
         speakingMessageId = null;
       };
 
-      // Handle speech error
       utterance.onerror = (event) => {
         console.error('Speech synthesis error:', event.error);
         speakingMessageId = null;
       };
 
-      // Start speaking
       window.speechSynthesis.speak(utterance);
 
       console.log('Started speaking message');
@@ -122,24 +110,17 @@
    * @returns Sanitized HTML content
    */
   function renderMarkdownContent(content: string): string {
-    // Check if content is safe before processing
     if (!isContentSafe(content)) {
       console.warn('Potentially unsafe content detected, using plain text');
       return sanitizeHtml(content.replace(/\n/g, '<br>'));
     }
-
-    // Format basic markdown (bold, italic, line breaks)
     const formatted = formatBasicMarkdown(content);
-
-    // Sanitize the formatted HTML for security
     return sanitizeHtml(formatted);
   }
 
-  // Listen to user scrolls to toggle autoScroll on or off
   function handleUserScroll() {
     if (!messageContainer) return;
     const { scrollTop, scrollHeight, clientHeight } = messageContainer;
-    // Allow a 4px buffer at bottom due to possible fractional pixels
     const atBottom = Math.abs(scrollTop + clientHeight - scrollHeight) < 4;
     if (atBottom) {
       autoScroll = true;
@@ -150,7 +131,6 @@
 
   $effect(() => {
     if (!messageContainer) return;
-    // Use a passive event (safe, no preventDefault)
     messageContainer.addEventListener('scroll', handleUserScroll, { passive: true });
     return () => {
       messageContainer?.removeEventListener('scroll', handleUserScroll);
@@ -158,7 +138,6 @@
   });
 
   $effect(() => {
-    // Watch isStreaming, messages, autoScroll, and container reference
     if (!messageContainer) return;
 
     let previousScrollHeight = messageContainer.scrollHeight;
@@ -166,10 +145,8 @@
 
     const handleContentChange = () => {
       if (!messageContainer) return;
-      // Only auto-scroll if enabled and isStreaming
       if (isStreaming && autoScroll) {
         const currentScrollHeight = messageContainer.scrollHeight;
-        // Only scroll if the content grew (e.g., new streamed chunk)
         if (currentScrollHeight > previousScrollHeight || previousScrollHeight === 0) {
           messageContainer.scrollTo({
             top: currentScrollHeight,
@@ -184,7 +161,6 @@
       observer = new MutationObserver(handleContentChange);
       observer.observe(messageContainer, { childList: true, subtree: true });
 
-      // Initial scroll if at bottom or first streaming
       if (autoScroll) {
         messageContainer.scrollTo({
           top: messageContainer.scrollHeight,
@@ -220,10 +196,8 @@
         {/if}
       </div>
 
-      <!-- Action buttons for assistant messages (only show when not streaming) -->
       {#if message.type === "assistant" && !(isStreaming && message.id === streamingMessageId)}
         <div class="message-actions">
-          <!-- Speaker button -->
           <button
             class="speaker-button"
             class:speaking={speakingMessageId === message.id}
@@ -234,7 +208,6 @@
             <SpeakerIcon />
           </button>
 
-          <!-- Copy button -->
           <button
             class="copy-button"
             onclick={() => copyToClipboard(message.content, message.id)}
@@ -245,7 +218,6 @@
           </button>
         </div>
 
-        <!-- Copied feedback -->
         {#if copiedMessageId === message.id}
           <div class="copied-feedback">
             Copied!
@@ -266,14 +238,12 @@
     padding: 30px 10px 0px 0px;
     margin-bottom: 20px;
     overscroll-behavior: none;
-    /* Thin scrollbar styling */
     scrollbar-width: thin;
     scrollbar-color: #555 #2a2a2a;
     width: 100%;
     box-sizing: border-box;
   }
 
-  /* Webkit scrollbar styling for thin appearance */
   .message-container::-webkit-scrollbar {
     width: 4px;
   }
@@ -415,7 +385,6 @@
     display: inline;
   }
 
-  /* Markdown formatting styles */
   :global(.message strong) {
     font-weight: bold;
     color: #fff;
@@ -430,7 +399,6 @@
     line-height: 1.4;
   }
 
-  /* Link styling */
   :global(.message a) {
     color: #6bb5ff;
     text-decoration: underline;
@@ -448,7 +416,6 @@
     color: #4a9bef;
   }
 
-  /* User message links have different color scheme */
   :global(.user-message a) {
     color: #d4e7ff;
   }
@@ -461,7 +428,6 @@
     color: #b3d4f7;
   }
 
-  /* Code styling */
   :global(.message code) {
     background-color: rgba(255, 255, 255, 0.1);
     padding: 2px 6px;
@@ -480,12 +446,10 @@
     overflow-x: auto;
     margin: 8px 0;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    /* Thin scrollbar styling */
     scrollbar-width: thin;
     scrollbar-color: #555 #2a2a2a;
   }
 
-  /* Webkit scrollbar styling for pre code blocks */
   :global(.message pre::-webkit-scrollbar) {
     height: 4px;
   }
@@ -515,7 +479,6 @@
     word-break: normal;
   }
 
-  /* User message code styling */
   :global(.user-message code) {
     background-color: rgba(0, 0, 0, 0.2);
     color: #ffffff;
@@ -526,7 +489,6 @@
     border-color: rgba(255, 255, 255, 0.2);
   }
 
-  /* Heading styling */
   :global(.message h1),
   :global(.message h2),
   :global(.message h3),
@@ -539,7 +501,6 @@
     color: #fff;
   }
 
-  /* Add small spacing between multiple headings/blocks */
   :global(.message h1:not(:first-child)),
   :global(.message h2:not(:first-child)),
   :global(.message h3:not(:first-child)),
@@ -578,7 +539,6 @@
     color: #e0e0e0;
   }
 
-  /* Table styling */
   :global(.message table) {
     border-collapse: collapse;
     width: 100%;
@@ -616,7 +576,6 @@
     background-color: rgba(255, 255, 255, 0.05);
   }
 
-  /* User message table styling */
   :global(.user-message table) {
     background-color: rgba(0, 0, 0, 0.2);
   }
@@ -634,7 +593,6 @@
     background-color: rgba(0, 0, 0, 0.2);
   }
 
-  /* List styling */
   :global(.message ul),
   :global(.message ol) {
     margin: 0 0 8px 0;
@@ -652,13 +610,11 @@
     line-height: 1.5;
   }
 
-  /* User message list styling */
   :global(.user-message ul),
   :global(.user-message ol) {
     color: #fff;
   }
 
-  /* Blockquote styling */
   :global(.message blockquote) {
     margin: 0 0 8px 0;
     padding: 8px 12px;
@@ -678,7 +634,6 @@
     display: block;
   }
 
-  /* User message blockquote styling */
   :global(.user-message blockquote) {
     background-color: rgba(0, 0, 0, 0.2);
     border-left-color: rgba(255, 255, 255, 0.4);
@@ -711,7 +666,6 @@
     border: 1px solid #404040;
   }
 
-  /* Side panel specific adjustments */
   :global(.sidepanel-layout) .message {
     max-width: 95%;
     width: max-content;
@@ -738,8 +692,7 @@
     padding: 0px 20px 0px 0px;
     margin-bottom: 0;
   }
-
-  /* Responsive adjustments */
+  
   @media (max-width: 400px) {
     .message-container {
       padding: 12px 12px 0px 0px;
