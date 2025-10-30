@@ -11,12 +11,8 @@ import {
 } from "./helper";
 import { extractPageContent } from "./extract-helper";
 import { monitorHelperSync } from "./monitor-helper";
-import {
-  writeContentStreaming,
-  rewriteContentStreaming,
-  type WriterOptions,
-  type RewriterOptions,
-} from '../writerApiHelper';
+import { systemPrompt } from "./prompt";
+import { RewriterOptions, WriterOptions } from "../writerApiHelper";
 
 async function processStream<T>(
   stream: ReadableStream<T>,
@@ -65,10 +61,11 @@ async function processStream<T>(
 }
 
 async function createAISessionWithMonitor(
-  sessionType: 'summarizer' | 'languageDetector' | 'translator',
+  sessionType: 'summarizer' | 'languageDetector' | 'translator' | 'writer' | 'rewriter' | 'proofreader' | 'prompt',
   options: any = {},
-  monitorOptions: any = {}
 ): Promise<any> {
+  console.log(`Called session with type: ${sessionType} and options: ${JSON.stringify(options, null, 4)}`);
+
   const monitor = (m: any) => {
     const createdAt = Date.now();
     m.addEventListener('downloadprogress', (e: any) => {
@@ -77,34 +74,76 @@ async function createAISessionWithMonitor(
           sessionType === 'summarizer'
             ? 'summarize'
             : sessionType === 'languageDetector'
-            ? 'language-detector'
-            : 'translator',
+              ? 'language-detector'
+              : 'translator',
         loaded: e.loaded,
         createdAt,
-        options: monitorOptions,
+        options: options,
       });
     });
   };
 
-  switch (sessionType) {
-    case 'summarizer':
-      if (typeof Summarizer === 'undefined') {
-        throw new Error('Summarizer API not available');
+  async function checkAvailability(sourceType: 'LanguageModel' | 'Summarizer' | 'LanguageDetector' | 'Translator' | 'Writer' | 'Rewriter' | 'Proofreader') {
+
+    try {
+      if (typeof window[sourceType as keyof Window] === 'undefined') {
+        throw new Error(`${sourceType} API not available`);
       }
-      return await Summarizer.create({ ...options, monitor });
+      let availability;
+      if (sourceType === 'Translator') {
+        availability = await window[sourceType as keyof Window].availability({
+          sourceLanguage: options.sourceLanguage,
+          targetLanguage: options.targetLanguage,
+        });
+      }
+      else {
+        availability = await window[sourceType as keyof Window].availability();
+      }
+      if (availability === 'unavailable') {
+        throw new Error();
+      }
+    } catch (error) {
+      console.error(`Error checking availability for ${sourceType}:`, error);
+      throw new Error(
+        'Chrome Built-in AI not available.\n\n' +
+        'Please ensure:\n' +
+        '1. You are using Chrome 138+ (Dev/Canary/Beta)\n' +
+        '2. Flags are enabled at chrome:flags for Built-in AI\n' +
+        '3. Chrome has been fully restarted\n' +
+        '4. Model is downloaded at chrome://components'
+      );
+    }
+  }
+
+  switch (sessionType) {
+    case 'prompt':
+      await checkAvailability('LanguageModel');
+      return await createAISession({ ...options, monitor });
+    case 'summarizer':
+      await checkAvailability('Summarizer');
+      return await Summarizer!.create({ ...options, monitor });
 
     case 'languageDetector':
-      if (typeof LanguageDetector === 'undefined') {
-        throw new Error('LanguageDetector API not available');
-      }
-      return await LanguageDetector.create({ ...options, monitor });
+      await checkAvailability('LanguageDetector');
+      return await LanguageDetector!.create({ ...options, monitor });
 
     case 'translator':
-      if (typeof Translator === 'undefined') {
-        throw new Error('Translator API not available');
-      }
-      return await Translator.create({ ...options, monitor });
+      await checkAvailability('Translator');
+      return await Translator!.create({ ...options, monitor });
 
+    case 'writer':
+      await checkAvailability('Writer');
+      return await Writer!.create({ ...options, monitor });
+
+    case 'rewriter':
+      await checkAvailability('Rewriter');
+      return await Rewriter!.create({ ...options, monitor });
+
+    case 'proofreader':
+      if (typeof Proofreader === 'undefined') {
+        throw new Error('Proofreader API not available');
+      }
+      return await Proofreader!.create({ ...options, monitor });
     default:
       throw new Error(`Unknown session type: ${sessionType}`);
   }
@@ -241,32 +280,32 @@ declare global {
 
   var LanguageModel:
     | {
-        availability(): Promise<
-          'readily' | 'available' | 'no' | 'downloadable'
-        >;
-        create(
-          options?: AILanguageModelCreateOptions
-        ): Promise<AILanguageModel>;
-      }
+      availability(): Promise<
+        'readily' | 'available' | 'no' | 'downloadable'
+      >;
+      create(
+        options?: AILanguageModelCreateOptions
+      ): Promise<AILanguageModel>;
+    }
     | undefined;
 
   var Summarizer:
     | {
-        availability(): Promise<'readily' | 'available' | 'unavailable'>;
-        create(options?: {
-          sharedContext?: string;
-          type?: 'key-points' | 'tldr' | 'teaser' | 'headline';
-          format?: 'markdown' | 'plain-text';
-          length?: 'short' | 'medium' | 'long';
-          signal?: AbortSignal;
-          monitor?: (monitor: {
-            addEventListener: (
-              type: string,
-              listener: (e: any) => void
-            ) => void;
-          }) => void;
-        }): Promise<AISummarizer>;
-      }
+      availability(): Promise<'readily' | 'available' | 'unavailable'>;
+      create(options?: {
+        sharedContext?: string;
+        type?: 'key-points' | 'tldr' | 'teaser' | 'headline';
+        format?: 'markdown' | 'plain-text';
+        length?: 'short' | 'medium' | 'long';
+        signal?: AbortSignal;
+        monitor?: (monitor: {
+          addEventListener: (
+            type: string,
+            listener: (e: any) => void
+          ) => void;
+        }) => void;
+      }): Promise<AISummarizer>;
+    }
     | undefined;
 
   type AISummarizer = {
@@ -283,17 +322,17 @@ declare global {
 
   var LanguageDetector:
     | {
-        availability(): Promise<'readily' | 'available' | 'unavailable'>;
-        create(options?: {
-          signal?: AbortSignal;
-          monitor?: (monitor: {
-            addEventListener: (
-              type: string,
-              listener: (e: any) => void
-            ) => void;
-          }) => void;
-        }): Promise<AILanguageDetector>;
-      }
+      availability(): Promise<'readily' | 'available' | 'unavailable'>;
+      create(options?: {
+        signal?: AbortSignal;
+        monitor?: (monitor: {
+          addEventListener: (
+            type: string,
+            listener: (e: any) => void
+          ) => void;
+        }) => void;
+      }): Promise<AILanguageDetector>;
+    }
     | undefined;
 
   type AILanguageDetector = {
@@ -305,22 +344,22 @@ declare global {
 
   var Translator:
     | {
-        availability(options: {
-          sourceLanguage: string;
-          targetLanguage: string;
-        }): Promise<'readily' | 'available' | 'unavailable'>;
-        create(options: {
-          sourceLanguage: string;
-          targetLanguage: string;
-          signal?: AbortSignal;
-          monitor?: (monitor: {
-            addEventListener: (
-              type: string,
-              listener: (e: any) => void
-            ) => void;
-          }) => void;
-        }): Promise<AITranslator>;
-      }
+      availability(options: {
+        sourceLanguage: string;
+        targetLanguage: string;
+      }): Promise<'readily' | 'available' | 'unavailable'>;
+      create(options: {
+        sourceLanguage: string;
+        targetLanguage: string;
+        signal?: AbortSignal;
+        monitor?: (monitor: {
+          addEventListener: (
+            type: string,
+            listener: (e: any) => void
+          ) => void;
+        }) => void;
+      }): Promise<AITranslator>;
+    }
     | undefined;
 
   type AITranslator = {
@@ -341,36 +380,21 @@ export type ChatState = {
   abortController: AbortController | null;
 };
 
-async function createAISession(pageContext: string): Promise<AILanguageModel> {
-  const temperature = 0.4;
-  const topK = 4;
-  const systemPrompt = (
-    n: number
-  ) => `You are a helpful AI assistant embedded in a browser extension. Your name is "Helix". You have access to the current page's content and can answer questions about it. So answer questions based on the page content.
-  Your capabilities:
-  • Answer questions about the page content
-  • If the question isn't related to the page, provide a brief general answer
-  Current Page Content:
-  ---
-  ${pageContext.substring(0, 2000)}
-  ---
-  When answering, prioritize information from the page content above.
-
-  `;
-
+async function createAISession({ pageContext, language = 'en', outputLanguage = 'en', temperature = 0.4, topK = 4 }: { pageContext: string, language?: string, outputLanguage?: string, temperature?: number, topK?: number }): Promise<AILanguageModel> {
   if (typeof LanguageModel !== 'undefined') {
     const config = {
-      systemPrompt: systemPrompt(2),
-      language: 'en',
-      outputLanguage: 'en',
-      output: { language: 'en' },
-      expectedInputs: [{ type: 'image' }],
+      // TODO: Check which system prompt to use based on the user's language
+      systemPrompt: systemPrompt({ pageContext }),
+      language,
+      outputLanguage,
+      output: { language: outputLanguage },
+      expectedInputs: [{ type: 'image' }, { type: 'audio' }],
       temperature,
       topK,
       initialPrompts: [
         {
           role: 'system',
-          content: systemPrompt(6),
+          content: systemPrompt({ pageContext }),
         },
       ],
       monitor(m: any) {
@@ -385,29 +409,17 @@ async function createAISession(pageContext: string): Promise<AILanguageModel> {
         });
       },
     };
-    try {
-      const availability = await LanguageModel.availability();
-      if (availability === 'readily' || availability === 'available') {
-        return await LanguageModel.create(config);
-      }
-      if (availability === 'downloadable') {
-        await LanguageModel.create(config);
-        throw new Error(
-          'AI model is downloading. Check progress at chrome://components'
-        );
-      }
-    } catch (err) {
-      console.error('Global LanguageModel failed, trying window.ai...', err);
-    }
+
+    return await LanguageModel.create(config);
   }
 
   throw new Error(
     'Chrome Built-in AI not available.\n\n' +
-      'Please ensure:\n' +
-      '1. You are using Chrome 138+ (Dev/Canary/Beta)\n' +
-      '2. Flags are enabled at chrome:flags for Built-in AI\n' +
-      '3. Chrome has been fully restarted\n' +
-      '4. Model is downloaded at chrome://components'
+    'Please ensure:\n' +
+    '1. You are using Chrome 138+ (Dev/Canary/Beta)\n' +
+    '2. Flags are enabled at chrome:flags for Built-in AI\n' +
+    '3. Chrome has been fully restarted\n' +
+    '4. Model is downloaded at chrome://components'
   );
 }
 
@@ -422,7 +434,7 @@ async function checkAPIStatus(): Promise<{
     if (typeof window === 'undefined') {
       return {
         available: false,
-        message: '❌ Window object not available',
+        message: '❌ Not avaiable in this browser',
       };
     }
 
@@ -523,7 +535,7 @@ function createChatStore() {
 
       try {
         if (!session) {
-          session = await createAISession(pageContext);
+          session = await createAISession({ pageContext });
         }
 
         const aiResponse = await session.prompt(userMessage);
@@ -580,11 +592,11 @@ function createChatStore() {
           'summarizer',
           {
             sharedContext: userMessage,
+            // TODO: use last used summarizer options
             type: 'tldr',
             format: 'markdown',
             length: 'short',
           },
-          { type: 'tldr', format: 'markdown', length: 'short' }
         );
 
         const stream = summarizer!.summarizeStreaming(userMessage, {
@@ -633,7 +645,6 @@ function createChatStore() {
 
     async translate(userMessage: string, targetLanguage: string) {
       if (!userMessage.trim()) return;
-
       const abortController = new AbortController();
       const userMsg = createChatMessage('user', userMessage);
       const assistantMsg = createChatMessage('assistant', '');
@@ -654,20 +665,8 @@ function createChatStore() {
       let translator: AITranslator | null = null;
 
       try {
-        if (typeof LanguageDetector === 'undefined') {
-          throw new Error('LanguageDetector API not available');
-        }
-
-        const detectorAvailability = await LanguageDetector.availability();
-        if (detectorAvailability === 'unavailable') {
-          throw new Error(
-            'Language Detector is not available. Please enable it in Chrome flags.'
-          );
-        }
-
         detector = await createAISessionWithMonitor(
           'languageDetector',
-          {},
           { sourceLanguage: detectedLanguage, targetLanguage }
         );
 
@@ -711,11 +710,6 @@ function createChatStore() {
 
         translator = await createAISessionWithMonitor(
           'translator',
-          {
-            sourceLanguage: detectedLanguage,
-            targetLanguage,
-            signal: abortController.signal,
-          },
           { sourceLanguage: detectedLanguage, targetLanguage }
         );
 
@@ -804,10 +798,13 @@ function createChatStore() {
           }),
         };
 
-        const stream = writeContentStreaming(
-          { prompt: userMessage },
+        const session = await createAISessionWithMonitor(
+          'writer',
           writerOptions
         );
+        const stream = session!.writeStreaming(userMessage, {
+          context: options?.sharedContext,
+        });
 
         let hasReceivedChunks = false;
         for await (const chunk of stream) {
@@ -870,14 +867,14 @@ function createChatStore() {
         const rawLength = options?.length as string | undefined;
 
         const toneMap: Record<string, 'as-is' | 'more-formal' | 'more-casual'> =
-          {
-            'as-is': 'as-is',
-            'more-formal': 'more-formal',
-            'more-casual': 'more-casual',
-            formal: 'more-formal',
-            neutral: 'as-is',
-            casual: 'more-casual',
-          };
+        {
+          'as-is': 'as-is',
+          'more-formal': 'more-formal',
+          'more-casual': 'more-casual',
+          formal: 'more-formal',
+          neutral: 'as-is',
+          casual: 'more-casual',
+        };
         const lengthMap: Record<string, 'as-is' | 'shorter' | 'longer'> = {
           'as-is': 'as-is',
           shorter: 'shorter',
@@ -918,10 +915,13 @@ function createChatStore() {
           }),
         };
 
-        const stream = rewriteContentStreaming(
-          { text: userMessage },
+        const session = await createAISessionWithMonitor(
+          'rewriter',
           rewriterOptions
         );
+        const stream = session!.rewriteStreaming(userMessage, {
+          context: options?.sharedContext,
+        });
 
         let hasReceivedChunks = false;
         for await (const chunk of stream) {
@@ -960,6 +960,7 @@ function createChatStore() {
     },
     async sendMessageStreaming(userMessage: string, images?: string[]) {
       if (!userMessage.trim()) return;
+      console.log('sendMessageStreaming', userMessage, images);
 
       const abortController = new AbortController();
       const userMsg = createChatMessage('user', userMessage, images);
@@ -977,14 +978,10 @@ function createChatStore() {
 
       try {
         if (!session) {
-          try {
-            session = await createAISession(pageContext);
-          } catch (sessionError) {
-            console.error('Failed to create AI session:', sessionError);
-            throw new Error(
-              `Failed to create AI session: ${getErrorMessage(sessionError)}`
-            );
-          }
+          session = await createAISessionWithMonitor(
+            'prompt',
+            { pageContext }
+          );
         }
 
         if (images && images.length > 0 && session) {
@@ -1003,7 +1000,7 @@ function createChatStore() {
 
         let stream;
         try {
-          stream = session.promptStreaming(userMessage);
+          stream = session!.promptStreaming(userMessage);
         } catch (streamCreationError) {
           console.error('Failed to create stream:', streamCreationError);
           throw new Error(

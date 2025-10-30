@@ -5,7 +5,6 @@
   import Translate from "../telescope-ui/icons/Translate.svelte";
   import AddToChat from "../telescope-ui/icons/AddToChat.svelte";
   import Down from "../telescope-ui/icons/Down.svelte";
-  import { sidePanelUtils } from "../../lib/sidePanelStore";
   import { SUPPORTED_LANGUAGES } from "../../lib/languageHelper";
   import { globalStorage } from "@/lib/globalStorage";
 
@@ -65,13 +64,13 @@
     });
     console.log("languageCode", languageCode);
     globalStorage().set("action_state", {
-        actionSource: "translate",
-        content: selectedText,
-        targetLanguage: languageCode,
-      });
-      onClose?.();
-      showLanguageDropdown = false;
-      onClose?.();
+      actionSource: "translate",
+      content: selectedText,
+      targetLanguage: languageCode,
+    });
+    onClose?.();
+    showLanguageDropdown = false;
+    onClose?.();
   }
 
   function handleKeydown(event: KeyboardEvent) {
@@ -108,13 +107,12 @@
       >
         <button
           class="action-button"
-          onclick={() =>{
-             if (action.id === "translate") {
+          onclick={() => {
+            if (action.id === "translate") {
               showLanguageDropdown = true;
-             }
-             else {
+            } else {
               handleAction(action.id);
-             }
+            }
           }}
           type="button"
           aria-label={action.label}
@@ -302,7 +300,6 @@
     backdrop-filter: blur(10px);
     overflow: hidden;
   }
-
 
   .language-option {
     display: flex;

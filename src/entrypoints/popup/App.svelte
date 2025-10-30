@@ -13,8 +13,10 @@
     try {
       const config = await globalStorage().get("config");
       if (config && typeof config === "object") {
-        floatingTelescopeEnabled = (config as any).floatingTelescopeEnabled ?? true;
-        selectionTelescopeEnabled = (config as any).selectionTelescopeEnabled ?? true;
+        floatingTelescopeEnabled =
+          (config as any).floatingTelescopeEnabled ?? true;
+        selectionTelescopeEnabled =
+          (config as any).selectionTelescopeEnabled ?? true;
         writerTelescopeEnabled = (config as any).writerTelescopeEnabled ?? true;
       }
     } catch (error) {
@@ -102,10 +104,10 @@
         const floatingCmd = commands.find(
           (cmd) => cmd.name === "open-floating-telescope"
         );
-        const config = await globalStorage().get('config');
-        if (config && typeof config === 'object') {
+        const config = await globalStorage().get("config");
+        if (config && typeof config === "object") {
           await globalStorage().append({
-            key: 'config',
+            key: "config",
             value: {
               assignedTelescopeCommand: !!floatingCmd?.shortcut,
             },
@@ -146,14 +148,15 @@
     chrome.tabs.create({ url: "https://ascodelabs.com" });
   }
 
-  onMount(async () => {
-    await loadSettings();
-    keyboardShortcut = await getKeyboardShortcut();
+  onMount(() => {
+    void loadSettings();
+    void getKeyboardShortcut().then((shortcut) => shortcut);
     document.addEventListener("mousedown", handleClickOutside);
 
     const handleFocus = () => {
       refreshShortcut();
     };
+
     window.addEventListener("focus", handleFocus);
 
     return () => {
@@ -269,10 +272,15 @@
     width: 400px;
     min-height: auto;
     padding: 20px;
-    font-family: "Sora", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    font-family:
+      "Sora",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
       sans-serif;
     background: #131723;
-    color: #F2F8FC;
+    color: #f2f8fc;
     box-sizing: border-box;
   }
 
@@ -289,7 +297,7 @@
   .header h1 {
     font-size: 24px;
     font-weight: 700;
-    color: #F2F8FC;
+    color: #f2f8fc;
     margin: 0;
   }
 
@@ -300,7 +308,7 @@
   .open-telescope-section h2 {
     font-size: 14px;
     font-weight: 600;
-    color: #F2F8FC;
+    color: #f2f8fc;
     margin-bottom: 12px;
   }
 
@@ -315,7 +323,7 @@
     min-width: 140px;
     height: 36px;
     background: #262832;
-    color: #F2F8FC;
+    color: #f2f8fc;
     border: 1px solid #404040;
     border-radius: 4px;
     padding: 8px 16px;
@@ -355,7 +363,7 @@
   .keybinding-section h3 {
     font-size: 14px;
     font-weight: 600;
-    color: #F2F8FC;
+    color: #f2f8fc;
     margin-bottom: 12px;
   }
 
@@ -396,7 +404,7 @@
 
   .keybinding-shortcut {
     font-size: 13px;
-    color: #F2F8FC;
+    color: #f2f8fc;
     font-weight: 500;
     text-transform: lowercase;
   }
@@ -512,4 +520,3 @@
     text-decoration: underline;
   }
 </style>
-

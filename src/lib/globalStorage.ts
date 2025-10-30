@@ -35,7 +35,6 @@ const appendGS = async <K extends DBStorageKey>({ key, value, whereKey }: { key:
     return;
   }
   else if (typeof currentValue === 'object') {
-    console.log("appending: ", { ...currentValue, ...newValue })
     await storage.setItem(DB_SCHEMA[key].storageKey, { ...currentValue, ...newValue });
     return;
   }
