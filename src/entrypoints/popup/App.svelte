@@ -219,21 +219,21 @@
 
   <div class="enable-section">
     <div class="enable-row">
-      <span class="enable-label">Enable floating telescope</span>
+      <span class="enable-label">Enable Floating telescope</span>
       <label class="toggle">
         <input type="checkbox" bind:checked={floatingTelescopeEnabled} />
         <span class="slider"></span>
       </label>
     </div>
     <div class="enable-row">
-      <span class="enable-label">Enable selection telescope</span>
+      <span class="enable-label">Enable Selection telescope</span>
       <label class="toggle">
         <input type="checkbox" bind:checked={selectionTelescopeEnabled} />
         <span class="slider"></span>
       </label>
     </div>
     <div class="enable-row">
-      <span class="enable-label">Enable writer telescope</span>
+      n in <span class="enable-label">Enable Writer telescope</span>
       <label class="toggle">
         <input type="checkbox" bind:checked={writerTelescopeEnabled} />
         <span class="slider"></span>

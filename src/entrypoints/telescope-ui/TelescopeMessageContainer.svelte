@@ -28,12 +28,13 @@
       tempDiv.innerHTML = content;
       const plainText = tempDiv.textContent || tempDiv.innerText || '';
 
-      await navigator.clipboard.writeText(plainText);
-
+      // Show feedback immediately next to the button
       copiedMessageId = messageId;
       setTimeout(() => {
         copiedMessageId = null;
       }, 2000);
+
+      await navigator.clipboard.writeText(plainText);
 
       console.log('Content copied to clipboard');
     } catch (err) {
@@ -46,10 +47,7 @@
         document.execCommand('copy');
         document.body.removeChild(textArea);
 
-        copiedMessageId = messageId;
-        setTimeout(() => {
-          copiedMessageId = null;
-        }, 2000);
+        // Feedback already shown above; keep it visible for the same duration
 
         console.log('Content copied to clipboard (fallback)');
       } catch (fallbackErr) {
@@ -216,13 +214,11 @@
           >
             <CopyIcon />
           </button>
-        </div>
 
-        {#if copiedMessageId === message.id}
-          <div class="copied-feedback">
-            Copied!
-          </div>
-        {/if}
+          {#if copiedMessageId === message.id}
+            <div class="copied-feedback">Copied!</div>
+          {/if}
+        </div>
       {/if}
     </div>
   {/each}
@@ -337,6 +333,10 @@
     flex-shrink: 0;
   }
 
+  .copy-button {
+    position: relative;
+  }
+
   .speaker-button:hover,
   .copy-button:hover {
     color: #fff;
@@ -359,24 +359,26 @@
   }
 
   .copied-feedback {
-    position: absolute;
-    top: -30px;
-    left: 0;
+    display: inline-block;
+    /* position: absolute;  // old: positioned outside actions */
+    /* top: 50%;            // old: vertical centering for absolute */
+    /* left: 100%;          // old: push to the right of container */
+    /* transform: translateY(-50%); */
+    margin-left: 8px;
     background: #666;
+    width: max-content;
     color: white;
-    padding: 4px 8px;
+    padding: 2px 6px;
     border-radius: 4px;
     font-size: 12px;
     font-weight: 500;
-    z-index: 10;
     animation: fadeInOut 2s ease-in-out;
   }
 
   @keyframes fadeInOut {
-    0% { opacity: 0; transform: translateY(5px); }
-    20% { opacity: 1; transform: translateY(0); }
-    80% { opacity: 1; transform: translateY(0); }
-    100% { opacity: 0; transform: translateY(-5px); }
+    0% { opacity: 1; }
+    85% { opacity: 1; }
+    100% { opacity: 0; }
   }
 
   :global(.message > p) {
@@ -692,7 +694,7 @@
     padding: 0px 20px 0px 0px;
     margin-bottom: 0;
   }
-  
+
   @media (max-width: 400px) {
     .message-container {
       padding: 12px 12px 0px 0px;
