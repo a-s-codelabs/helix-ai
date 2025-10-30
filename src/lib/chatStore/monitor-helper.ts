@@ -29,13 +29,10 @@ export async function monitorHelperSync({
       }
     }
   });
-
-  console.debug(`Downloading ${key}: ${Math.round(loaded * 100)}%`, downloadStatus);
 }
 
 
 function genDownloadKey({ key, options }: { key: Source, options: Record<string, any> }) {
-  console.log({ options })
   switch (key) {
     case "prompt":
       return "prompt"

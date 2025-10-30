@@ -184,15 +184,15 @@
   <div class="open-telescope-section">
     <h2>Open telescope</h2>
     <div class="button-group">
-      <button class="action-button" onclick={openTelescopeSidePanel}>
-        Open in sidepanel
-      </button>
       <button
         class="action-button"
         onclick={openTelescopeFloating}
         disabled={!floatingTelescopeEnabled}
       >
         Open in floating
+      </button>
+      <button class="action-button" onclick={openTelescopeSidePanel}>
+        Open in sidepanel
       </button>
     </div>
   </div>
@@ -319,7 +319,7 @@
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
-    text-transform: lowercase;
+    /* text-transform: lowercase; */
   }
 
   .action-button:hover {
