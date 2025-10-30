@@ -106,7 +106,7 @@ declare namespace chrome {
     }
 
     // getAll is callback-based, does not return Promise directly in Manifest V3
-    function getAll(callback?: (commands: Command[]) => void): void;
+    function getAll(callback?: (commands: Command[]) => []): any[];
 
     var onCommand: {
       addListener(

@@ -18,6 +18,7 @@
   let geminiKey = $state("");
 
   let mainElement: HTMLElement;
+  let savedKeys = $state({ openai: false, anthropic: false, gemini: false });
 
   async function loadSettings() {
     try {
@@ -51,12 +52,34 @@
         aiProvider,
         aiModel,
       } as any);
-      // Save keys securely if provided
-      if (openaiKey) await saveProviderKey("openai", openaiKey);
-      if (anthropicKey) await saveProviderKey("anthropic", anthropicKey);
-      if (geminiKey) await saveProviderKey("gemini", geminiKey);
     } catch (error) {
       console.error("Error saving settings:", error);
+    }
+  }
+
+  async function saveApiKey(provider: "openai" | "anthropic" | "gemini") {
+    try {
+      if (provider === "openai" && openaiKey.trim()) {
+        await saveProviderKey("openai", openaiKey);
+        savedKeys.openai = true;
+        setTimeout(() => {
+          savedKeys.openai = false;
+        }, 2000);
+      } else if (provider === "anthropic" && anthropicKey.trim()) {
+        await saveProviderKey("anthropic", anthropicKey);
+        savedKeys.anthropic = true;
+        setTimeout(() => {
+          savedKeys.anthropic = false;
+        }, 2000);
+      } else if (provider === "gemini" && geminiKey.trim()) {
+        await saveProviderKey("gemini", geminiKey);
+        savedKeys.gemini = true;
+        setTimeout(() => {
+          savedKeys.gemini = false;
+        }, 2000);
+      }
+    } catch (error) {
+      console.error(`Error saving ${provider} key:`, error);
     }
   }
 
@@ -220,78 +243,109 @@
         onclick={openTelescopeFloating}
         disabled={!floatingTelescopeEnabled}
       >
-        Open in floating
+        Open in Floating
       </button>
       <button class="action-button" onclick={openTelescopeSidePanel}>
-        Open in sidepanel
+        Open in Sidepanel
       </button>
     </div>
   </div>
 
   <div class="keybinding-section">
     <h3>AI Platform</h3>
-    <div class="keybinding-row" style="gap: 12px; align-items: center;">
-      <label class="enable-label" for="platform-select">Select a platform</label
-      >
-      <select
-        id="platform-select"
-        class="option-dropdown"
-        bind:value={aiProvider}
-        onchange={() => saveSettings()}
-      >
-        <option value="builtin">Built-in (private and secure)</option>
-        <option value="openai">OpenAI</option>
-        <option value="anthropic">Claude</option>
-        <option value="gemini">Gemini</option>
-      </select>
+    <div class="ai-platform-row">
+      <div class="ai-platform-row-input">
+        <label class="enable-label" for="platform-select"
+          >Select a platform</label
+        >
+        <select
+          id="platform-select"
+          class="option-dropdown ai-platform-field"
+          bind:value={aiProvider}
+          onchange={() => saveSettings()}
+        >
+          <option value="builtin">Built-in (private and secure)</option>
+          <option value="openai">OpenAI</option>
+          <!-- <option value="anthropic">Claude</option> -->
+          <option value="gemini">Gemini</option>
+        </select>
+      </div>
     </div>
 
     {#if aiProvider !== "builtin"}
-      <div class="keybinding-row" style="gap: 12px; align-items: center;">
-        <label class="enable-label" for="model-select">Model</label>
-        <select
-          id="model-select"
-          class="option-dropdown"
-          bind:value={aiModel}
-          onchange={() => saveSettings()}
-        >
-          {#each getDefaultModels(aiProvider) as m}
-            <option value={m}>{m}</option>
-          {/each}
-        </select>
+      <div class="ai-platform-row">
+        <div class="ai-platform-row-input">
+          <label class="enable-label" for="model-select">Model</label>
+          <select
+            id="model-select"
+            class="option-dropdown ai-platform-field"
+            bind:value={aiModel}
+            onchange={() => saveSettings()}
+          >
+            {#each getDefaultModels(aiProvider) as m}
+              <option value={m}>{m}</option>
+            {/each}
+          </select>
+        </div>
       </div>
 
-      <div class="keybinding-row" style="gap: 12px; align-items: center;">
+      <div class="ai-platform-row">
         {#if aiProvider === "openai"}
-          <label class="enable-label" for="openai-key">OpenAI API Key</label>
-          <input
-            id="openai-key"
-            type="password"
-            class="option-input"
-            bind:value={openaiKey}
-            placeholder="sk-..."
-            onblur={saveSettings}
-          />
+          <div class="ai-platform-row-input">
+            <label class="enable-label" for="openai-key">OpenAI API Key</label>
+            <input
+              id="openai-key"
+              type="password"
+              class="option-input ai-platform-field"
+              bind:value={openaiKey}
+              placeholder="sk-..."
+            />
+          </div>
+          <button
+            class="save-key-button"
+            onclick={() => saveApiKey("openai")}
+            disabled={!openaiKey.trim()}
+          >
+            {savedKeys.openai ? "✓ Saved" : "Save"}
+          </button>
         {:else if aiProvider === "anthropic"}
-          <label class="enable-label" for="anthropic-key">Claude API Key</label>
-          <input
-            id="anthropic-key"
-            type="password"
-            class="option-input"
-            bind:value={anthropicKey}
-            placeholder="anthropic_key..."
-            onblur={saveSettings}
-          />
+          <div class="ai-platform-row-input">
+            <label class="enable-label" for="anthropic-key"
+              >Claude API Key</label
+            >
+            <input
+              id="anthropic-key"
+              type="password"
+              class="option-input ai-platform-field"
+              bind:value={anthropicKey}
+              placeholder="anthropic_key..."
+            />
+          </div>
+          <button
+            class="save-key-button"
+            onclick={() => saveApiKey("anthropic")}
+            disabled={!anthropicKey.trim()}
+          >
+            {savedKeys.anthropic ? "✓ Saved" : "Save"}
+          </button>
         {:else if aiProvider === "gemini"}
-          <label class="enable-label" for="gemini-key">Gemini API Key</label>
-          <input
-            id="gemini-key"
-            type="password"
-            class="option-input"
-            bind:value={geminiKey}
-            placeholder="AIzx..."
-            onblur={saveSettings}
-          />
+          <div class="ai-platform-row-input">
+            <label class="enable-label" for="gemini-key">Gemini API Key</label>
+            <input
+              id="gemini-key"
+              type="password"
+              class="option-input ai-platform-field"
+              bind:value={geminiKey}
+              placeholder="AIzx..."
+            />
+          </div>
+          <button
+            class="save-key-button"
+            onclick={() => saveApiKey("gemini")}
+            disabled={!geminiKey.trim()}
+          >
+            {savedKeys.gemini ? "✓ Saved" : "Save"}
+          </button>
         {/if}
       </div>
     {/if}
@@ -478,6 +532,25 @@
     transition: all 0.2s ease;
     font-family: inherit;
   }
+  .ai-platform-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .ai-platform-field {
+    width: 140px;
+  }
+
+  .ai-platform-row-input {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
   .option-input {
     background: #131723;
     border: 1px solid #374151;
@@ -488,7 +561,49 @@
     outline: none;
     transition: all 0.2s ease;
     font-family: inherit;
-    width: 220px;
+  }
+
+  .save-key-button {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    white-space: nowrap;
+    width: 140px;
+    margin-top: 10px;
+    align-self: flex-end;
+  }
+
+  .save-key-button:hover:not(:disabled) {
+    background: #2563eb;
+  }
+
+  .save-key-button:disabled {
+    background: #374151;
+    color: #9ca3af;
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .save-key-button:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateX(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
   }
 
   .keybinding-row {
