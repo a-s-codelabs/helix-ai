@@ -1,3 +1,8 @@
+import { globalStorage } from './globalStorage';
+import { loadProviderKey } from './secureStore';
+import { runProviderStream, type Provider } from './ai/providerClient';
+import { buildWritePrompt, buildRewritePrompt, systemPrompt } from './chatStore/prompt';
+
 declare const Writer: {
   availability(): Promise<'available' | 'after-download' | 'unavailable'>;
   create(options?: any): Promise<any>;
@@ -12,6 +17,18 @@ declare const Proofreader: {
   availability(): Promise<'available' | 'after-download' | 'unavailable'>;
   create(options?: any): Promise<any>;
 };
+
+async function resolveProviderConfig(intent: 'write' | 'rewrite', pageContext?: string): Promise<{ provider: 'builtin' | Provider; model?: string; apiKey?: string; pageContext?: string }> {
+  const store = globalStorage();
+  const config = (await store.get('config')) || {} as any;
+  const settings = (await store.get('telescopeSettings')) || {} as Record<string, Record<string, string | number>>;
+  const intentSettings = settings[intent] || {};
+  const provider = (intentSettings.aiPlatform as any) || config.aiProvider || 'builtin';
+  const model = (intentSettings.aiModel as any) || config.aiModel || undefined;
+  if (provider === 'builtin') return { provider: 'builtin', pageContext };
+  const apiKey = await loadProviderKey(provider as Provider);
+  return { provider: provider as Provider, model, apiKey: apiKey || undefined, pageContext };
+}
 
 export type WriterTone = 'formal' | 'neutral' | 'casual';
 export type WriterFormat = 'markdown' | 'plain-text';
@@ -140,25 +157,55 @@ export async function writeContent(
   options: WriterOptions = {}
 ): Promise<string> {
   try {
-    const writer = await createWriter(options);
+    const { provider, model, apiKey, pageContext } = await resolveProviderConfig('write', options.sharedContext);
 
-    console.log('[Writer API] Writing with prompt:', request.prompt);
-    if (request.context) {
-      console.log('[Writer API] Context:', request.context);
+    if (provider === 'builtin') {
+      const writer = await createWriter(options);
+
+      console.log('[Writer API] Writing with prompt:', request.prompt);
+      if (request.context) {
+        console.log('[Writer API] Context:', request.context);
+      }
+
+      const result = await writer.write(request.prompt, {
+        ...(request.context && { context: request.context }),
+      });
+
+      console.log('[Writer API] Write complete:', {
+        result,
+      });
+
+      writer.destroy();
+      console.log('[Writer API] Writer session destroyed');
+
+      return result;
+    } else {
+      if (!apiKey || !model) {
+        throw new Error('Missing API key or model for selected provider');
+      }
+
+      const prompt = buildWritePrompt({
+        text: request.prompt,
+        tone: options.tone || 'neutral',
+        format: options.format || 'plain-text',
+        length: options.length || 'medium',
+        outputLanguage: options.outputLanguage,
+        pageContext: pageContext || options.sharedContext,
+      });
+
+      const sys = pageContext ? systemPrompt({ pageContext }) : undefined;
+      const { stream } = await runProviderStream({ provider, model, apiKey }, {
+        system: sys,
+        messages: [{ role: 'user', content: prompt }]
+      });
+
+      let text = '';
+      for await (const chunk of stream as any) {
+        text += chunk;
+      }
+
+      return text.trim();
     }
-
-    const result = await writer.write(request.prompt, {
-      ...(request.context && { context: request.context }),
-    });
-
-    console.log('[Writer API] Write complete:', {
-      result,
-    });
-
-    writer.destroy();
-    console.log('[Writer API] Writer session destroyed');
-
-    return result;
   } catch (error) {
     console.error('[Writer API] Error writing content:', error);
     throw error;
@@ -181,26 +228,63 @@ export async function* writeContentStreaming(
   options: WriterOptions = {}
 ): AsyncGenerator<string, void, unknown> {
   let writer: WriterInstance | null = null;
+  let isBuiltin = false;
   try {
-    writer = await createWriter(options);
+    const { provider, model, apiKey, pageContext } = await resolveProviderConfig('write', options.sharedContext);
+    isBuiltin = provider === 'builtin';
 
-    console.log('[Writer API] Starting streaming...');
+    if (provider === 'builtin') {
+      writer = await createWriter(options);
 
-    const stream = writer.writeStreaming(request.prompt, {
-      ...(request.context && { context: request.context }),
-    });
+      console.log('[Writer API] Starting streaming...');
 
-    for await (const chunk of stream) {
-      console.log('[Writer API] Chunk received:', chunk);
-      yield chunk;
+      if (!writer) {
+        throw new Error('Failed to create Writer session');
+      }
+
+      const stream = writer.writeStreaming(request.prompt, {
+        ...(request.context && { context: request.context }),
+      });
+
+      for await (const chunk of stream) {
+        console.log('[Writer API] Chunk received:', chunk);
+        yield chunk;
+      }
+
+      console.log('[Writer API] Streaming complete');
+    } else {
+      if (!apiKey || !model) {
+        throw new Error('Missing API key or model for selected provider');
+      }
+
+      const prompt = buildWritePrompt({
+        text: request.prompt,
+        tone: options.tone || 'neutral',
+        format: options.format || 'plain-text',
+        length: options.length || 'medium',
+        outputLanguage: options.outputLanguage,
+        pageContext: pageContext || options.sharedContext,
+      });
+
+      const sys = pageContext ? systemPrompt({ pageContext }) : undefined;
+      const { stream } = await runProviderStream({ provider, model, apiKey }, {
+        system: sys,
+        messages: [{ role: 'user', content: prompt }]
+      });
+
+      for await (const chunk of stream as any) {
+        if (chunk && typeof chunk === 'string') {
+          yield chunk;
+        }
+      }
+
+      console.log('[Writer API] Streaming complete');
     }
-
-    console.log('[Writer API] Streaming complete');
   } catch (error) {
     console.error('[Writer API] Error writing content with streaming:', error);
     throw error;
   } finally {
-    if (writer) {
+    if (writer && isBuiltin) {
       writer.destroy();
       console.log('[Writer API] Writer session destroyed');
     }
@@ -256,25 +340,54 @@ export async function rewriteContent(
   options: RewriterOptions = {}
 ): Promise<string> {
   try {
-    const rewriter = await createRewriter(options);
+    const { provider, model, apiKey, pageContext } = await resolveProviderConfig('rewrite', options.sharedContext);
 
-    console.log('[Rewriter API] Rewriting text:', request.text);
-    if (request.context) {
-      console.log('[Rewriter API] Context:', request.context);
+    if (provider === 'builtin') {
+      const rewriter = await createRewriter(options);
+
+      console.log('[Rewriter API] Rewriting text:', request.text);
+      if (request.context) {
+        console.log('[Rewriter API] Context:', request.context);
+      }
+
+      const result = await rewriter.rewrite(request.text, {
+        ...(request.context && { context: request.context }),
+      });
+
+      console.log('[Rewriter API] Rewrite complete:', {
+        result,
+      });
+
+      rewriter.destroy();
+      console.log('[Rewriter API] Rewriter session destroyed');
+
+      return result;
+    } else {
+      if (!apiKey || !model) {
+        throw new Error('Missing API key or model for selected provider');
+      }
+
+      const prompt = buildRewritePrompt({
+        text: request.text,
+        tone: options.tone || 'as-is',
+        format: options.format || 'as-is',
+        length: options.length || 'as-is',
+        outputLanguage: options.outputLanguage,
+      });
+
+      const sys = pageContext ? systemPrompt({ pageContext }) : undefined;
+      const { stream } = await runProviderStream({ provider, model, apiKey }, {
+        system: sys,
+        messages: [{ role: 'user', content: prompt }]
+      });
+
+      let text = '';
+      for await (const chunk of stream as any) {
+        text += chunk;
+      }
+
+      return text.trim();
     }
-
-    const result = await rewriter.rewrite(request.text, {
-      ...(request.context && { context: request.context }),
-    });
-
-    console.log('[Rewriter API] Rewrite complete:', {
-      result,
-    });
-
-    rewriter.destroy();
-    console.log('[Rewriter API] Rewriter session destroyed');
-
-    return result;
   } catch (error) {
     console.error('[Rewriter API] Error rewriting content:', error);
     throw error;
@@ -286,21 +399,57 @@ export async function* rewriteContentStreaming(
   options: RewriterOptions = {}
 ): AsyncGenerator<string, void, unknown> {
   let rewriter: RewriterInstance | null = null;
+  let isBuiltin = false;
   try {
-    rewriter = await createRewriter(options);
+    const { provider, model, apiKey, pageContext } = await resolveProviderConfig('rewrite', options.sharedContext);
+    isBuiltin = provider === 'builtin';
 
-    console.log('[Rewriter API] Starting streaming...');
+    if (provider === 'builtin') {
+      rewriter = await createRewriter(options);
 
-    const stream = rewriter.rewriteStreaming(request.text, {
-      ...(request.context && { context: request.context }),
-    });
+      console.log('[Rewriter API] Starting streaming...');
 
-    for await (const chunk of stream) {
-      console.log('[Rewriter API] Chunk received:', chunk);
-      yield chunk;
+      if (!rewriter) {
+        throw new Error('Failed to create Rewriter session');
+      }
+
+      const stream = rewriter.rewriteStreaming(request.text, {
+        ...(request.context && { context: request.context }),
+      });
+
+      for await (const chunk of stream) {
+        console.log('[Rewriter API] Chunk received:', chunk);
+        yield chunk;
+      }
+
+      console.log('[Rewriter API] Streaming complete');
+    } else {
+      if (!apiKey || !model) {
+        throw new Error('Missing API key or model for selected provider');
+      }
+
+      const prompt = buildRewritePrompt({
+        text: request.text,
+        tone: options.tone || 'as-is',
+        format: options.format || 'as-is',
+        length: options.length || 'as-is',
+        outputLanguage: options.outputLanguage,
+      });
+
+      const sys = pageContext ? systemPrompt({ pageContext }) : undefined;
+      const { stream } = await runProviderStream({ provider, model, apiKey }, {
+        system: sys,
+        messages: [{ role: 'user', content: prompt }]
+      });
+
+      for await (const chunk of stream as any) {
+        if (chunk && typeof chunk === 'string') {
+          yield chunk;
+        }
+      }
+
+      console.log('[Rewriter API] Streaming complete');
     }
-
-    console.log('[Rewriter API] Streaming complete');
   } catch (error) {
     console.error(
       '[Rewriter API] Error rewriting content with streaming:',
@@ -308,7 +457,7 @@ export async function* rewriteContentStreaming(
     );
     throw error;
   } finally {
-    if (rewriter) {
+    if (rewriter && isBuiltin) {
       rewriter.destroy();
       console.log('[Rewriter API] Rewriter session destroyed');
     }
