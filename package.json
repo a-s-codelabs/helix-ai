@@ -30,8 +30,12 @@
     "wxt": "^0.20.6"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^2.0.39",
+    "@ai-sdk/google": "^2.0.25",
+    "@ai-sdk/openai": "^2.0.58",
     "@storybook/builder-vite": "^9.1.10",
     "@types/dompurify": "^3.0.5",
+    "ai": "^5.0.82",
     "dompurify": "^3.3.0",
     "streaming-markdown": "^0.2.15"
   }

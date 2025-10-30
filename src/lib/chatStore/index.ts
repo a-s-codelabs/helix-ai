@@ -11,7 +11,9 @@ import {
 } from "./helper";
 import { extractPageContent } from "./extract-helper";
 import { monitorHelperSync } from "./monitor-helper";
-import { systemPrompt } from "./prompt";
+import { systemPrompt, buildSummarizePrompt, buildTranslatePrompt, buildWritePrompt, buildRewritePrompt } from "./prompt";
+import { runProviderStream, imagePartFromDataURL, textPart, type Provider } from "../ai/providerClient";
+import { loadProviderKey } from "../secureStore";
 import { RewriterOptions, WriterOptions } from "../writerApiHelper";
 
 async function processStream<T>(
@@ -487,6 +489,18 @@ function createChatStore() {
   let session: AILanguageModel | null = null;
   let pageContext = '';
 
+  async function resolveProviderConfig(intent: 'prompt' | 'summarise' | 'translate' | 'write' | 'rewrite'): Promise<{ provider: 'builtin' | Provider; model?: string; apiKey?: string }> {
+    const store = globalStorage();
+    const config = (await store.get('config')) || {} as any;
+    const settings = (await store.get('telescopeSettings')) || {} as Record<string, Record<string, string | number>>;
+    const intentSettings = settings[intent] || {};
+    const provider = (intentSettings.aiPlatform as any) || config.aiProvider || 'builtin';
+    const model = (intentSettings.aiModel as any) || config.aiModel || undefined;
+    if (provider === 'builtin') return { provider: 'builtin' };
+    const apiKey = await loadProviderKey(provider as Provider);
+    return { provider: provider as Provider, model, apiKey: apiKey || undefined };
+  }
+
   return {
     subscribe,
 
@@ -534,11 +548,31 @@ function createChatStore() {
       }));
 
       try {
-        if (!session) {
-          session = await createAISession({ pageContext });
+        const { provider, model, apiKey } = await resolveProviderConfig('prompt');
+        let aiResponse: string | null = null;
+        if (provider === 'builtin') {
+          if (!session) {
+            session = await createAISession({ pageContext });
+          }
+          aiResponse = await session.prompt(userMessage);
+        } else {
+          if (!apiKey || !model) {
+            throw new Error('Missing API key or model for selected provider');
+          }
+          const messages: any[] = [];
+          const sys = systemPrompt({ pageContext });
+          if (images && images.length) {
+            messages.push({ role: 'user', content: [textPart(userMessage), ...images.map((i) => imagePartFromDataURL(i))] });
+          } else {
+            messages.push({ role: 'user', content: userMessage });
+          }
+          const { stream } = await runProviderStream({ provider, model, apiKey }, { system: sys, messages });
+          let text = '';
+          for await (const chunk of stream as any) {
+            text += chunk;
+          }
+          aiResponse = text;
         }
-
-        const aiResponse = await session.prompt(userMessage);
 
         if (!aiResponse || typeof aiResponse !== 'string') {
           throw new Error('Invalid response from AI model');
@@ -588,20 +622,28 @@ function createChatStore() {
       let summarizer: AISummarizer | null = null;
 
       try {
-        summarizer = await createAISessionWithMonitor(
-          'summarizer',
-          {
-            sharedContext: userMessage,
-            // TODO: use last used summarizer options
-            type: 'tldr',
-            format: 'markdown',
-            length: 'short',
-          },
-        );
-
-        const stream = summarizer!.summarizeStreaming(userMessage, {
-          signal: abortController.signal,
-        });
+        const { provider, model, apiKey } = await resolveProviderConfig('summarise');
+        let stream: ReadableStream<string>;
+        if (provider === 'builtin') {
+          summarizer = await createAISessionWithMonitor(
+            'summarizer',
+            {
+              sharedContext: userMessage,
+              type: 'tldr',
+              format: 'markdown',
+              length: 'short',
+            },
+          );
+          stream = summarizer!.summarizeStreaming(userMessage, {
+            signal: abortController.signal,
+          });
+        } else {
+          if (!apiKey || !model) throw new Error('Missing provider credentials');
+          const prompt = buildSummarizePrompt({ text: userMessage, type: 'tldr', format: 'markdown', length: 'short', pageContext });
+          const sys = systemPrompt({ pageContext });
+          const result = await runProviderStream({ provider, model, apiKey }, { system: sys, messages: [{ role: 'user', content: prompt }] });
+          stream = result.stream;
+        }
 
         await processStream(
           stream,
@@ -693,27 +735,32 @@ function createChatStore() {
           return;
         }
 
-        if (typeof Translator === 'undefined') {
-          throw new Error('Translator API not available');
-        }
-
-        const translatorAvailability = await Translator.availability({
-          sourceLanguage: detectedLanguage,
-          targetLanguage,
-        });
-
-        if (translatorAvailability === 'unavailable') {
-          throw new Error(
-            `Translation from ${detectedLanguage} to ${targetLanguage} is not available. Please enable it in Chrome flags.`
+        const { provider, model, apiKey } = await resolveProviderConfig('translate');
+        let stream: ReadableStream<string>;
+        if (provider === 'builtin') {
+          if (typeof Translator === 'undefined') {
+            throw new Error('Translator API not available');
+          }
+          const translatorAvailability = await Translator.availability({
+            sourceLanguage: detectedLanguage,
+            targetLanguage,
+          });
+          if (translatorAvailability === 'unavailable') {
+            throw new Error(
+              `Translation from ${detectedLanguage} to ${targetLanguage} is not available. Please enable it in Chrome flags.`
+            );
+          }
+          translator = await createAISessionWithMonitor(
+            'translator',
+            { sourceLanguage: detectedLanguage, targetLanguage }
           );
+          stream = translator!.translateStreaming(userMessage);
+        } else {
+          if (!apiKey || !model) throw new Error('Missing provider credentials');
+          const prompt = buildTranslatePrompt({ text: userMessage, sourceLanguage: detectedLanguage, targetLanguage });
+          const result = await runProviderStream({ provider, model, apiKey }, { messages: [{ role: 'user', content: prompt }] });
+          stream = result.stream;
         }
-
-        translator = await createAISessionWithMonitor(
-          'translator',
-          { sourceLanguage: detectedLanguage, targetLanguage }
-        );
-
-        const stream = translator!.translateStreaming(userMessage);
 
         await processStream(
           stream,
@@ -798,13 +845,22 @@ function createChatStore() {
           }),
         };
 
-        const session = await createAISessionWithMonitor(
-          'writer',
-          writerOptions
-        );
-        const stream = session!.writeStreaming(userMessage, {
-          context: options?.sharedContext,
-        });
+        const { provider, model, apiKey } = await resolveProviderConfig('write');
+        let stream: ReadableStream<string>;
+        if (provider === 'builtin') {
+          const session = await createAISessionWithMonitor(
+            'writer',
+            writerOptions
+          );
+          stream = session!.writeStreaming(userMessage, {
+            context: options?.sharedContext,
+          });
+        } else {
+          if (!apiKey || !model) throw new Error('Missing provider credentials');
+          const prompt = buildWritePrompt({ text: userMessage, tone: writerOptions.tone as any, format: writerOptions.format as any, length: writerOptions.length as any, outputLanguage: options?.outputLanguage, pageContext });
+          const result = await runProviderStream({ provider, model, apiKey }, { messages: [{ role: 'user', content: prompt }] });
+          stream = result.stream;
+        }
 
         let hasReceivedChunks = false;
         for await (const chunk of stream) {
@@ -915,13 +971,22 @@ function createChatStore() {
           }),
         };
 
-        const session = await createAISessionWithMonitor(
-          'rewriter',
-          rewriterOptions
-        );
-        const stream = session!.rewriteStreaming(userMessage, {
-          context: options?.sharedContext,
-        });
+        const { provider, model, apiKey } = await resolveProviderConfig('rewrite');
+        let stream: ReadableStream<string>;
+        if (provider === 'builtin') {
+          const session = await createAISessionWithMonitor(
+            'rewriter',
+            rewriterOptions
+          );
+          stream = session!.rewriteStreaming(userMessage, {
+            context: options?.sharedContext,
+          });
+        } else {
+          if (!apiKey || !model) throw new Error('Missing provider credentials');
+          const prompt = buildRewritePrompt({ text: userMessage, tone: rewriterOptions.tone as any, format: rewriterOptions.format as any, length: rewriterOptions.length as any, outputLanguage: options?.outputLanguage });
+          const result = await runProviderStream({ provider, model, apiKey }, { messages: [{ role: 'user', content: prompt }] });
+          stream = result.stream;
+        }
 
         let hasReceivedChunks = false;
         for await (const chunk of stream) {
@@ -977,14 +1042,17 @@ function createChatStore() {
       updateStreamingState(update, assistantMsgId, abortController, true);
 
       try {
-        if (!session) {
-          session = await createAISessionWithMonitor(
-            'prompt',
-            { pageContext }
-          );
+        const { provider, model, apiKey } = await resolveProviderConfig('prompt');
+        if (provider === 'builtin') {
+          if (!session) {
+            session = await createAISessionWithMonitor(
+              'prompt',
+              { pageContext }
+            );
+          }
         }
 
-        if (images && images.length > 0 && session) {
+        if (images && images.length > 0 && session && provider === 'builtin') {
           for await (const image of images) {
             const rawFile = await imageStringToFile(image, 'image');
             const file = await ensurePngFile(rawFile, 'image.png');
@@ -998,14 +1066,25 @@ function createChatStore() {
           }
         }
 
-        let stream;
-        try {
-          stream = session!.promptStreaming(userMessage);
-        } catch (streamCreationError) {
-          console.error('Failed to create stream:', streamCreationError);
-          throw new Error(
-            `Failed to create stream: ${getErrorMessage(streamCreationError)}`
-          );
+        let stream: ReadableStream<string>;
+        if (provider === 'builtin') {
+          try {
+            stream = session!.promptStreaming(userMessage);
+          } catch (streamCreationError) {
+            console.error('Failed to create stream:', streamCreationError);
+            throw new Error(
+              `Failed to create stream: ${getErrorMessage(streamCreationError)}`
+            );
+          }
+        } else {
+          if (!apiKey || !model) throw new Error('Missing provider credentials');
+          const sys = systemPrompt({ pageContext });
+          const contentParts: any[] = [textPart(userMessage)];
+          if (images && images.length) {
+            for (const img of images) contentParts.push(imagePartFromDataURL(img));
+          }
+          const result = await runProviderStream({ provider, model, apiKey }, { system: sys, messages: [{ role: 'user', content: contentParts }] });
+          stream = result.stream;
         }
 
         await processStream(
