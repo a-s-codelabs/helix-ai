@@ -877,10 +877,50 @@ function createChatStore() {
       updateStreamingState(update, assistantMsgId, abortController, true);
 
       try {
+        const o: any = options || {};
+
+        const rawTone = options?.tone as string | undefined;
+        const rawFormat = options?.format as string | undefined;
+        const rawLength = options?.length as string | undefined;
+
+        // Map any legacy writer values to the Rewriter enums
+        const toneMap: Record<string, 'as-is' | 'more-formal' | 'more-casual'> =
+          {
+            'as-is': 'as-is',
+            'more-formal': 'more-formal',
+            'more-casual': 'more-casual',
+            // legacy writer tones
+            formal: 'more-formal',
+            neutral: 'as-is',
+            casual: 'more-casual',
+          };
+        const lengthMap: Record<string, 'as-is' | 'shorter' | 'longer'> = {
+          'as-is': 'as-is',
+          shorter: 'shorter',
+          longer: 'longer',
+          // legacy writer lengths
+          short: 'shorter',
+          medium: 'as-is',
+          long: 'longer',
+        };
+        const formatMap: Record<string, 'as-is' | 'markdown' | 'plain-text'> = {
+          'as-is': 'as-is',
+          markdown: 'markdown',
+          'plain-text': 'plain-text',
+        };
+
+        const mappedTone = rawTone ? toneMap[rawTone] : undefined;
+        const mappedFormat = rawFormat ? formatMap[rawFormat] : undefined;
+        const mappedLength = rawLength ? lengthMap[rawLength] : undefined;
+
+        const tone = mappedTone ?? 'as-is';
+        const format = mappedFormat ?? 'as-is';
+        const length = mappedLength ?? 'as-is';
+
         const rewriterOptions: RewriterOptions = {
-          tone: options?.tone || 'as-is',
-          format: options?.format || 'as-is',
-          length: options?.length || 'as-is',
+          tone,
+          format,
+          length,
           ...(options?.sharedContext && {
             sharedContext: options.sharedContext,
           }),

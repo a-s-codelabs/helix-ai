@@ -12,6 +12,7 @@
     disabled,
     inputImageAttached = $bindable(),
     quotedContent = $bindable(),
+    isInSidePanel = false,
     onInput,
     onStateChange,
     onAsk,
@@ -45,6 +46,7 @@
 
 <TelescopeChatBox
   {messages}
+  {isInSidePanel}
   {suggestedQuestions}
   {onSuggestedQuestion}
   {onClose}
@@ -57,6 +59,7 @@
 >
   {#snippet input()}
     <TelescopeInput
+      {isInSidePanel}
       {inputState}
       {inputValue}
       {placeholder}

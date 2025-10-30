@@ -18,10 +18,9 @@
     inputImageAttached = [],
     currentState = "ask",
     onDragStart,
+    isInSidePanel = false,
   }: ChatboxProps = $props();
 
-  // Check if we're in side panel mode
-  let isInSidePanel = $state(false);
 
   // Handle move to side panel
   async function handleMoveToSidePanel() {
@@ -384,9 +383,10 @@
   .drag-indicator {
     width: 40px;
     height: 4px;
-    background-color: rgba(255, 255, 255, 0.3);
+    background-color: rgba(255, 255, 255);
     border-radius: 2px;
     transition: background-color 0.2s ease;
+    border: 1px solid #555;
   }
 
   .drag-handle:hover .drag-indicator,

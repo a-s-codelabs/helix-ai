@@ -546,7 +546,7 @@
       >
         Rewriter
       </button>
-      <button
+      <!-- <button
         class="header-btn mode-btn proofreader-btn"
         onclick={handleProofreaderMode}
         type="button"
@@ -555,7 +555,7 @@
         class:active={mode === 'proofreader'}
       >
         Proofreader
-      </button>
+      </button> -->
     </div>
 
     <div class="header-right">

@@ -16,6 +16,7 @@
   let streamingMessageId = $state<number | null>(null);
   let quotedContent = $state<string[]>([]);
 
+  let { isInSidePanel }: { isInSidePanel: boolean } = $props();
   // Subscribe to chat store
   $effect(() => {
     const unsubscribe = chatStore.subscribe((state) => {
@@ -50,16 +51,10 @@
   });
 
   // Check if we're in side panel mode
-  let isInSidePanel = $state(false);
+  // let isInSidePanel = $state(false);
 
   // Detect if we're in side panel by checking the URL or window context
   $effect(() => {
-    // Check if we're in a side panel context
-    isInSidePanel =
-      window.location.pathname.includes("sidepanel") ||
-      window.location.href.includes("sidepanel") ||
-      document.title.includes("Side Panel");
-
     // Always show the UI (for both side panel and content script mode)
     isVisible = true;
   });
@@ -248,6 +243,7 @@
       <TelescopeSidepanelHeader hasChatBox={(messages ?? []).length > 0} />
     {/if}
     <Telescope
+      {isInSidePanel}
       inputState={currentState}
       bind:inputValue
       bind:inputImageAttached

@@ -1,4 +1,4 @@
-import { defaultOption, formatOption, lengthOption, summaryType, toneOption, translateOption, writerOutputLanguageOption } from './helper';
+import { defaultOption, formatOption, lengthOption, rewriterFormatOption, rewriterLengthOption, rewriterToneOption, summaryType, toneOption, translateOption, writerOutputLanguageOption } from './helper';
 
 export const option = {
   translate: [
@@ -42,9 +42,9 @@ export const option = {
 
   rewrite: [
     ...defaultOption,
-    ...toneOption,
-    ...lengthOption,
-    ...formatOption,
+    ...rewriterToneOption,
+    ...rewriterLengthOption,
+    ...rewriterFormatOption,
     ...writerOutputLanguageOption,
   ],
 } as const;

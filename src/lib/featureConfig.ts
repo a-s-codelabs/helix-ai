@@ -3,6 +3,7 @@ import { globalStorage } from './globalStorage';
 export type FeatureConfig = {
   floatingTelescopeEnabled: boolean;
   selectionTelescopeEnabled: boolean;
+  writerTelescopeEnabled: boolean;
 };
 
 /**
@@ -18,6 +19,7 @@ export async function getFeatureConfig(): Promise<FeatureConfig> {
         floatingTelescopeEnabled: typedConfig.floatingTelescopeEnabled ?? true,
         selectionTelescopeEnabled:
           typedConfig.selectionTelescopeEnabled ?? true,
+        writerTelescopeEnabled: typedConfig.writerTelescopeEnabled ?? true,
       };
     }
   } catch (error) {
@@ -27,5 +29,6 @@ export async function getFeatureConfig(): Promise<FeatureConfig> {
   return {
     floatingTelescopeEnabled: true,
     selectionTelescopeEnabled: true,
+    writerTelescopeEnabled: true,
   };
 }

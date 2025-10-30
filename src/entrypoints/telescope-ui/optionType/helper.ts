@@ -102,12 +102,58 @@ export const lengthOption = [
   },
 ] as const;
 
+export const rewriterLengthOption = [
+  {
+    uiType: 'dropdown',
+    name: 'Length',
+    id: 'length',
+    defaultValue: 'as-is',
+    options: [
+      {
+        label: 'Shorter',
+        value: 'shorter',
+      },
+      {
+        label: 'As-Is',
+        value: 'as-is',
+      },
+      {
+        label: 'Longer',
+        value: 'longer',
+      },
+    ],
+  },
+] as const;
+
 export const formatOption = [
   {
     uiType: 'dropdown',
     name: 'Format',
     id: 'format',
     options: [
+      {
+        label: 'Markdown',
+        value: 'markdown',
+      },
+      {
+        label: 'Plain Text',
+        value: 'plain-text',
+      },
+    ],
+  },
+] as const;
+
+export const rewriterFormatOption = [
+  {
+    uiType: 'dropdown',
+    name: 'Format',
+    id: 'format',
+    defaultValue: 'as-is',
+    options: [
+      {
+        label: 'As-Is',
+        value: 'as-is',
+      },
       {
         label: 'Markdown',
         value: 'markdown',
@@ -137,6 +183,29 @@ export const toneOption = [
       {
         label: 'Casual',
         value: 'casual',
+      },
+    ],
+  },
+] as const;
+
+export const rewriterToneOption = [
+  {
+    uiType: 'dropdown',
+    name: 'Tone',
+    id: 'tone',
+    defaultValue: 'as-is',
+    options: [
+      {
+        label: 'More Formal',
+        value: 'more-formal',
+      },
+      {
+        label: 'As-Is',
+        value: 'as-is',
+      },
+      {
+        label: 'More Casual',
+        value: 'more-casual',
       },
     ],
   },
