@@ -676,6 +676,8 @@
               {/if}
             </div>
 
+            <div class="separator"></div>
+
             <div class="action-icons">
               <button
                 class="icon-button"
@@ -771,6 +773,7 @@
 
   .telescope-container.sidepanel-mode.reached-min-chars {
     min-width: 0;
+    padding-top: 14px;
   }
 
   .reached-min-chars {

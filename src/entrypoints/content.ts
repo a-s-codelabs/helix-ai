@@ -445,14 +445,40 @@ export default defineContentScript({
         ui = null;
       }
     }
-    const handleKeyDown = async (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && isVisible && ui) {
-        console.log('Closing telescope from Escape key...');
-        ui.remove();
-        isVisible = false;
-        ui = null;
+
+  async function hasKeyboardShortcut(): Promise<boolean> {
+    const config = await globalStorage().get('config');
+    if (
+      config &&
+      typeof config === 'object' &&
+      config.assignedTelescopeCommand
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  const handleKeyDown = async (event: KeyboardEvent) => {
+    if (event.key === 'Escape' && isVisible && ui) {
+      event.preventDefault();
+      console.log('Closing telescope from Escape key...');
+      ui.remove();
+      isVisible = false;
+      ui = null;
+      return;
+    }
+    const hasShortcut = await hasKeyboardShortcut();
+    console.log('hasShortcut', hasShortcut);
+    if (!hasShortcut) {
+      event.preventDefault();
+      const isCtrlOrCmd = event.ctrlKey || event.metaKey;
+      const isEKey = event.key === 'y' || event.key === 'Y';
+      if (isCtrlOrCmd && isEKey) {
+        void toggleTelescope();
+        return;
       }
-    };
+    }
+  };
 
     document.addEventListener('keydown', handleKeyDown);
 

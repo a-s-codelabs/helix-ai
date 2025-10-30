@@ -17,7 +17,7 @@ const deleteGS = async <K extends DBStorageKey>(key: K): Promise<void> => {
   await storage.removeItem(DB_SCHEMA[key].storageKey);
 };
 
-const appendGS = async <K extends DBStorageKey>({ key, value, whereKey }: { key: K, value: ExtractColumnType<K>, whereKey?: string }): Promise<void> => {
+const appendGS = async <K extends DBStorageKey>({ key, value, whereKey }: { key: K, value: Partial<ExtractColumnType<K>>, whereKey?: string }): Promise<void> => {
   let newValue = value;
   const currentValue = await getGS<K>(key, { whereKey });
   if (!currentValue) {

@@ -21,9 +21,10 @@ export default defineConfig({
     commands: {
       'open-floating-telescope': {
         suggested_key: {
-          default: 'Ctrl+E',
-          mac: 'Command+E',
+          default: 'Ctrl+Y',
+          mac: 'Command+Y',
         },
+        "global": true,
         description: 'Open floating telescope search',
       },
     },

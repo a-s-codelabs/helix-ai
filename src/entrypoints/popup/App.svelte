@@ -85,7 +85,7 @@
   }
 
   function formatShortcut(shortcut: string): string {
-    if (!shortcut) return "ctrl + e";
+    if (!shortcut) return "ctrl + y";
     return shortcut
       .toLowerCase()
       .replace(/\bctrl\b/g, "ctrl")
@@ -102,15 +102,24 @@
         const floatingCmd = commands.find(
           (cmd) => cmd.name === "open-floating-telescope"
         );
-        return formatShortcut(floatingCmd?.shortcut || "Ctrl+E");
+        const config = await globalStorage().get('config');
+        if (config && typeof config === 'object') {
+          await globalStorage().append({
+            key: 'config',
+            value: {
+              assignedTelescopeCommand: !!floatingCmd?.shortcut,
+            },
+          });
+        }
+        return formatShortcut(floatingCmd?.shortcut || "Ctrl+Y");
       }
     } catch (error) {
       console.error("Error getting keyboard shortcut:", error);
     }
-    return "ctrl + e";
+    return "ctrl + y";
   }
 
-  let keyboardShortcut = $state("ctrl + e");
+  let keyboardShortcut = $state("ctrl + y");
 
   async function openShortcutsPage() {
     try {

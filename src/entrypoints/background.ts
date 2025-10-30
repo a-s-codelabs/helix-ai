@@ -56,11 +56,20 @@ export default defineBackground(() => {
       }
     });
   }
+
   if (chrome.commands && chrome.commands.onCommand) {
     chrome.commands.onCommand.addListener(async (command: string) => {
       console.log(`Command received: ${command}`);
       if (command === 'open-floating-telescope') {
         try {
+
+          globalStorage().append({
+            key: "config",
+            value: {
+              assignedTelescopeCommand: true,
+            },
+          });
+
           const featureConfig = await getFeatureConfig();
           if (!featureConfig.floatingTelescopeEnabled) {
             console.log('Floating telescope is disabled');

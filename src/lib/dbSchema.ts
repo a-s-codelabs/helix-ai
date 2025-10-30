@@ -24,6 +24,7 @@ export const DB_SCHEMA = {
       maxTemperature: 1.0 as number | undefined,
       floatingTelescopeEnabled: true,
       selectionTelescopeEnabled: true,
+      assignedTelescopeCommand: undefined as boolean | undefined
     },
   },
   tabIds: {
