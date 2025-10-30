@@ -40,7 +40,10 @@ export default defineContentScript({
             container.style.bottom = '0';
             container.style.zIndex = '99999';
 
-            const app = mount(App, { target: container });
+            const app = mount(App, {
+              target: container,
+              props: { isInSidePanel: false },
+            });
             return app;
           },
           onRemove: (app) => {
@@ -117,6 +120,7 @@ export default defineContentScript({
 
             const app = mount(WriterAssistant, {
               target: container,
+              props: {},
             });
 
             container.style.pointerEvents = 'auto';
@@ -393,7 +397,6 @@ export default defineContentScript({
 
     const handleTextareaBlur = (event: FocusEvent) => {
       const target = event.target;
-
       if (isWritableElement(target as Element | null)) {
         setTimeout(() => {
           let isPopupOpen = false;
@@ -424,28 +427,25 @@ export default defineContentScript({
     document.addEventListener('focusout', handleTextareaBlur, true);
     document.addEventListener('click', handleTextareaClick, true);
 
-    const handleKeyDown = async (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === 'e') {
-        event.preventDefault();
-
-        const featureConfig = await getFeatureConfig();
-        if (!featureConfig.floatingTelescopeEnabled) {
-          return;
-        }
-
-        if (!isVisible || !ui) {
-          console.log('Opening telescope from keyboard...');
-          await createUI();
-          ui.mount();
-          isVisible = true;
-        } else if (isVisible && ui) {
-          console.log('Closing telescope from keyboard...');
-          ui.remove();
-          isVisible = false;
-          ui = null;
-        }
+    async function toggleTelescope() {
+      const featureConfig = await getFeatureConfig();
+      if (!featureConfig.floatingTelescopeEnabled) {
+        return;
       }
 
+      if (!isVisible || !ui) {
+        console.log('Opening telescope from keyboard...');
+        await createUI();
+        ui.mount();
+        isVisible = true;
+      } else if (isVisible && ui) {
+        console.log('Closing telescope from keyboard...');
+        ui.remove();
+        isVisible = false;
+        ui = null;
+      }
+    }
+    const handleKeyDown = async (event: KeyboardEvent) => {
       if (event.key === 'Escape' && isVisible && ui) {
         console.log('Closing telescope from Escape key...');
         ui.remove();
@@ -467,50 +467,16 @@ export default defineContentScript({
 
     window.addEventListener('telescope-close', handleTelescopeClose);
 
-    const handleMessage = (message: any, sender: any, sendResponse: any) => {
+    const handleMessage = async (
+      message: any,
+      sender: any,
+      sendResponse: any
+    ) => {
       console.log('Content script received message:', message);
 
       if (message.action === 'openTelescope') {
         console.log('Opening telescope from message...');
-        (async () => {
-          try {
-            const featureConfig = await getFeatureConfig();
-            if (!featureConfig.floatingTelescopeEnabled) {
-              sendResponse({
-                success: false,
-                error: 'Floating telescope is disabled',
-              });
-              return;
-            }
-
-            if (document.readyState === 'loading') {
-              console.log('Waiting for DOM to load...');
-              await new Promise((resolve) => {
-                document.addEventListener('DOMContentLoaded', resolve, {
-                  once: true,
-                });
-              });
-            }
-
-            if (!isVisible || !ui) {
-              console.log('Creating telescope UI...');
-              await createUI();
-              console.log('Mounting telescope UI...');
-              ui.mount();
-              isVisible = true;
-              console.log('Telescope opened successfully!');
-            } else {
-              console.log('Telescope already visible, no action needed');
-            }
-            sendResponse({ success: true });
-          } catch (error) {
-            console.error('Failed to open telescope:', error);
-            sendResponse({
-              success: false,
-              error: error instanceof Error ? error.message : String(error),
-            });
-          }
-        })();
+        void toggleTelescope();
         return true;
       }
 

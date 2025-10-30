@@ -2,7 +2,7 @@ import { chatStore } from '@/lib/chatStore';
 import { InputIntent } from '@/lib/dbSchema';
 import { RewriterOptions, WriterOptions } from '@/lib/writerApiHelper';
 
-type AskOptions = {
+export type AskOptions = {
   value: string;
   images?: string[];
   settings?: Record<string, string | number>;

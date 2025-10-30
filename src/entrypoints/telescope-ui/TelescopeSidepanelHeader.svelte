@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { globalStorage } from "@/lib/globalStorage";
-  import { Source } from "@/lib/dbSchema";
+  import type { Source } from "@/lib/dbSchema";
 
   let showDownloadingDropdown = $state(false);
   let isDownloading = $state(false);
@@ -120,7 +120,7 @@
       role="button"
       tabindex="0"
     >
-      <span class="dropdown-icon">  
+      <span class="dropdown-icon">
         <div class="w-8 flex items-center justify-center p-[10px]">
           <svg
             xmlns="http://www.w3.org/2000/svg"

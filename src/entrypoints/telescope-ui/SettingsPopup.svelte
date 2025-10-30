@@ -3,7 +3,7 @@
   import CloseIcon from './icons/Close.svelte';
   import TrashIcon from './icons/Trash.svelte';
 
-  export type Intent =
+  type Intent =
     | 'prompt'
     | 'summarise'
     | 'translate'
@@ -124,7 +124,7 @@
         delete values[key];
       }
     });
-    
+
     Object.assign(values, defaults);
 
     onSave?.({ intent, values: { ...values } });
@@ -322,7 +322,7 @@
     gap: 16px;
   }
 
-  .reset-button {
+  /* .reset-button {
     background: #374151;
     border: 1px solid #4b5563;
     border-radius: 6px;
@@ -333,18 +333,18 @@
     cursor: pointer;
     transition: all 0.2s ease;
     font-family: inherit;
-  }
+  } */
 
-  .reset-button:hover {
+  /* .reset-button:hover {
     background: #4b5563;
     border-color: #6b7280;
     color: #f3f4f6;
-  }
+  } */
 
-  .reset-button:active {
+  /* .reset-button:active {
     background: #1f2937;
     transform: scale(0.98);
-  }
+  } */
 
   .trash-button {
     background: none;

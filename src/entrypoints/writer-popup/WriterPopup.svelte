@@ -360,7 +360,7 @@
       z-index: 2147483647;
       animation: slideIn 0.3s ease-out;
     `;
-    
+
     const style = document.createElement('style');
     style.textContent = `
       @keyframes slideIn {
@@ -554,7 +554,7 @@
         class="prompt-textarea"
         rows="3"
         disabled={isGenerating}
-      />
+      ></textarea>
       {#if selectionStart !== null && selectionEnd !== null}
         <div class="selection-info">
           ✓ {mode === 'rewriter' ? 'Rewriting' : 'Proofreading'} selected text only ({selectionEnd - selectionStart} chars)
@@ -584,7 +584,7 @@
             placeholder="Add background information... e.g., I'm a long-standing customer..."
             rows="3"
             disabled={isGenerating}
-          />
+          ></textarea>
         </div>
 
         <div class="field-row field-row-3">
@@ -896,7 +896,6 @@
     overflow: hidden;
   }
 
-  /* Header */
   .header {
     display: flex;
     align-items: center;
@@ -958,7 +957,6 @@
   }
 
   .header-action-btn.generate:hover:not(:disabled) {
-    /* Use a faded version of #3b82f6 (blue-500), e.g. 80% opacity */
     background: #3b82f6cc;
   }
 
@@ -1033,7 +1031,6 @@
     padding: 2px 6px;
   }
 
-  /* Error banner */
   .error-banner {
     background: #7f1d1d;
     color: #fca5a5;
@@ -1042,7 +1039,6 @@
     border-bottom: 1px solid #991b1b;
   }
 
-  /* Content */
   .content {
     overflow: auto;
     overscroll-behavior: none;
@@ -1051,12 +1047,10 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-    /* Make scrollbar thin in Firefox */
     scrollbar-width: thin;
     scrollbar-color: #52525b transparent;
   }
 
-  /* Prompt input */
   .input-wrapper {
     display: flex;
     flex-direction: column;
@@ -1078,10 +1072,6 @@
     font-family: inherit;
     transition: all 0.15s ease;
   }
-
-  /* .prompt-input.has-icon {
-    padding-right: 36px;
-  } */
 
   .prompt-settings-btn {
     position: absolute;
@@ -1181,7 +1171,6 @@
     gap: 4px;
   }
 
-  /* Options panel */
   .options-panel {
     display: flex;
     flex-direction: column;
@@ -1296,7 +1285,6 @@
     background: #52525b;
   }
 
-  /* Thin scrollbar for content container (WebKit) */
   .content::-webkit-scrollbar {
     width: 6px;
   }
@@ -1318,7 +1306,6 @@
     cursor: pointer;
   }
 
-  /* Section toggle button */
   .section-toggle {
     width: 100%;
     display: flex;
@@ -1351,7 +1338,6 @@
     color: #a1a1aa;
   }
 
-  /* Languages panel */
   .languages-panel {
     display: flex;
     flex-direction: column;
@@ -1363,7 +1349,7 @@
     margin-top: 8px;
   }
 
-  /* Info section */
+
   .info-section {
     display: flex;
     align-items: center;
@@ -1386,7 +1372,6 @@
       monospace;
   }
 
-  /* Checkbox fieldset */
   .checkbox-fieldset {
     border: none;
     padding: 0;
@@ -1400,7 +1385,6 @@
     margin-bottom: 6px;
   }
 
-  /* Checkbox group */
   .checkbox-group {
     display: flex;
     flex-direction: column;
@@ -1443,7 +1427,6 @@
     user-select: none;
   }
 
-  /* Reset Button */
   .reset-btn {
     width: 100%;
     padding: 8px 12px;
@@ -1451,7 +1434,7 @@
     border: 1px solid #3f3f46;
     border-radius: 8px;
     color: #a1a1aa;
-    font-size: 13px;
+      font-size: 13px;
     font-weight: 500;
     font-family: inherit;
     cursor: pointer;
@@ -1473,7 +1456,6 @@
     transform: scale(0.99);
   }
 
-  /* Keyboard shortcuts hint */
   .shortcuts-hint {
     display: flex;
     flex-direction: column;

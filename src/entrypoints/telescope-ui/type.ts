@@ -20,7 +20,17 @@ export type InputProps = {
   isInSidePanel?: boolean;
   onInput?: ({ value }: { value: string }) => void;
   onStateChange?: ({ state }: { state: State }) => void;
-  onAsk?: ({ value, images }: { value: string; images?: string[] }) => void;
+  onAsk?: ({
+    value,
+    images,
+    settings,
+    intent,
+  }: {
+    value: string;
+    images?: string[];
+    settings?: Record<string, string | number>;
+    intent?: string;
+  }) => void;
   onVoiceInput?: () => void;
   onAttachment?: () => void;
   onClear?: () => void;

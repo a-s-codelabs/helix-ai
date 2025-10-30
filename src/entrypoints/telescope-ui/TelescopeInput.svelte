@@ -14,7 +14,7 @@
   import WriterIcon from './icons/Writer.svelte';
   import RewriterIcon from './icons/Rewriter.svelte';
   import SettingsPopup from './SettingsPopup.svelte';
-  import type { Intent } from './SettingsPopup.svelte';
+  type Intent = 'prompt' | 'summarise' | 'translate' | 'write' | 'rewrite';
 
   let {
     inputState = $bindable('ask' as State),
@@ -42,10 +42,10 @@
 
   let showIntentMenu = $state(false);
   let selectedIntent = $state<Intent>('prompt');
-  let intentTriggerElement: HTMLDivElement;
+  let intentTriggerElement = $state<HTMLDivElement | null>(null);
 
   let showSettingsPopup = $state(false);
-  let settingsButtonElement: HTMLButtonElement;
+  let settingsButtonElement = $state<HTMLButtonElement | null>(null);
   let settingsValues = $state<Record<string, string | number>>({});
 
   const storage = globalStorage();
@@ -142,22 +142,23 @@
     }
   }
 
-  $effect(async () => {
+  $effect(() => {
     if (!selectedIntent) return;
-
-    try {
-      const savedSettings = await storage.get('telescopeSettings');
-      if (savedSettings && savedSettings[selectedIntent]) {
-        settingsValues = {
-          ...settingsValues,
-          ...savedSettings[selectedIntent],
-        };
-      } else {
-        settingsValues = {};
+    (async () => {
+      try {
+        const savedSettings = await storage.get('telescopeSettings');
+        if (savedSettings && savedSettings[selectedIntent]) {
+          settingsValues = {
+            ...settingsValues,
+            ...savedSettings[selectedIntent],
+          };
+        } else {
+          settingsValues = {};
+        }
+      } catch (error) {
+        console.error('Failed to load settings:', error);
       }
-    } catch (error) {
-      console.error('Failed to load settings:', error);
-    }
+    })();
   });
 
   $effect(() => {
@@ -364,6 +365,16 @@
           class="icon search-icon intent-trigger"
           bind:this={intentTriggerElement}
           onmouseenter={() => (showIntentMenu = true)}
+          role="button"
+          tabindex="0"
+          aria-haspopup="menu"
+          aria-expanded={showIntentMenu}
+          onkeydown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              showIntentMenu = !showIntentMenu;
+            }
+          }}
         >
           <CurrentIntentIcon />
           {#if showIntentMenu}
@@ -372,8 +383,8 @@
                 class="intent-item {selectedIntent === 'prompt'
                   ? 'active'
                   : ''}"
-                role="menuitem"
-                aria-selected={selectedIntent === 'prompt'}
+                role="menuitemradio"
+                aria-checked={selectedIntent === 'prompt'}
                 onclick={() => {
                   selectedIntent = 'prompt';
                   showIntentMenu = false;
@@ -386,8 +397,8 @@
                 class="intent-item {selectedIntent === 'summarise'
                   ? 'active'
                   : ''}"
-                role="menuitem"
-                aria-selected={selectedIntent === 'summarise'}
+                role="menuitemradio"
+                aria-checked={selectedIntent === 'summarise'}
                 onclick={() => {
                   selectedIntent = 'summarise';
                   showIntentMenu = false;
@@ -400,8 +411,8 @@
                 class="intent-item {selectedIntent === 'translate'
                   ? 'active'
                   : ''}"
-                role="menuitem"
-                aria-selected={selectedIntent === 'translate'}
+                role="menuitemradio"
+                aria-checked={selectedIntent === 'translate'}
                 onclick={() => {
                   selectedIntent = 'translate';
                   showIntentMenu = false;
@@ -412,8 +423,8 @@
               </button>
               <button
                 class="intent-item {selectedIntent === 'write' ? 'active' : ''}"
-                role="menuitem"
-                aria-selected={selectedIntent === 'write'}
+                role="menuitemradio"
+                aria-checked={selectedIntent === 'write'}
                 onclick={() => {
                   selectedIntent = 'write';
                   showIntentMenu = false;
@@ -428,8 +439,8 @@
                 class="intent-item {selectedIntent === 'rewrite'
                   ? 'active'
                   : ''}"
-                role="menuitem"
-                aria-selected={selectedIntent === 'rewrite'}
+                role="menuitemradio"
+                aria-checked={selectedIntent === 'rewrite'}
                 onclick={() => {
                   selectedIntent = 'rewrite';
                   showIntentMenu = false;
@@ -457,7 +468,7 @@
         rows="1"
         style="resize: none;"
         autofocus
-      />
+      ></textarea>
 
       {#if !isInputExpanded}
         <div class="settings-container" style="position: relative;">
@@ -478,11 +489,12 @@
               onChange={handleSettingsChange}
               onClose={handleSettingsClose}
               onSave={handleSettingsSave}
+              onReset={() => {}}
             />
           {/if}
         </div>
 
-        <div class="separator" />
+        <div class="separator"></div>
 
         <div class="action-icons">
           <button
@@ -552,6 +564,10 @@
             class="icon search-icon intent-trigger"
             bind:this={intentTriggerElement}
             onmouseenter={() => (showIntentMenu = true)}
+            role="button"
+            tabindex="0"
+            aria-haspopup="menu"
+            aria-expanded={showIntentMenu}
           >
             <CurrentIntentIcon />
             {#if showIntentMenu}
@@ -560,8 +576,8 @@
                   class="intent-item {selectedIntent === 'prompt'
                     ? 'active'
                     : ''}"
-                  role="menuitem"
-                  aria-selected={selectedIntent === 'prompt'}
+                  role="menuitemradio"
+                  aria-checked={selectedIntent === 'prompt'}
                   onclick={() => {
                     selectedIntent = 'prompt';
                     showIntentMenu = false;
@@ -574,8 +590,8 @@
                   class="intent-item {selectedIntent === 'summarise'
                     ? 'active'
                     : ''}"
-                  role="menuitem"
-                  aria-selected={selectedIntent === 'summarise'}
+                  role="menuitemradio"
+                  aria-checked={selectedIntent === 'summarise'}
                   onclick={() => {
                     selectedIntent = 'summarise';
                     showIntentMenu = false;
@@ -588,8 +604,8 @@
                   class="intent-item {selectedIntent === 'translate'
                     ? 'active'
                     : ''}"
-                  role="menuitem"
-                  aria-selected={selectedIntent === 'translate'}
+                  role="menuitemradio"
+                  aria-checked={selectedIntent === 'translate'}
                   onclick={() => {
                     selectedIntent = 'translate';
                     showIntentMenu = false;
@@ -602,8 +618,8 @@
                   class="intent-item {selectedIntent === 'write'
                     ? 'active'
                     : ''}"
-                  role="menuitem"
-                  aria-selected={selectedIntent === 'write'}
+                  role="menuitemradio"
+                  aria-checked={selectedIntent === 'write'}
                   onclick={() => {
                     selectedIntent = 'write';
                     showIntentMenu = false;
@@ -618,8 +634,8 @@
                   class="intent-item {selectedIntent === 'rewrite'
                     ? 'active'
                     : ''}"
-                  role="menuitem"
-                  aria-selected={selectedIntent === 'rewrite'}
+                  role="menuitemradio"
+                  aria-checked={selectedIntent === 'rewrite'}
                   onclick={() => {
                     selectedIntent = 'rewrite';
                     showIntentMenu = false;
@@ -655,6 +671,7 @@
                   onChange={handleSettingsChange}
                   onClose={handleSettingsClose}
                   onSave={handleSettingsSave}
+                  onReset={() => {}}
                 />
               {/if}
             </div>

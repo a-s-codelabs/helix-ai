@@ -3,9 +3,10 @@
   import { chatStore } from "@/lib/chatStore";
   import { sidePanelUtils, sidePanelStore } from "@/lib/sidePanelStore";
   import { globalStorage } from "@/lib/globalStorage";
-  import { Message, State } from "./type";
+  import type { Message, State } from "./type";
   import TelescopeSidepanelHeader from "./TelescopeSidepanelHeader.svelte";
   import { handleAskHelper } from "./handleAsk";
+  import type { AskOptions } from "./handleAsk";
 
   let currentState: State = $state("ask");
   let inputValue = $state("");
@@ -235,7 +236,8 @@
       {streamingMessageId}
       onStateChange={handleStateChange}
       onInput={handleInput}
-      onAsk={handleAsk}
+      onAsk={({ value, images, settings, intent }) =>
+        handleAsk({ value, images, settings, intent: intent as any })}
       onVoiceInput={handleVoiceInput}
       onAttachment={handleAttachment}
       onSuggestedQuestion={handleSuggestedQuestion}

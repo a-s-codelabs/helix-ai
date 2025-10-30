@@ -205,10 +205,15 @@
   .action-wrapper {
     position: relative;
     min-width: 0;
+    color: #929398;
+  }
+
+  .action-wrapper:hover {
+    color: #60a5fa;
   }
 
   .action-wrapper.active .action-button {
-    background: rgba(59, 130, 246, 0.15);
+    /* background: rgba(59, 130, 246, 0.15); */
     color: #60a5fa;
   }
 
@@ -218,7 +223,7 @@
     gap: 6px;
     padding: 8px 12px;
     background: transparent;
-    color: #ffffff;
+    /* color: #ffffff; */
     border: none;
     border-radius: 6px;
     cursor: pointer;
@@ -230,10 +235,10 @@
     min-width: 0;
     overflow: hidden;
     max-width: 148px;
+    color: #929398;
   }
 
   .action-button:hover {
-    background: rgba(59, 130, 246, 0.15);
     color: #60a5fa;
   }
 
@@ -278,7 +283,7 @@
     justify-content: center;
     width: 16px;
     height: 16px;
-    margin-left: 4px;
+    /* margin-left: 4px; */
     flex-shrink: 0;
   }
 
@@ -325,11 +330,6 @@
     flex: 1;
   }
 
-  .language-option:hover {
-    background: rgba(59, 130, 246, 0.15);
-    color: #60a5fa;
-  }
-
   .language-option:focus-visible {
     outline: 2px solid #3b82f6;
     outline-offset: -2px;
@@ -337,16 +337,18 @@
 
   @media (max-width: 640px) {
     .action-label {
-      display: inline;
+      display: none;
     }
 
     .action-button {
-      padding: 8px;
+      /* padding: 8px; */
       min-width: 0;
+
+      /* background: red; */
     }
 
-    .popup-content {
+    /* .popup-content {
       gap: 2px;
-    }
+    } */
   }
 </style>
