@@ -35,7 +35,7 @@
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + 0.2);
     } catch (error) {
-      console.log("Could not play completion sound:", error);
+      console.error("Could not play completion sound:", error);
     }
   }
 
@@ -55,9 +55,7 @@
   // Check download status
   async function checkDownloadStatus() {
     try {
-      console.log("==== Check for status ====");
       const status = await globalStorage().get("downloadStatus");
-      console.log("==== Status ====", status);
       if (status) {
         downloadStatuses = status;
 

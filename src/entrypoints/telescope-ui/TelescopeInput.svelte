@@ -43,7 +43,7 @@
 
   // Hover menu for search icon: choose intent and adapt placeholder
   let showIntentMenu = $state(false);
-  let selectedIntent = $state<Intent>("summarise");
+  let selectedIntent = $state<Intent>("prompt");
   let intentTriggerElement: HTMLDivElement;
 
   // Settings popup state
@@ -128,7 +128,6 @@
     event.stopPropagation();
     event.preventDefault();
     showSettingsPopup = !showSettingsPopup;
-    console.log('Settings clicked, showSettingsPopup:', showSettingsPopup);
   }
 
   function handleSettingsClose() {
@@ -137,8 +136,6 @@
 
   function handleSettingsChange({ id, value }: { id: string; value: string | number }) {
     settingsValues[id] = value;
-    // You can add additional logic here if needed
-    console.log('Settings changed:', { id, value, allValues: settingsValues });
   }
 
   async function handleSettingsSave({ intent, values }: { intent: Intent; values: Record<string, string | number> }) {
@@ -149,7 +146,6 @@
         [intent]: values,
       };
       await storage.set('telescopeSettings', updatedSettings);
-      console.log('Settings saved for intent:', intent, values);
     } catch (error) {
       console.error('Failed to save settings:', error);
     }
@@ -164,7 +160,6 @@
       if (savedSettings && savedSettings[selectedIntent]) {
         // Merge saved settings with current values to preserve any existing defaults
         settingsValues = { ...settingsValues, ...savedSettings[selectedIntent] };
-        console.log('Settings loaded for intent:', selectedIntent, settingsValues);
       } else {
         // No saved settings, so values will be initialized by SettingsPopup's default logic
         settingsValues = {};
@@ -233,9 +228,14 @@
           ? quotedContent.join("\n\n---\n\n") + "\n\n"
           : "";
       const finalMessage = quotedText + inputValue;
-      onAsk?.({ value: finalMessage, images: inputImageAttached });
+      handleSendData();
       resetInput();
     }
+  }
+
+  function handleSendData() {
+    onAsk?.({ value: inputValue, images: inputImageAttached, settings: settingsValues, intent: selectedIntent });
+    resetInput();
   }
 
   function handleAsk() {
@@ -245,7 +245,7 @@
         ? quotedContent.join("\n\n---\n\n") + "\n\n"
         : "";
     const finalMessage = quotedText + inputValue;
-    onAsk?.({ value: finalMessage, images: inputImageAttached });
+    handleSendData();
     resetInput();
   }
 
@@ -463,8 +463,17 @@
 
         {#if inputState === "ask"}
           <div class="ask-button-container">
-            <button class="ask-button" onclick={handleAsk}>
+            <button
+            class="ask-button"
+            class:streaming={isStreaming}
+            onclick={isStreaming ? handleStop : handleAsk}
+            aria-label={isStreaming ? "Stop streaming" : "Send message"}
+          >
+            {#if isStreaming}
+              <StopIcon />
+            {:else}
               <SendIcon />
+            {/if}
             </button>
             {#if !isInSidePanel}
               <button
@@ -581,8 +590,17 @@
 
             {#if inputState === "ask"}
               <div class="ask-button-container">
-                <button class="ask-button" onclick={handleAsk}>
-                  <SendIcon />
+                <button
+                  class="ask-button"
+                  class:streaming={isStreaming}
+                  onclick={isStreaming ? handleStop : handleAsk}
+                  aria-label={isStreaming ? "Stop streaming" : "Send message"}
+                >
+                  {#if isStreaming}
+                    <StopIcon />
+                  {:else}
+                    <SendIcon />
+                  {/if}
                 </button>
                 {#if !isInSidePanel}
                   <button
@@ -1156,6 +1174,21 @@
     white-space: nowrap;
     height: fit-content;
     align-self: center;
+    display: flex;            /* center icon precisely */
+    align-items: center;
+    justify-content: center;
+    line-height: 0;           /* avoid baseline offset */
+  }
+
+  .ask-button.streaming {
+    background: none;
+    color: #9ca3af;
+  }
+
+  .ask-button.streaming:hover {
+    background: #404040;
+    color: #d1d5db;
+    transform: none; /* keep position stable while hovering */
   }
 
   .input-bar.input-expanded .ask-button-container {
