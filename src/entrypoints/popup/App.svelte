@@ -6,6 +6,7 @@
   // State management
   let floatingTelescopeEnabled = $state(true);
   let selectionTelescopeEnabled = $state(true);
+  let writerTelescopeEnabled = $state(true);
 
   // Reference to main element for outside click detection
   let mainElement: HTMLElement;
@@ -17,6 +18,7 @@
       if (config && typeof config === "object") {
         floatingTelescopeEnabled = (config as any).floatingTelescopeEnabled ?? true;
         selectionTelescopeEnabled = (config as any).selectionTelescopeEnabled ?? true;
+        writerTelescopeEnabled = (config as any).writerTelescopeEnabled ?? true;
       }
     } catch (error) {
       console.error("Error loading settings:", error);
@@ -31,6 +33,7 @@
         ...(currentConfig || {}),
         floatingTelescopeEnabled,
         selectionTelescopeEnabled,
+        writerTelescopeEnabled,
       } as any);
     } catch (error) {
       console.error("Error saving settings:", error);
@@ -169,6 +172,7 @@
   $effect(() => {
     floatingTelescopeEnabled;
     selectionTelescopeEnabled;
+    writerTelescopeEnabled;
     saveSettings();
   });
 </script>
@@ -240,6 +244,13 @@
       <span class="enable-label">Enable selection telescope</span>
       <label class="toggle">
         <input type="checkbox" bind:checked={selectionTelescopeEnabled} />
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="enable-row">
+      <span class="enable-label">Enable writer telescope</span>
+      <label class="toggle">
+        <input type="checkbox" bind:checked={writerTelescopeEnabled} />
         <span class="slider"></span>
       </label>
     </div>

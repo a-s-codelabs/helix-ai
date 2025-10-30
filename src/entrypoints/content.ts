@@ -405,6 +405,14 @@ export default defineContentScript({
     const showWriterButton = async (
       element: HTMLTextAreaElement | HTMLInputElement
     ) => {
+      // Respect feature flag for writer telescope
+      try {
+        const featureConfig = await getFeatureConfig();
+        if (!featureConfig.writerTelescopeEnabled) {
+          return;
+        }
+      } catch {}
+
       // Ensure the UI is created
       if (!writerAssistantUI) {
         await createWriterAssistantUI();
