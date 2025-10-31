@@ -370,7 +370,7 @@ export default defineContentScript({
         if (!featureConfig.writerTelescopeEnabled) {
           return;
         }
-      } catch {}
+      } catch { }
 
       if (!writerAssistantUI) {
         await createWriterAssistantUI();
@@ -444,56 +444,51 @@ export default defineContentScript({
       }
 
       if (!isVisible || !ui) {
-        console.log('Opening telescope from keyboard...');
         await createUI();
         ui.mount();
         isVisible = true;
       } else if (isVisible && ui) {
-        console.log('Closing telescope from keyboard...');
         ui.remove();
         isVisible = false;
         ui = null;
       }
     }
 
-  async function hasKeyboardShortcut(): Promise<boolean> {
-    const config = await globalStorage().get('config');
-    if (
-      config &&
-      typeof config === 'object' &&
-      config.assignedTelescopeCommand
-    ) {
-      return true;
-    }
-    return false;
-  }
-
-  const handleKeyDown = async (event: KeyboardEvent) => {
-    if (event.key === 'Escape' && isVisible && ui) {
-      event.preventDefault();
-      console.log('Closing telescope from Escape key...');
-      ui.remove();
-      isVisible = false;
-      ui = null;
-      return;
-    }
-    const hasShortcut = await hasKeyboardShortcut();
-    console.log('hasShortcut', hasShortcut);
-    if (!hasShortcut) {
-      event.preventDefault();
-      const isCtrlOrCmd = event.ctrlKey || event.metaKey;
-      const isEKey = event.key === 'y' || event.key === 'Y';
-      if (isCtrlOrCmd && isEKey) {
-        void toggleTelescope();
-        return true as boolean;
+    async function hasKeyboardShortcut(): Promise<boolean> {
+      const config = await globalStorage().get('config');
+      if (
+        config &&
+        typeof config === 'object' &&
+        config.assignedTelescopeCommand
+      ) {
+        return true;
       }
+      return false;
     }
-  };
+
+    const handleKeyDown = async (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isVisible && ui) {
+        event.preventDefault();
+        ui.remove();
+        isVisible = false;
+        ui = null;
+        return;
+      }
+      const hasShortcut = await hasKeyboardShortcut();
+      if (!hasShortcut) {
+        event.preventDefault();
+        const isCtrlOrCmd = event.ctrlKey || event.metaKey;
+        const isEKey = event.key === 'y' || event.key === 'Y';
+        if (isCtrlOrCmd && isEKey) {
+          void toggleTelescope();
+          return true as boolean;
+        }
+      }
+    };
 
     document.addEventListener('keydown', handleKeyDown);
 
     const handleTelescopeClose = () => {
-      console.log('Received telescope close event...');
       if (isVisible && ui) {
         ui.remove();
         isVisible = false;
@@ -508,16 +503,12 @@ export default defineContentScript({
       sender: any,
       sendResponse: any
     ) => {
-      console.log('Content script received message:', message);
-
       if (message.action === 'openTelescope') {
-        console.log('Opening telescope from message...');
         void toggleTelescope();
         return true;
       }
 
       if (message.type === 'EXTRACT_PAGE_CONTENT') {
-        console.log('Content script: Received EXTRACT_PAGE_CONTENT request');
         (async () => {
           try {
             const { cleanHTML, htmlToMarkdown, processTextForLLM } =
@@ -542,10 +533,9 @@ export default defineContentScript({
             const pageContext =
               finalContent.length > maxLength
                 ? finalContent.substring(0, maxLength) +
-                  '\n\n... [Content truncated for AI context]'
+                '\n\n... [Content truncated for AI context]'
                 : finalContent;
 
-            console.log('Content script: Extracted page context, sending back');
             sendResponse({ success: true, pageContext });
           } catch (error) {
             console.error(

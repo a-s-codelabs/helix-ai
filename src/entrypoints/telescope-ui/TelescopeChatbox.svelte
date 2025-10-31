@@ -21,10 +21,8 @@
   }: ChatboxProps = $props();
 
   async function handleMoveToSidePanel() {
-    console.log("RightSidePanel clicked - attempting to move to side panel");
     try {
       sidePanelUtils.moveToSidePanel();
-      // await chrome.sidePanel.open({});
       onClose?.();
     } catch (error) {
       console.error("Error moving to side panel:", error);
@@ -44,7 +42,6 @@
       event.preventDefault();
     }
   }
-
 </script>
 
 <div

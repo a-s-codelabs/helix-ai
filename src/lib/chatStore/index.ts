@@ -66,8 +66,6 @@ async function createAISessionWithMonitor(
   sessionType: 'summarizer' | 'languageDetector' | 'translator' | 'writer' | 'rewriter' | 'proofreader' | 'prompt',
   options: any = {},
 ): Promise<any> {
-  console.log(`Called session with type: ${sessionType} and options: ${JSON.stringify(options, null, 4)}`);
-
   const monitor = (m: any) => {
     const createdAt = Date.now();
     m.addEventListener('downloadprogress', (e: any) => {
@@ -1220,6 +1218,8 @@ function createChatStore() {
   };
 }
 
+// Move this to background with message passing.
+// Has this store needs also runs in the floating telescope environment.
 function getActiveTabId() {
   return new Promise<number>((resolve, reject) => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {

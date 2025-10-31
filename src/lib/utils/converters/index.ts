@@ -288,8 +288,6 @@ export function htmlToMarkdown(html: string): string {
 }
 
 export function convertPageToMarkdown() {
-  console.log('🔄 Converting page to markdown...');
-
   const html = document.documentElement.outerHTML;
 
   const markdown = htmlToMarkdown(html);
@@ -297,7 +295,7 @@ export function convertPageToMarkdown() {
   const finalMarkdown =
     markdown.length > config.maxLength
       ? markdown.substring(0, config.maxLength) +
-        '\n\n... [Content truncated for LLM processing]'
+      '\n\n... [Content truncated for LLM processing]'
       : markdown;
 
   const metadata = `# ${document.title || 'Web Page'}

@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { scale, slide } from 'svelte/transition';
+  import { scale, slide } from "svelte/transition";
   /*@ts-ignore */
-  import Helix from '../telescope-ui/icons/Helix.svelte';
+  import Helix from "../telescope-ui/icons/Helix.svelte";
   /*@ts-ignore */
-  import Settings from '../telescope-ui/icons/Settings.svelte';
+  import Settings from "../telescope-ui/icons/Settings.svelte";
   /*@ts-ignore */
-  import Send from '../telescope-ui/icons/Send.svelte';
+  import Send from "../telescope-ui/icons/Send.svelte";
   import {
     writeContentStreaming,
     checkWriterAvailability,
@@ -16,7 +16,7 @@
     type WriterOptions,
     type RewriterOptions,
     type ProofreaderOptions,
-  } from '../../lib/writerApiHelper';
+  } from "../../lib/writerApiHelper";
 
   interface Props {
     targetElement: HTMLTextAreaElement | HTMLInputElement | HTMLElement;
@@ -27,20 +27,29 @@
   let { targetElement, onClose, onDragStart }: Props = $props();
 
   // Helper to check if element is contentEditable
-  function isContentEditable(el: HTMLTextAreaElement | HTMLInputElement | HTMLElement): el is HTMLElement {
-    return 'contentEditable' in el && (el as HTMLElement).contentEditable === 'true';
+  function isContentEditable(
+    el: HTMLTextAreaElement | HTMLInputElement | HTMLElement
+  ): el is HTMLElement {
+    return (
+      "contentEditable" in el && (el as HTMLElement).contentEditable === "true"
+    );
   }
 
   // Helper to get text content from element
-  function getElementValue(el: HTMLTextAreaElement | HTMLInputElement | HTMLElement): string {
+  function getElementValue(
+    el: HTMLTextAreaElement | HTMLInputElement | HTMLElement
+  ): string {
     if (isContentEditable(el)) {
-      return el.textContent || '';
+      return el.textContent || "";
     }
-    return (el as HTMLTextAreaElement | HTMLInputElement).value || '';
+    return (el as HTMLTextAreaElement | HTMLInputElement).value || "";
   }
 
   // Helper to set text content to element
-  function setElementValue(el: HTMLTextAreaElement | HTMLInputElement | HTMLElement, value: string) {
+  function setElementValue(
+    el: HTMLTextAreaElement | HTMLInputElement | HTMLElement,
+    value: string
+  ) {
     if (isContentEditable(el)) {
       el.textContent = value;
     } else {
@@ -49,7 +58,9 @@
   }
 
   // Helper to get selection for contentEditable
-  function getContentEditableSelection(el: HTMLElement): { start: number; end: number } | null {
+  function getContentEditableSelection(
+    el: HTMLElement
+  ): { start: number; end: number } | null {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return null;
 
@@ -100,31 +111,31 @@
       sel.addRange(range);
     }
   }
-  type Mode = 'writer' | 'rewriter' | 'proofreader';
-  let mode = $state<Mode>('writer');
+  type Mode = "writer" | "rewriter" | "proofreader";
+  let mode = $state<Mode>("writer");
 
-  let prompt = $state('');
-  let context = $state('');
+  let prompt = $state("");
+  let context = $state("");
   let isGenerating = $state(false);
-  let error = $state('');
+  let error = $state("");
   let showOptions = $state(false);
   let showLanguages = $state(false);
-  let apiAvailable = $state<'available' | 'after-download' | 'unavailable'>(
-    'unavailable'
+  let apiAvailable = $state<"available" | "after-download" | "unavailable">(
+    "unavailable"
   );
 
   let selectionStart = $state<number | null>(null);
   let selectionEnd = $state<number | null>(null);
-  let textBeforeSelection = $state('');
-  let textAfterSelection = $state('');
+  let textBeforeSelection = $state("");
+  let textAfterSelection = $state("");
 
-  let writerTone = $state<'formal' | 'neutral' | 'casual'>('neutral');
-  let writerLength = $state<'short' | 'medium' | 'long'>('medium');
-  let writerFormat = $state<'markdown' | 'plain-text'>('plain-text');
+  let writerTone = $state<"formal" | "neutral" | "casual">("neutral");
+  let writerLength = $state<"short" | "medium" | "long">("medium");
+  let writerFormat = $state<"markdown" | "plain-text">("plain-text");
 
-  let rewriterTone = $state<'as-is' | 'more-formal' | 'more-casual'>('as-is');
-  let rewriterLength = $state<'as-is' | 'shorter' | 'longer'>('as-is');
-  let rewriterFormat = $state<'as-is' | 'markdown' | 'plain-text'>('as-is');
+  let rewriterTone = $state<"as-is" | "more-formal" | "more-casual">("as-is");
+  let rewriterLength = $state<"as-is" | "shorter" | "longer">("as-is");
+  let rewriterFormat = $state<"as-is" | "markdown" | "plain-text">("as-is");
 
   let proofreaderInputLangs = $state({
     en: true,
@@ -134,7 +145,7 @@
     es: false,
   });
 
-  let outputLanguage = $state('en');
+  let outputLanguage = $state("en");
 
   let inputLangs = $state({
     en: false,
@@ -153,27 +164,32 @@
   });
 
   let abortController: AbortController | null = null;
-  let streamedContent = $state('');
+  let streamedContent = $state("");
 
   $effect(() => {
     const checkAvailability = async () => {
       const availability =
-        mode === 'writer'
+        mode === "writer"
           ? await checkWriterAvailability()
-          : mode === 'rewriter'
-          ? await checkRewriterAvailability()
-          : await checkProofreaderAvailability();
+          : mode === "rewriter"
+            ? await checkRewriterAvailability()
+            : await checkProofreaderAvailability();
 
       apiAvailable = availability;
 
-      const apiName = mode === 'writer' ? 'Writer' : mode === 'rewriter' ? 'Rewriter' : 'Proofreader';
+      const apiName =
+        mode === "writer"
+          ? "Writer"
+          : mode === "rewriter"
+            ? "Rewriter"
+            : "Proofreader";
 
-      if (availability === 'unavailable') {
+      if (availability === "unavailable") {
         error = `${apiName} API is not available. Please use Chrome 129+ with Built-in AI enabled.`;
-      } else if (availability === 'after-download') {
+      } else if (availability === "after-download") {
         error = `${apiName} API is downloading. Please wait and try again in a few moments.`;
       } else {
-        error = '';
+        error = "";
       }
     };
 
@@ -188,7 +204,7 @@
       }
     }
 
-    if ((mode === 'rewriter' || mode === 'proofreader') && targetElement) {
+    if ((mode === "rewriter" || mode === "proofreader") && targetElement) {
       let start = 0;
       let end = 0;
 
@@ -199,8 +215,12 @@
           end = selection.end;
         }
       } else {
-        start = (targetElement as HTMLTextAreaElement | HTMLInputElement).selectionStart || 0;
-        end = (targetElement as HTMLTextAreaElement | HTMLInputElement).selectionEnd || 0;
+        start =
+          (targetElement as HTMLTextAreaElement | HTMLInputElement)
+            .selectionStart || 0;
+        end =
+          (targetElement as HTMLTextAreaElement | HTMLInputElement)
+            .selectionEnd || 0;
       }
 
       if (start !== end) {
@@ -214,19 +234,21 @@
       } else {
         selectionStart = null;
         selectionEnd = null;
-        textBeforeSelection = '';
-        textAfterSelection = '';
+        textBeforeSelection = "";
+        textAfterSelection = "";
       }
     }
   });
 
   $effect(() => {
     setTimeout(() => {
-      const input = document.querySelector('.prompt-input') as HTMLInputElement;
-      const textarea = document.querySelector('.prompt-textarea') as HTMLTextAreaElement;
-      if (mode === 'writer' && input) {
+      const input = document.querySelector(".prompt-input") as HTMLInputElement;
+      const textarea = document.querySelector(
+        ".prompt-textarea"
+      ) as HTMLTextAreaElement;
+      if (mode === "writer" && input) {
         input.focus();
-      } else if ((mode === 'rewriter' || mode === 'proofreader') && textarea) {
+      } else if ((mode === "rewriter" || mode === "proofreader") && textarea) {
         textarea.focus();
       }
     }, 0);
@@ -234,13 +256,18 @@
 
   async function handleGenerate() {
     if (!prompt.trim()) {
-      error = mode === 'writer' ? 'Please enter a prompt' : mode === 'rewriter' ? 'Please enter text to rewrite' : 'Please enter text to proofread';
+      error =
+        mode === "writer"
+          ? "Please enter a prompt"
+          : mode === "rewriter"
+            ? "Please enter text to rewrite"
+            : "Please enter text to proofread";
       return;
     }
 
     isGenerating = true;
-    error = '';
-    streamedContent = '';
+    error = "";
+    streamedContent = "";
 
     abortController = new AbortController();
 
@@ -253,13 +280,13 @@
         .filter(([_, checked]) => checked)
         .map(([lang]) => lang);
 
-      if (mode === 'writer') {
+      if (mode === "writer") {
         const options: WriterOptions = {
           tone: writerTone,
           length: writerLength,
           format: writerFormat,
           ...(context.trim() && { sharedContext: context.trim() }),
-          ...(outputLanguage && outputLanguage !== '' && { outputLanguage }),
+          ...(outputLanguage && outputLanguage !== "" && { outputLanguage }),
           ...(selectedInputLangs.length > 0 && {
             expectedInputLanguages: selectedInputLangs,
           }),
@@ -267,11 +294,6 @@
             expectedContextLanguages: selectedContextLangs,
           }),
         };
-
-        console.log('[Writer API] Generating with streaming:', {
-          prompt: prompt.trim(),
-          options,
-        });
 
         const stream = writeContentStreaming(
           {
@@ -280,31 +302,34 @@
           options
         );
 
-        const initialValue = targetElement ? getElementValue(targetElement) : '';
-        const separator = initialValue ? '\n\n' : '';
+        const initialValue = targetElement
+          ? getElementValue(targetElement)
+          : "";
+        const separator = initialValue ? "\n\n" : "";
 
         for await (const chunk of stream) {
           if (abortController?.signal.aborted) {
-            console.log('[Writer API] Generation stopped by user');
+            console.warn("[Writer API] Generation stopped by user");
             break;
           }
 
-          streamedContent = 'Writer' in self ? streamedContent + chunk : chunk;
+          streamedContent = "Writer" in self ? streamedContent + chunk : chunk;
 
           if (targetElement) {
-            setElementValue(targetElement, initialValue + separator + streamedContent);
-            targetElement.dispatchEvent(new Event('input', { bubbles: true }));
+            setElementValue(
+              targetElement,
+              initialValue + separator + streamedContent
+            );
+            targetElement.dispatchEvent(new Event("input", { bubbles: true }));
           }
         }
-
-        console.log('[Writer API] Generated text:', streamedContent);
-      } else if (mode === 'rewriter') {
+      } else if (mode === "rewriter") {
         const options: RewriterOptions = {
           tone: rewriterTone,
           length: rewriterLength,
           format: rewriterFormat,
           ...(context.trim() && { sharedContext: context.trim() }),
-          ...(outputLanguage && outputLanguage !== '' && { outputLanguage }),
+          ...(outputLanguage && outputLanguage !== "" && { outputLanguage }),
           ...(selectedInputLangs.length > 0 && {
             expectedInputLanguages: selectedInputLangs,
           }),
@@ -312,11 +337,6 @@
             expectedContextLanguages: selectedContextLangs,
           }),
         };
-
-        console.log('[Rewriter API] Rewriting with streaming:', {
-          text: prompt.trim(),
-          options,
-        });
 
         const stream = rewriteContentStreaming(
           {
@@ -327,31 +347,36 @@
 
         for await (const chunk of stream) {
           if (abortController?.signal.aborted) {
-            console.log('[Rewriter API] Rewriting stopped by user');
+            console.warn("[Rewriter API] Rewriting stopped by user");
             break;
           }
 
-          streamedContent = 'Rewriter' in self ? streamedContent + chunk : chunk;
+          streamedContent =
+            "Rewriter" in self ? streamedContent + chunk : chunk;
 
           if (targetElement) {
             if (selectionStart !== null && selectionEnd !== null) {
-              setElementValue(targetElement, textBeforeSelection + streamedContent + textAfterSelection);
+              setElementValue(
+                targetElement,
+                textBeforeSelection + streamedContent + textAfterSelection
+              );
 
-              const newCursorPosition = textBeforeSelection.length + streamedContent.length;
+              const newCursorPosition =
+                textBeforeSelection.length + streamedContent.length;
               if (isContentEditable(targetElement)) {
                 setContentEditableCursor(targetElement, newCursorPosition);
               } else {
-                (targetElement as HTMLTextAreaElement | HTMLInputElement).setSelectionRange(newCursorPosition, newCursorPosition);
+                (
+                  targetElement as HTMLTextAreaElement | HTMLInputElement
+                ).setSelectionRange(newCursorPosition, newCursorPosition);
               }
             } else {
               setElementValue(targetElement, streamedContent);
             }
-            targetElement.dispatchEvent(new Event('input', { bubbles: true }));
+            targetElement.dispatchEvent(new Event("input", { bubbles: true }));
           }
         }
-
-        console.log('[Rewriter API] Rewritten text:', streamedContent);
-      } else if (mode === 'proofreader') {
+      } else if (mode === "proofreader") {
         const selectedProofreaderLangs = Object.entries(proofreaderInputLangs)
           .filter(([_, checked]) => checked)
           .map(([lang]) => lang);
@@ -362,11 +387,6 @@
           }),
         };
 
-        console.log('[Proofreader API] Proofreading with streaming:', {
-          text: prompt.trim(),
-          options,
-        });
-
         const stream = proofreadContentStreaming(
           {
             text: prompt.trim(),
@@ -376,7 +396,7 @@
 
         for await (const chunk of stream) {
           if (abortController?.signal.aborted) {
-            console.log('[Proofreader API] Proofreading stopped by user');
+            console.warn("[Proofreader API] Proofreading stopped by user");
             break;
           }
 
@@ -384,36 +404,44 @@
 
           if (targetElement) {
             if (selectionStart !== null && selectionEnd !== null) {
-              setElementValue(targetElement, textBeforeSelection + streamedContent + textAfterSelection);
-              const newCursorPosition = textBeforeSelection.length + streamedContent.length;
+              setElementValue(
+                targetElement,
+                textBeforeSelection + streamedContent + textAfterSelection
+              );
+              const newCursorPosition =
+                textBeforeSelection.length + streamedContent.length;
               if (isContentEditable(targetElement)) {
                 setContentEditableCursor(targetElement, newCursorPosition);
               } else {
-                (targetElement as HTMLTextAreaElement | HTMLInputElement).setSelectionRange(newCursorPosition, newCursorPosition);
+                (
+                  targetElement as HTMLTextAreaElement | HTMLInputElement
+                ).setSelectionRange(newCursorPosition, newCursorPosition);
               }
             } else {
               setElementValue(targetElement, streamedContent);
             }
-            targetElement.dispatchEvent(new Event('input', { bubbles: true }));
+            targetElement.dispatchEvent(new Event("input", { bubbles: true }));
           }
         }
-
-        console.log('[Proofreader API] Proofread text:', streamedContent);
       }
 
       if (targetElement && streamedContent) {
-        if (mode === 'writer') {
-          targetElement.dispatchEvent(new Event('change', { bubbles: true }));
+        if (mode === "writer") {
+          targetElement.dispatchEvent(new Event("change", { bubbles: true }));
         } else {
-          targetElement.dispatchEvent(new Event('change', { bubbles: true }));
+          targetElement.dispatchEvent(new Event("change", { bubbles: true }));
         }
 
         targetElement.focus();
-        console.log(`[${mode === 'writer' ? 'Writer' : mode === 'rewriter' ? 'Rewriter' : 'Proofreader'} API] Final value set:`, getElementValue(targetElement));
       }
 
       if (!abortController?.signal.aborted && streamedContent) {
-        const successMessage = mode === 'writer' ? 'Content generated!' : mode === 'rewriter' ? 'Content rewritten!' : 'Content proofread!';
+        const successMessage =
+          mode === "writer"
+            ? "Content generated!"
+            : mode === "rewriter"
+              ? "Content rewritten!"
+              : "Content proofread!";
         showSuccessNotification(successMessage);
 
         setTimeout(() => {
@@ -421,12 +449,17 @@
         }, 500);
       }
     } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') {
-        console.log(`[${mode === 'writer' ? 'Writer' : mode === 'rewriter' ? 'Rewriter' : 'Proofreader'} API] Generation aborted`);
+      if (err instanceof Error && err.name === "AbortError") {
+        console.debug(
+          `[${mode === "writer" ? "Writer" : mode === "rewriter" ? "Rewriter" : "Proofreader"} API] Generation aborted`
+        );
       } else {
-        console.error(`[${mode === 'writer' ? 'Writer' : mode === 'rewriter' ? 'Rewriter' : 'Proofreader'} API] Error:`, err);
+        console.error(
+          `[${mode === "writer" ? "Writer" : mode === "rewriter" ? "Rewriter" : "Proofreader"} API] Error:`,
+          err
+        );
         error =
-          err instanceof Error ? err.message : 'Failed to generate content';
+          err instanceof Error ? err.message : "Failed to generate content";
       }
     } finally {
       isGenerating = false;
@@ -440,8 +473,8 @@
     }
   }
 
-  function showSuccessNotification(message: string = '✓ Content generated!') {
-    const notification = document.createElement('div');
+  function showSuccessNotification(message: string = "✓ Content generated!") {
+    const notification = document.createElement("div");
     notification.textContent = message;
     notification.style.cssText = `
       position: fixed;
@@ -459,7 +492,7 @@
       animation: slideIn 0.3s ease-out;
     `;
 
-    const style = document.createElement('style');
+    const style = document.createElement("style");
     style.textContent = `
       @keyframes slideIn {
         from {
@@ -476,9 +509,8 @@
 
     document.body.appendChild(notification);
 
-
     setTimeout(() => {
-      notification.style.animation = 'slideIn 0.3s ease-out reverse';
+      notification.style.animation = "slideIn 0.3s ease-out reverse";
       setTimeout(() => {
         notification.remove();
         style.remove();
@@ -487,13 +519,13 @@
   }
 
   function handleResetOptions() {
-    writerTone = 'neutral';
-    writerLength = 'medium';
-    writerFormat = 'plain-text';
+    writerTone = "neutral";
+    writerLength = "medium";
+    writerFormat = "plain-text";
 
-    rewriterTone = 'as-is';
-    rewriterLength = 'as-is';
-    rewriterFormat = 'as-is';
+    rewriterTone = "as-is";
+    rewriterLength = "as-is";
+    rewriterFormat = "as-is";
 
     proofreaderInputLangs = {
       en: true,
@@ -503,7 +535,7 @@
       es: false,
     };
 
-    outputLanguage = 'en';
+    outputLanguage = "en";
     inputLangs = {
       en: false,
       fr: false,
@@ -518,30 +550,30 @@
       pt: false,
       es: false,
     };
-    context = '';
+    context = "";
   }
 
   function handleWriterMode() {
-    mode = 'writer';
+    mode = "writer";
   }
 
   function handleRewriterMode() {
-    mode = 'rewriter';
+    mode = "rewriter";
   }
 
   function handleProofreaderMode() {
-    mode = 'proofreader';
+    mode = "proofreader";
   }
 
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape') {
+    if (event.key === "Escape") {
       if (isGenerating) {
         handleStop();
       }
       onClose?.();
     }
     if (
-      event.key === 'Enter' &&
+      event.key === "Enter" &&
       (event.ctrlKey || event.metaKey) &&
       prompt.trim() &&
       !isGenerating
@@ -571,7 +603,7 @@
         type="button"
         aria-label="Writer mode"
         disabled={isGenerating}
-        class:active={mode === 'writer'}
+        class:active={mode === "writer"}
       >
         Writer
       </button>
@@ -581,7 +613,7 @@
         type="button"
         aria-label="Rewriter mode"
         disabled={isGenerating}
-        class:active={mode === 'rewriter'}
+        class:active={mode === "rewriter"}
       >
         Rewriter
       </button>
@@ -647,7 +679,11 @@
         type="text"
         bind:value={prompt}
         placeholder={`Add prompt to ${
-          mode === 'writer' ? 'write' : mode === 'rewriter' ? 'rewrite' : 'proofread'
+          mode === "writer"
+            ? "write"
+            : mode === "rewriter"
+              ? "rewrite"
+              : "proofread"
         } here...`}
         class="prompt-textarea"
         rows="3"
@@ -655,7 +691,8 @@
       ></textarea>
       {#if selectionStart !== null && selectionEnd !== null}
         <div class="selection-info">
-          ✓ {mode === 'rewriter' ? 'Rewriting' : 'Proofreading'} selected text only ({selectionEnd - selectionStart} chars)
+          ✓ {mode === "rewriter" ? "Rewriting" : "Proofreading"} selected text only
+          ({selectionEnd - selectionStart} chars)
         </div>
       {/if}
 
@@ -669,8 +706,6 @@
         <Settings />
       </button>
     </div>
-
-
 
     {#if showOptions}
       <div class="options-panel" transition:slide={{ duration: 200 }}>
@@ -688,13 +723,13 @@
         <div class="field-row field-row-3">
           <div class="field">
             <label for="tone">Tone</label>
-            {#if mode === 'writer'}
+            {#if mode === "writer"}
               <select id="tone" bind:value={writerTone} disabled={isGenerating}>
                 <option value="formal">Formal</option>
                 <option value="neutral">Neutral</option>
                 <option value="casual">Casual</option>
               </select>
-            {:else if mode === 'rewriter'}
+            {:else if mode === "rewriter"}
               <select
                 id="tone"
                 bind:value={rewriterTone}
@@ -714,7 +749,7 @@
 
           <div class="field">
             <label for="length">Length</label>
-            {#if mode === 'writer'}
+            {#if mode === "writer"}
               <select
                 id="length"
                 bind:value={writerLength}
@@ -724,7 +759,7 @@
                 <option value="medium">Medium</option>
                 <option value="long">Long</option>
               </select>
-            {:else if mode === 'rewriter'}
+            {:else if mode === "rewriter"}
               <select
                 id="length"
                 bind:value={rewriterLength}
@@ -744,7 +779,7 @@
 
           <div class="field">
             <label for="format">Format</label>
-            {#if mode === 'writer'}
+            {#if mode === "writer"}
               <select
                 id="format"
                 bind:value={writerFormat}
@@ -753,7 +788,7 @@
                 <option value="plain-text">Plain Text</option>
                 <option value="markdown">Markdown</option>
               </select>
-            {:else if mode === 'rewriter'}
+            {:else if mode === "rewriter"}
               <select
                 id="format"
                 bind:value={rewriterFormat}
@@ -787,7 +822,7 @@
           </select>
         </div>
 
-        {#if mode === 'proofreader'}
+        {#if mode === "proofreader"}
           <div class="field">
             <fieldset class="checkbox-fieldset">
               <legend>Expected Input Languages</legend>
@@ -973,8 +1008,6 @@
         </div> -->
       </div>
     {/if}
-
-
   </div>
 </div>
 
@@ -987,7 +1020,7 @@
     box-shadow:
       0 20px 25px -5px rgba(0, 0, 0, 0.3),
       0 8px 10px -6px rgba(0, 0, 0, 0.2);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
       Ubuntu, Cantarell, sans-serif;
     font-size: 14px;
     color: #e4e4e7;
@@ -1057,7 +1090,6 @@
   .header-action-btn.generate:hover:not(:disabled) {
     background: #3b82f6cc;
   }
-
 
   .header-action-btn.generate:active:not(:disabled) {
     transform: scale(0.98);
@@ -1186,7 +1218,9 @@
     color: #a1a1aa;
     cursor: pointer;
     border-radius: 6px;
-    transition: color 0.15s ease, background 0.15s ease;
+    transition:
+      color 0.15s ease,
+      background 0.15s ease;
   }
 
   .prompt-settings-btn:hover {
@@ -1303,7 +1337,7 @@
     color: #a1a1aa;
   }
 
-  input[type='text'] {
+  input[type="text"] {
     width: 94%;
     padding: 8px 10px;
     background: #262832;
@@ -1315,16 +1349,16 @@
     transition: all 0.15s ease;
   }
 
-  input[type='text']::placeholder {
+  input[type="text"]::placeholder {
     color: #71717a;
   }
 
-  input[type='text']:focus {
+  input[type="text"]:focus {
     outline: none;
     border-color: #3b82f6;
   }
 
-  input[type='text']:disabled {
+  input[type="text"]:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
@@ -1447,7 +1481,6 @@
     margin-top: 8px;
   }
 
-
   .info-section {
     display: flex;
     align-items: center;
@@ -1509,14 +1542,14 @@
     background: #27272a;
   }
 
-  .checkbox-label input[type='checkbox'] {
+  .checkbox-label input[type="checkbox"] {
     width: 16px;
     height: 16px;
     cursor: pointer;
     accent-color: #3b82f6;
   }
 
-  .checkbox-label input[type='checkbox']:disabled {
+  .checkbox-label input[type="checkbox"]:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
@@ -1532,7 +1565,7 @@
     border: 1px solid #3f3f46;
     border-radius: 8px;
     color: #a1a1aa;
-      font-size: 13px;
+    font-size: 13px;
     font-weight: 500;
     font-family: inherit;
     cursor: pointer;

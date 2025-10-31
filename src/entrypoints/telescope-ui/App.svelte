@@ -1,7 +1,7 @@
 <script lang="ts">
   import Telescope from "./Telescope.svelte";
   import { chatStore } from "@/lib/chatStore";
-  import { sidePanelUtils, sidePanelStore } from "@/lib/sidePanelStore";
+  import { sidePanelUtils } from "@/lib/sidePanelStore";
   import { globalStorage } from "@/lib/globalStorage";
   import type { Message, State } from "./type";
   import TelescopeSidepanelHeader from "./TelescopeSidepanelHeader.svelte";
@@ -31,10 +31,8 @@
     if (isVisible) {
       if (isInSidePanel) {
         (async () => {
-          console.log("App: In side panel mode, fetching page content...");
           const pageContext = await sidePanelUtils.getPageContent();
           if (pageContext) {
-            console.log("App: Received page content, initializing chat store");
             await chatStore.init(pageContext);
           } else {
             console.warn(
@@ -56,10 +54,8 @@
   const updateStateFromStorage = async () => {
     if (!isInSidePanel) return;
     const storedState = await globalStorage().get("action_state");
-    console.log("event", storedState);
     if (storedState) {
       globalStorage().delete("action_state");
-      console.log("App: Updating state from storage:", storedState);
 
       if (storedState.actionSource === "context-image") {
         const content = String(storedState.content || "");
@@ -119,23 +115,10 @@
     handleAsk({ value: question, images: [] });
   }
 
-  function handleVoiceInput() {
-    console.log("Voice input clicked");
-  }
-
-  function handleAttachment() {
-    console.log("Attachment clicked");
-  }
-
-  function handleClearChat() {
-    chatStore.clear();
-  }
-
   function handleClose() {
     chatStore.clear();
 
     if (!isInSidePanel) {
-      console.log("Closing telescope from close button...");
       if (window.parent && window.parent !== window) {
         window.parent.postMessage({ action: "closeTelescope" }, "*");
       } else {
@@ -208,13 +191,8 @@
       };
     }
   });
-
-  function handleMessage(event: MessageEvent) {
-    console.log({ event });
-  }
 </script>
 
-<svelte:window on:message={handleMessage} />
 {#if isVisible || isInSidePanel}
   <div
     class="telescope-container"
@@ -238,8 +216,6 @@
       onInput={handleInput}
       onAsk={({ value, images, settings, intent }) =>
         handleAsk({ value, images, settings, intent: intent as any })}
-      onVoiceInput={handleVoiceInput}
-      onAttachment={handleAttachment}
       onSuggestedQuestion={handleSuggestedQuestion}
       onClose={handleClose}
       onStop={handleStop}

@@ -10,7 +10,6 @@ export type AskOptions = {
 };
 // TODO: unify naming
 export function handleAskHelper(opts: AskOptions) {
-  console.log('handleAsk', opts);
   if (opts.intent === 'prompt') {
     chatStore.sendMessageStreaming(opts.value, opts.images);
   } else if (opts.intent === 'summarise' || opts.intent === "summarize") {

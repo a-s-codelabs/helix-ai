@@ -115,12 +115,12 @@ export async function checkWriterAvailability(): Promise<
 > {
   try {
     if (!('Writer' in self)) {
-      console.log('[Writer API] Writer not found in global scope');
+      console.warn('[Writer API] Writer not found in global scope');
       return 'unavailable';
     }
 
     const availability = await Writer.availability();
-    console.log('[Writer API] Availability:', availability);
+    console.warn('[Writer API] Availability:', availability);
     return availability;
   } catch (error) {
     console.error('[Writer API] Error checking availability:', error);
@@ -161,23 +161,11 @@ export async function writeContent(
 
     if (provider === 'builtin') {
       const writer = await createWriter(options);
-
-      console.log('[Writer API] Writing with prompt:', request.prompt);
-      if (request.context) {
-        console.log('[Writer API] Context:', request.context);
-      }
-
       const result = await writer.write(request.prompt, {
         ...(request.context && { context: request.context }),
       });
 
-      console.log('[Writer API] Write complete:', {
-        result,
-      });
-
       writer.destroy();
-      console.log('[Writer API] Writer session destroyed');
-
       return result;
     } else {
       if (!apiKey || !model) {
@@ -236,8 +224,6 @@ export async function* writeContentStreaming(
     if (provider === 'builtin') {
       writer = await createWriter(options);
 
-      console.log('[Writer API] Starting streaming...');
-
       if (!writer) {
         throw new Error('Failed to create Writer session');
       }
@@ -247,11 +233,9 @@ export async function* writeContentStreaming(
       });
 
       for await (const chunk of stream) {
-        console.log('[Writer API] Chunk received:', chunk);
         yield chunk;
       }
 
-      console.log('[Writer API] Streaming complete');
     } else {
       if (!apiKey || !model) {
         throw new Error('Missing API key or model for selected provider');
@@ -277,8 +261,6 @@ export async function* writeContentStreaming(
           yield chunk;
         }
       }
-
-      console.log('[Writer API] Streaming complete');
     }
   } catch (error) {
     console.error('[Writer API] Error writing content with streaming:', error);
@@ -286,7 +268,6 @@ export async function* writeContentStreaming(
   } finally {
     if (writer && isBuiltin) {
       writer.destroy();
-      console.log('[Writer API] Writer session destroyed');
     }
   }
 }
@@ -296,12 +277,12 @@ export async function checkRewriterAvailability(): Promise<
 > {
   try {
     if (!('Rewriter' in self)) {
-      console.log('[Rewriter API] Rewriter not found in global scope');
+      console.warn('[Rewriter API] Rewriter not found in global scope');
       return 'unavailable';
     }
 
     const availability = await Rewriter.availability();
-    console.log('[Rewriter API] Availability:', availability);
+    console.warn('[Rewriter API] Availability:', availability);
     return availability;
   } catch (error) {
     console.error('[Rewriter API] Error checking availability:', error);
@@ -345,22 +326,11 @@ export async function rewriteContent(
     if (provider === 'builtin') {
       const rewriter = await createRewriter(options);
 
-      console.log('[Rewriter API] Rewriting text:', request.text);
-      if (request.context) {
-        console.log('[Rewriter API] Context:', request.context);
-      }
-
       const result = await rewriter.rewrite(request.text, {
         ...(request.context && { context: request.context }),
       });
 
-      console.log('[Rewriter API] Rewrite complete:', {
-        result,
-      });
-
       rewriter.destroy();
-      console.log('[Rewriter API] Rewriter session destroyed');
-
       return result;
     } else {
       if (!apiKey || !model) {
@@ -407,8 +377,6 @@ export async function* rewriteContentStreaming(
     if (provider === 'builtin') {
       rewriter = await createRewriter(options);
 
-      console.log('[Rewriter API] Starting streaming...');
-
       if (!rewriter) {
         throw new Error('Failed to create Rewriter session');
       }
@@ -418,11 +386,9 @@ export async function* rewriteContentStreaming(
       });
 
       for await (const chunk of stream) {
-        console.log('[Rewriter API] Chunk received:', chunk);
         yield chunk;
       }
 
-      console.log('[Rewriter API] Streaming complete');
     } else {
       if (!apiKey || !model) {
         throw new Error('Missing API key or model for selected provider');
@@ -448,7 +414,6 @@ export async function* rewriteContentStreaming(
         }
       }
 
-      console.log('[Rewriter API] Streaming complete');
     }
   } catch (error) {
     console.error(
@@ -459,7 +424,6 @@ export async function* rewriteContentStreaming(
   } finally {
     if (rewriter && isBuiltin) {
       rewriter.destroy();
-      console.log('[Rewriter API] Rewriter session destroyed');
     }
   }
 }
@@ -469,12 +433,12 @@ export async function checkProofreaderAvailability(): Promise<
 > {
   try {
     if (!('Proofreader' in self)) {
-      console.log('[Proofreader API] Proofreader not found in global scope');
+      console.warn('[Proofreader API] Proofreader not found in global scope');
       return 'unavailable';
     }
 
     const availability = await Proofreader.availability();
-    console.log('[Proofreader API] Availability:', availability);
+    console.warn('[Proofreader API] Availability:', availability);
     return availability;
   } catch (error) {
     console.error('[Proofreader API] Error checking availability:', error);
@@ -507,17 +471,9 @@ export async function proofreadContent(
   try {
     const proofreader = await createProofreader(options);
 
-    console.log('[Proofreader API] Proofreading text:', request.text);
-
     const result = await proofreader.proofread(request.text);
 
-    console.log('[Proofreader API] Proofread complete:', {
-      result,
-    });
-
     proofreader.destroy();
-    console.log('[Proofreader API] Proofreader session destroyed');
-
     return result;
   } catch (error) {
     console.error('[Proofreader API] Error proofreading content:', error);
@@ -533,11 +489,7 @@ export async function* proofreadContentStreaming(
   try {
     proofreader = await createProofreader(options);
 
-    console.log('[Proofreader API] Starting proofreading...');
-
     const result = await proofreader.proofread(request.text);
-
-    console.log('[Proofreader API] Proofreading complete');
 
     yield result.corrected;
   } catch (error) {
@@ -549,7 +501,6 @@ export async function* proofreadContentStreaming(
   } finally {
     if (proofreader) {
       proofreader.destroy();
-      console.log('[Proofreader API] Proofreader session destroyed');
     }
   }
 }

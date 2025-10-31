@@ -62,7 +62,6 @@
     chrome.runtime.sendMessage({
       type: "OPEN_TO_SIDE_PANEL",
     });
-    console.log("languageCode", languageCode);
     globalStorage().set("action_state", {
       actionSource: "translate",
       content: selectedText,

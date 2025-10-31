@@ -1,15 +1,23 @@
 <script lang="ts">
   import type { Message } from "./type";
-  import { formatBasicMarkdown, sanitizeHtml, isContentSafe } from "../../lib/streamingMarkdown";
+  import {
+    formatBasicMarkdown,
+    sanitizeHtml,
+    isContentSafe,
+  } from "../../lib/streamingMarkdown";
   // @ts-ignore - Svelte component import
   import CopyIcon from "./icons/Copy.svelte";
   // @ts-ignore - Svelte component import
   import SpeakerIcon from "./icons/Speaker.svelte";
 
-  let { messages = [], isStreaming = false, streamingMessageId = null }: {
-    messages: Message[],
-    isStreaming?: boolean,
-    streamingMessageId?: number | null
+  let {
+    messages = [],
+    isStreaming = false,
+    streamingMessageId = null,
+  }: {
+    messages: Message[];
+    isStreaming?: boolean;
+    streamingMessageId?: number | null;
   } = $props();
 
   let messageContainer = $state<HTMLElement | undefined>(undefined);
@@ -24,9 +32,9 @@
    */
   async function copyToClipboard(content: string, messageId: number) {
     try {
-      const tempDiv = document.createElement('div');
+      const tempDiv = document.createElement("div");
       tempDiv.innerHTML = content;
-      const plainText = tempDiv.textContent || tempDiv.innerText || '';
+      const plainText = tempDiv.textContent || tempDiv.innerText || "";
 
       // Show feedback immediately next to the button
       copiedMessageId = messageId;
@@ -35,23 +43,17 @@
       }, 2000);
 
       await navigator.clipboard.writeText(plainText);
-
-      console.log('Content copied to clipboard');
     } catch (err) {
-      console.error('Failed to copy content: ', err);
+      console.error("Failed to copy content: ", err);
       try {
-        const textArea = document.createElement('textarea');
-        textArea.value = content.replace(/<[^>]*>/g, '');
+        const textArea = document.createElement("textarea");
+        textArea.value = content.replace(/<[^>]*>/g, "");
         document.body.appendChild(textArea);
         textArea.select();
-        document.execCommand('copy');
+        document.execCommand("copy");
         document.body.removeChild(textArea);
-
-        // Feedback already shown above; keep it visible for the same duration
-
-        console.log('Content copied to clipboard (fallback)');
       } catch (fallbackErr) {
-        console.error('Fallback copy failed: ', fallbackErr);
+        console.error("Fallback copy failed: ", fallbackErr);
       }
     }
   }
@@ -69,16 +71,16 @@
         return;
       }
 
-      const tempDiv = document.createElement('div');
+      const tempDiv = document.createElement("div");
       tempDiv.innerHTML = content;
-      let plainText = tempDiv.textContent || tempDiv.innerText || '';
+      let plainText = tempDiv.textContent || tempDiv.innerText || "";
 
       if (!plainText.trim()) {
-        console.warn('No text content to speak');
+        console.warn("No text content to speak");
         return;
       }
 
-      plainText = plainText.replace(/[*#]/g, ' ');
+      plainText = plainText.replace(/[*#]/g, " ");
 
       const utterance = new SpeechSynthesisUtterance(plainText);
 
@@ -89,15 +91,13 @@
       };
 
       utterance.onerror = (event) => {
-        console.error('Speech synthesis error:', event.error);
+        console.error("Speech synthesis error:", event.error);
         speakingMessageId = null;
       };
 
       window.speechSynthesis.speak(utterance);
-
-      console.log('Started speaking message');
     } catch (err) {
-      console.error('Failed to speak message:', err);
+      console.error("Failed to speak message:", err);
       speakingMessageId = null;
     }
   }
@@ -109,8 +109,8 @@
    */
   function renderMarkdownContent(content: string): string {
     if (!isContentSafe(content)) {
-      console.warn('Potentially unsafe content detected, using plain text');
-      return sanitizeHtml(content.replace(/\n/g, '<br>'));
+      console.warn("Potentially unsafe content detected, using plain text");
+      return sanitizeHtml(content.replace(/\n/g, "<br>"));
     }
     const formatted = formatBasicMarkdown(content);
     return sanitizeHtml(formatted);
@@ -129,9 +129,11 @@
 
   $effect(() => {
     if (!messageContainer) return;
-    messageContainer.addEventListener('scroll', handleUserScroll, { passive: true });
+    messageContainer.addEventListener("scroll", handleUserScroll, {
+      passive: true,
+    });
     return () => {
-      messageContainer?.removeEventListener('scroll', handleUserScroll);
+      messageContainer?.removeEventListener("scroll", handleUserScroll);
     };
   });
 
@@ -145,10 +147,13 @@
       if (!messageContainer) return;
       if (isStreaming && autoScroll) {
         const currentScrollHeight = messageContainer.scrollHeight;
-        if (currentScrollHeight > previousScrollHeight || previousScrollHeight === 0) {
+        if (
+          currentScrollHeight > previousScrollHeight ||
+          previousScrollHeight === 0
+        ) {
           messageContainer.scrollTo({
             top: currentScrollHeight,
-            behavior: 'smooth'
+            behavior: "smooth",
           });
           previousScrollHeight = currentScrollHeight;
         }
@@ -162,7 +167,7 @@
       if (autoScroll) {
         messageContainer.scrollTo({
           top: messageContainer.scrollHeight,
-          behavior: 'smooth'
+          behavior: "smooth",
         });
         previousScrollHeight = messageContainer.scrollHeight;
       }
@@ -200,8 +205,12 @@
             class="speaker-button"
             class:speaking={speakingMessageId === message.id}
             onclick={() => speakMessage(message.content, message.id)}
-            title={speakingMessageId === message.id ? "Stop speaking" : "Speak message"}
-            aria-label={speakingMessageId === message.id ? "Stop speaking" : "Speak message"}
+            title={speakingMessageId === message.id
+              ? "Stop speaking"
+              : "Speak message"}
+            aria-label={speakingMessageId === message.id
+              ? "Stop speaking"
+              : "Speak message"}
           >
             <SpeakerIcon />
           </button>
@@ -376,9 +385,15 @@
   }
 
   @keyframes fadeInOut {
-    0% { opacity: 1; }
-    85% { opacity: 1; }
-    100% { opacity: 0; }
+    0% {
+      opacity: 1;
+    }
+    85% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
   }
 
   :global(.message > p) {
@@ -434,7 +449,7 @@
     background-color: rgba(255, 255, 255, 0.1);
     padding: 2px 6px;
     border-radius: 4px;
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-family: "Consolas", "Monaco", "Courier New", monospace;
     font-size: 13px;
     color: #f0f0f0;
     white-space: pre-wrap;
@@ -649,8 +664,14 @@
   }
 
   @keyframes blink {
-    0%, 50% { opacity: 1; }
-    51%, 100% { opacity: 0; }
+    0%,
+    50% {
+      opacity: 1;
+    }
+    51%,
+    100% {
+      opacity: 0;
+    }
   }
 
   .message-images {

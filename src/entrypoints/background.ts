@@ -59,7 +59,6 @@ export default defineBackground(() => {
 
   if (chrome.commands && chrome.commands.onCommand) {
     chrome.commands.onCommand.addListener(async (command: string) => {
-      console.log(`Command received: ${command}`);
       if (command === 'open-floating-telescope') {
         try {
 
@@ -72,7 +71,7 @@ export default defineBackground(() => {
 
           const featureConfig = await getFeatureConfig();
           if (!featureConfig.floatingTelescopeEnabled) {
-            console.log('Floating telescope is disabled');
+            console.warn('Floating telescope is disabled');
             return;
           }
 
@@ -102,7 +101,6 @@ export default defineBackground(() => {
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    console.log(`BACKGROUND: MESSAGE`, message.type);
     if (message.type === 'OPEN_TO_SIDE_PANEL') {
       openSidePanel(message, sender);
       return true;
@@ -130,7 +128,6 @@ export default defineBackground(() => {
     }
 
     if (message.type === 'CLEAR_TELESCOPE_STATE') {
-      console.log('Background: Received CLEAR_TELESCOPE_STATE message');
 
       try {
         if (chrome.storage) {
