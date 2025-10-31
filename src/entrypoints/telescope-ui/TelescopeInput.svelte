@@ -291,6 +291,10 @@
 
   function handleClearQuoted(index: number) {
     quotedContent = quotedContent.filter((_, i) => i !== index);
+    console.log({
+      quotedContent,
+      index,
+    });
   }
 
   function resetInput() {

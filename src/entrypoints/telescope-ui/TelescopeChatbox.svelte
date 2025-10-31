@@ -13,9 +13,6 @@
     onClose,
     isStreaming = false,
     streamingMessageId = null,
-    inputValue = "",
-    inputImageAttached = [],
-    currentState = "ask",
     onDragStart,
     isInSidePanel = false,
   }: ChatboxProps = $props();
@@ -29,13 +26,6 @@
       onClose?.();
     }
   }
-
-  $effect(() => {
-    isInSidePanel =
-      window.location.pathname.includes("sidepanel") ||
-      window.location.href.includes("sidepanel") ||
-      document.title.includes("Side Panel");
-  });
 
   function handleDragKeyDown(event: KeyboardEvent) {
     if (event.key === "Enter" || event.key === " ") {

@@ -29,19 +29,6 @@
     onStop,
     onDragStart,
   }: InputProps = $props();
-
-  $effect(() => {
-    // if ((messages ?? []).length > 0) {
-    //   inputState = "chat";
-    //   return;
-    // }
-    // if (
-    //   (inputValue ?? "").includes("\n") ||
-    //   (inputImageAttached ?? []).length > 0
-    // ) {
-    //   inputState = "ask";
-    // }
-  });
 </script>
 
 <TelescopeChatBox
@@ -69,7 +56,7 @@
       hasChatBox={(messages ?? []).length > 0}
       bind:inputImageAttached
       {isStreaming}
-      {quotedContent}
+      bind:quotedContent
       {onInput}
       {onStateChange}
       {onAsk}
