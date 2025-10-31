@@ -1,6 +1,8 @@
 /*@ts-ignore */
 import App from './telescope-ui/App.svelte';
 /*@ts-ignore */
+import VoiceInputModal from './telescope-ui/VoiceInputModal.svelte';
+/*@ts-ignore */
 import SelectionPopupContainer from './selection-popup/SelectionPopupContainer.svelte';
 /*@ts-ignore */
 import WriterAssistant from './writer-popup/WriterAssistant.svelte';
@@ -12,6 +14,7 @@ import { sidePanelUtils } from '../lib/sidePanelStore';
 import type { SelectionAction } from './selection-popup/types';
 import { globalStorage } from '@/lib/globalStorage';
 import { getFeatureConfig } from '../lib/featureConfig';
+import { DB_SCHEMA } from '../lib/dbSchema';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -23,6 +26,7 @@ export default defineContentScript({
     globalStorage().onBoard();
     let selectionPopupUI: any = null;
     let writerAssistantUI: any = null;
+    let voiceModalUI: any = null;
 
     const createUI = async () => {
       if (ui) return ui;
@@ -97,6 +101,56 @@ export default defineContentScript({
         return selectionPopupUI;
       } catch (error) {
         console.error('Failed to create selection popup UI:', error);
+        throw error;
+      }
+    };
+
+    // Lightweight host to show only VoiceInputModal without the full floating UI
+    const createVoiceModalUI = async () => {
+      if (voiceModalUI) return voiceModalUI;
+
+      try {
+        voiceModalUI = await createShadowRootUi(ctx, {
+          position: 'inline',
+          name: 'voice-modal-ui',
+          anchor: 'body',
+          onMount: (container) => {
+            container.style.position = 'fixed';
+            container.style.top = '0';
+            container.style.left = '0';
+            container.style.right = '0';
+            container.style.bottom = '0';
+            container.style.zIndex = '100000';
+
+            const app = mount(VoiceInputModal, {
+              target: container,
+              props: {
+                isOpen: true,
+                onClose: () => {
+                  // Close and unmount only the modal host
+                  try {
+                    voiceModalUI?.remove();
+                  } catch {}
+                  voiceModalUI = null;
+                },
+                onTranscribe: (text: string) => {
+                  // Forward voice result to sidepanel via storage only
+                  globalStorage().set('voice_result', { text, ts: Date.now() });
+                },
+              },
+            });
+
+            return app;
+          },
+          onRemove: (app) => {
+            unmount(app as any);
+            voiceModalUI = null;
+          },
+        });
+
+        return voiceModalUI;
+      } catch (error) {
+        console.error('Failed to create voice modal UI:', error);
         throw error;
       }
     };
@@ -456,39 +510,39 @@ export default defineContentScript({
       }
     }
 
-  async function hasKeyboardShortcut(): Promise<boolean> {
-    const config = await globalStorage().get('config');
-    if (
-      config &&
-      typeof config === 'object' &&
-      config.assignedTelescopeCommand
-    ) {
-      return true;
+    async function hasKeyboardShortcut(): Promise<boolean> {
+      const config = await globalStorage().get('config');
+      if (
+        config &&
+        typeof config === 'object' &&
+        config.assignedTelescopeCommand
+      ) {
+        return true;
+      }
+      return false;
     }
-    return false;
-  }
 
-  const handleKeyDown = async (event: KeyboardEvent) => {
-    if (event.key === 'Escape' && isVisible && ui) {
-      event.preventDefault();
-      console.log('Closing telescope from Escape key...');
-      ui.remove();
-      isVisible = false;
-      ui = null;
-      return;
-    }
-    const hasShortcut = await hasKeyboardShortcut();
-    console.log('hasShortcut', hasShortcut);
-    if (!hasShortcut) {
-      event.preventDefault();
-      const isCtrlOrCmd = event.ctrlKey || event.metaKey;
-      const isEKey = event.key === 'y' || event.key === 'Y';
-      if (isCtrlOrCmd && isEKey) {
-        void toggleTelescope();
+    const handleKeyDown = async (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isVisible && ui) {
+        event.preventDefault();
+        console.log('Closing telescope from Escape key...');
+        ui.remove();
+        isVisible = false;
+        ui = null;
         return;
       }
-    }
-  };
+      const hasShortcut = await hasKeyboardShortcut();
+      console.log('hasShortcut', hasShortcut);
+      if (!hasShortcut) {
+        event.preventDefault();
+        const isCtrlOrCmd = event.ctrlKey || event.metaKey;
+        const isEKey = event.key === 'y' || event.key === 'Y';
+        if (isCtrlOrCmd && isEKey) {
+          void toggleTelescope();
+          return;
+        }
+      }
+    };
 
     document.addEventListener('keydown', handleKeyDown);
 
@@ -573,6 +627,34 @@ ${document.body.textContent || 'No content available'}`,
 
     chrome.runtime.onMessage.addListener(handleMessage);
 
+    // Listen for sidepanel voice requests via storage or postMessage, and open only the modal
+    const voiceRequestKey = DB_SCHEMA.voice_request.storageKey;
+    const openVoiceModalIfRequested = async () => {
+      try {
+        const req = await globalStorage().get('voice_request');
+        if (req && (req as any).requested) {
+          await createVoiceModalUI();
+          voiceModalUI?.mount();
+          await globalStorage().delete('voice_request');
+        }
+      } catch {}
+    };
+    // @ts-ignore - DB_SCHEMA is imported in background/app, bring a loose watch here
+    try {
+      globalStorage().watch(voiceRequestKey, openVoiceModalIfRequested);
+    } catch {}
+    // Also react to direct postMessage fallback
+    const onWindowMessage = (e: MessageEvent) => {
+      const data = (e && e.data) || {};
+      if (data && data.action === 'openVoiceModalFromSidePanel') {
+        void (async () => {
+          await createVoiceModalUI();
+          voiceModalUI?.mount();
+        })();
+      }
+    };
+    window.addEventListener('message', onWindowMessage);
+
     ctx.onInvalidated(() => {
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('selectionchange', handleSelectionChange);
@@ -581,6 +663,10 @@ ${document.body.textContent || 'No content available'}`,
       document.removeEventListener('focusout', handleTextareaBlur, true);
       document.removeEventListener('click', handleTextareaClick, true);
       window.removeEventListener('telescope-close', handleTelescopeClose);
+      window.removeEventListener('message', onWindowMessage);
+      try {
+        globalStorage().unwatch();
+      } catch {}
       chrome.runtime.onMessage.removeListener(handleMessage);
 
       if (ui && isVisible) {
@@ -593,6 +679,13 @@ ${document.body.textContent || 'No content available'}`,
 
       if (writerAssistantUI) {
         writerAssistantUI.remove();
+      }
+
+      if (voiceModalUI) {
+        try {
+          voiceModalUI.remove();
+        } catch {}
+        voiceModalUI = null;
       }
 
       clearTimeout((window as any).__selectionTimeout);

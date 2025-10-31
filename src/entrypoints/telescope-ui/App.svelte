@@ -159,12 +159,8 @@ import { DB_SCHEMA } from "@/lib/dbSchema";
       if (window.parent && window.parent !== window) {
         window.parent.postMessage({ action: "openVoiceModalFromSidePanel" }, "*");
       }
-      // Ensure the page UI is mounted by asking background to open/toggle telescope on the active tab
-      try {
-        if (typeof chrome !== 'undefined' && chrome.runtime) {
-          chrome.runtime.sendMessage({ type: 'OPEN_FLOATING_TELESCOPE' });
-        }
-      } catch {}
+      // Do not open floating telescope here. A lightweight host in content script
+      // will listen for this request and render only the voice modal.
       return;
     }
     showVoiceModal = true;
