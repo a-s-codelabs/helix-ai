@@ -1,6 +1,6 @@
 {
   "name": "helix-ai",
-  "description": "AI sidebar chatbot for browsing. Select text, attach images, and chat with built-in, Gemini, or OpenAI models.",
+  "description": "Free AI Sidebar Chatbot in any site to prompt, attach images with Chrome AI.",
   "private": true,
   "version": "0.0.1",
   "type": "module",

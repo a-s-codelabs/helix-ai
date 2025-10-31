@@ -6,7 +6,7 @@ export default defineConfig({
   modules: ['@wxt-dev/module-svelte'],
   manifest: {
     name: "Helix AI",
-    description: "AI sidebar chatbot for browsing. Select text, attach images, and chat with built-in, Gemini, or OpenAI models.",
+    description: "Free AI Sidebar Chatbot in any site to prompt, attach images with Chrome AI.",
     permissions: ['storage', 'sidePanel', 'activeTab', 'contextMenus'],
     host_permissions: ['<all_urls>'],
     icons: {
