@@ -501,6 +501,26 @@ function createChatStore() {
     return { provider: provider as Provider, model, apiKey: apiKey || undefined };
   }
 
+  async function shouldAttachPageContext(intent: 'prompt' | 'summarise' | 'translate' | 'write' | 'rewrite', userMessage?: string): Promise<boolean> {
+    if (intent === 'summarise') return true;
+    try {
+      if (typeof LanguageModel !== 'undefined') {
+        const lm = await LanguageModel.create();
+        const schema = { type: 'boolean' } as any;
+        const question = `You are determining whether the user's request for intent "${intent}" needs the current web page content. Return JSON boolean true only if the answer requires or benefits from the current page/site content. Otherwise return false.\n\nUser request:\n${(userMessage || '').slice(0, 2000)}`;
+        const result = await (lm as any).prompt(question, { responseConstraint: schema });
+        try { lm.destroy?.(); } catch { }
+        try {
+          const parsed = JSON.parse(result);
+          return !!parsed;
+        } catch { }
+      }
+    } catch { }
+    const text = (userMessage || '').toLowerCase();
+    const hints = ['this page', 'this site', 'the page', 'current page', 'on this page', 'summarize the page', 'summarise the page'];
+    return hints.some((h) => text.includes(h));
+  }
+
   return {
     subscribe,
 
@@ -560,7 +580,8 @@ function createChatStore() {
             throw new Error('Missing API key or model for selected provider');
           }
           const messages: any[] = [];
-          const sys = systemPrompt({ pageContext });
+          const attach = await shouldAttachPageContext('prompt', userMessage);
+          const sys = attach ? systemPrompt({ pageContext }) : undefined;
           if (images && images.length) {
             messages.push({ role: 'user', content: [textPart(userMessage), ...images.map((i) => imagePartFromDataURL(i))] });
           } else {
@@ -757,7 +778,8 @@ function createChatStore() {
           stream = translator!.translateStreaming(userMessage);
         } else {
           if (!apiKey || !model) throw new Error('Missing provider credentials');
-          const prompt = buildTranslatePrompt({ text: userMessage, sourceLanguage: detectedLanguage, targetLanguage });
+          const attach = await shouldAttachPageContext('translate', userMessage);
+          const prompt = buildTranslatePrompt({ text: userMessage, sourceLanguage: detectedLanguage, targetLanguage, pageContext: attach ? pageContext : undefined });
           const result = await runProviderStream({ provider, model, apiKey }, { messages: [{ role: 'user', content: prompt }] });
           stream = result.stream;
         }
@@ -857,7 +879,8 @@ function createChatStore() {
           });
         } else {
           if (!apiKey || !model) throw new Error('Missing provider credentials');
-          const prompt = buildWritePrompt({ text: userMessage, tone: writerOptions.tone as any, format: writerOptions.format as any, length: writerOptions.length as any, outputLanguage: options?.outputLanguage, pageContext });
+          const attach = await shouldAttachPageContext('write', userMessage);
+          const prompt = buildWritePrompt({ text: userMessage, tone: writerOptions.tone as any, format: writerOptions.format as any, length: writerOptions.length as any, outputLanguage: options?.outputLanguage, pageContext: attach ? pageContext : undefined });
           const result = await runProviderStream({ provider, model, apiKey }, { messages: [{ role: 'user', content: prompt }] });
           stream = result.stream;
         }
@@ -983,7 +1006,8 @@ function createChatStore() {
           });
         } else {
           if (!apiKey || !model) throw new Error('Missing provider credentials');
-          const prompt = buildRewritePrompt({ text: userMessage, tone: rewriterOptions.tone as any, format: rewriterOptions.format as any, length: rewriterOptions.length as any, outputLanguage: options?.outputLanguage });
+          const attach = await shouldAttachPageContext('rewrite', userMessage);
+          const prompt = buildRewritePrompt({ text: userMessage, tone: rewriterOptions.tone as any, format: rewriterOptions.format as any, length: rewriterOptions.length as any, outputLanguage: options?.outputLanguage, pageContext: attach ? pageContext : undefined });
           const result = await runProviderStream({ provider, model, apiKey }, { messages: [{ role: 'user', content: prompt }] });
           stream = result.stream;
         }
@@ -1078,7 +1102,8 @@ function createChatStore() {
           }
         } else {
           if (!apiKey || !model) throw new Error('Missing provider credentials');
-          const sys = systemPrompt({ pageContext });
+          const attach = await shouldAttachPageContext('prompt', userMessage);
+          const sys = attach ? systemPrompt({ pageContext }) : undefined;
           const contentParts: any[] = [textPart(userMessage)];
           if (images && images.length) {
             for (const img of images) contentParts.push(imagePartFromDataURL(img));

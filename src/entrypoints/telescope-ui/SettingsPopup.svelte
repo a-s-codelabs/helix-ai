@@ -1,14 +1,9 @@
 <script lang="ts">
-  import { option } from './optionType/index';
-  import CloseIcon from './icons/Close.svelte';
-  import TrashIcon from './icons/Trash.svelte';
+  import { option } from "./optionType/index";
+  import CloseIcon from "./icons/Close.svelte";
+  import TrashIcon from "./icons/Trash.svelte";
 
-  type Intent =
-    | 'prompt'
-    | 'summarise'
-    | 'translate'
-    | 'write'
-    | 'rewrite';
+  type Intent = "prompt" | "summarise" | "translate" | "write" | "rewrite";
   type IntentKey = keyof typeof option;
 
   type OptionValue = string | number;
@@ -22,7 +17,6 @@
     onSave,
     onReset,
   } = $props();
-
 
   const currentOptions = $derived(
     intent && option[intent as IntentKey] ? option[intent as IntentKey] : []
@@ -49,15 +43,15 @@
         if (opt.defaultValue !== undefined) {
           values[opt.id] = opt.defaultValue;
         } else if (
-          opt.uiType === 'dropdown' &&
+          opt.uiType === "dropdown" &&
           opt.options &&
           opt.options.length > 0
         ) {
           const firstOption = opt.options[0];
-          if (typeof firstOption === 'object' && 'value' in firstOption) {
+          if (typeof firstOption === "object" && "value" in firstOption) {
             values[opt.id] = firstOption.value;
           }
-        } else if (opt.uiType === 'slider' && opt.min !== undefined) {
+        } else if (opt.uiType === "slider" && opt.min !== undefined) {
           values[opt.id] = opt.min;
         }
       }
@@ -76,15 +70,15 @@
         if (opt.defaultValue !== undefined) {
           defaults[opt.id] = opt.defaultValue;
         } else if (
-          opt.uiType === 'dropdown' &&
+          opt.uiType === "dropdown" &&
           opt.options &&
           opt.options.length > 0
         ) {
           const firstOption = opt.options[0];
-          if (typeof firstOption === 'object' && 'value' in firstOption) {
+          if (typeof firstOption === "object" && "value" in firstOption) {
             defaults[opt.id] = firstOption.value;
           }
-        } else if (opt.uiType === 'slider' && opt.min !== undefined) {
+        } else if (opt.uiType === "slider" && opt.min !== undefined) {
           defaults[opt.id] = opt.min;
         }
       }
@@ -132,93 +126,92 @@
   }
 
   function getCurrentValue(optionId: string): OptionValue {
-    return values[optionId] ?? '';
+    return values[optionId] ?? "";
   }
 </script>
 
 {#if intent}
   {#if currentOptions.length > 0}
     <div class="settings-popup" role="dialog" aria-label="Settings">
-    <div class="settings-header">
-      <h3 class="settings-title">Settings</h3>
-      <div class="header-buttons">
-        <button
-          class="trash-button"
-          onclick={handleReset}
-          title="Reset to defaults"
-          aria-label="Reset to defaults"
-        >
-          <TrashIcon />
-        </button>
-        <button
-          class="close-button"
-          onclick={onClose}
-          title="Close settings"
-          aria-label="Close settings"
-        >
-          <CloseIcon />
-        </button>
+      <div class="settings-header">
+        <h3 class="settings-title">Settings</h3>
+        <div class="header-buttons">
+          <button
+            class="trash-button"
+            onclick={handleReset}
+            title="Reset to defaults"
+            aria-label="Reset to defaults"
+          >
+            <TrashIcon />
+          </button>
+          <button
+            class="close-button"
+            onclick={onClose}
+            title="Close settings"
+            aria-label="Close settings"
+          >
+            <CloseIcon />
+          </button>
+        </div>
       </div>
-    </div>
 
-    <div class="settings-content">
-      {#each currentOptions as opt (opt.id || opt.name)}
-        {#if opt.id && opt.name}
-          <div class="settings-option">
-            {#if opt.uiType === 'dropdown' && opt.options}
-              <label class="option-label" for={opt.id}>
-                {opt.name}
-              </label>
-              <select
-                id={opt.id}
-                class="option-dropdown"
-                value={String(getCurrentValue(opt.id))}
-                onchange={(e) => {
-                  if (!opt.id) return;
-                  const target = e.currentTarget;
-                  const selectedValue = opt.options?.find(
-                    (o) => String(o.value) === target.value
-                  )?.value;
-                  if (selectedValue !== undefined) {
-                    handleDropdownChange(opt.id, selectedValue);
-                  }
-                }}
-              >
-                {#each opt.options as optionItem}
-                  <option value={String(optionItem.value)}>
-                    {optionItem.label}
-                  </option>
-                {/each}
-              </select>
-            {/if}
-
-            {#if opt.uiType === 'slider'}
-              <div class="slider-container">
+      <div class="settings-content">
+        {#each currentOptions as opt (opt.id || opt.name)}
+          {#if opt.id && opt.name}
+            <div class="settings-option">
+              {#if opt.uiType === "dropdown" && opt.options}
                 <label class="option-label" for={opt.id}>
                   {opt.name}
-                  <span class="slider-value">{getCurrentValue(opt.id)}</span>
                 </label>
-                <input
-                  type="range"
+                <select
                   id={opt.id}
-                  class="option-slider"
-                  min={opt.min ?? 0}
-                  max={opt.max ?? 100}
-                  step={opt.step ??
-                    (opt.max && opt.min ? (opt.max - opt.min) / 100 : 1)}
-                  value={Number(getCurrentValue(opt.id))}
-                  oninput={(e) => {
+                  class="option-dropdown"
+                  value={String(getCurrentValue(opt.id))}
+                  onchange={(e) => {
                     if (!opt.id) return;
-                    handleSliderChange(opt.id, Number(e.currentTarget.value));
+                    const target = e.currentTarget;
+                    const selectedValue = opt.options?.find(
+                      (o) => String(o.value) === target.value
+                    )?.value;
+                    if (selectedValue !== undefined) {
+                      handleDropdownChange(opt.id, selectedValue);
+                    }
                   }}
-                />
-              </div>
-            {/if}
-          </div>
-        {/if}
-      {/each}
+                >
+                  {#each opt.options as optionItem}
+                    <option value={String(optionItem.value)}>
+                      {optionItem.label}
+                    </option>
+                  {/each}
+                </select>
+              {/if}
+
+              {#if opt.uiType === "slider"}
+                <div class="slider-container">
+                  <label class="option-label" for={opt.id}>
+                    {opt.name}
+                    <span class="slider-value">{getCurrentValue(opt.id)}</span>
+                  </label>
+                  <input
+                    type="range"
+                    id={opt.id}
+                    class="option-slider"
+                    min={opt.min ?? 0}
+                    max={opt.max ?? 100}
+                    step={opt.step ?? 1}
+                    value={Number(getCurrentValue(opt.id))}
+                    oninput={(e) => {
+                      if (!opt.id) return;
+                      handleSliderChange(opt.id, Number(e.currentTarget.value));
+                    }}
+                  />
+                </div>
+              {/if}
+            </div>
+          {/if}
+        {/each}
+      </div>
     </div>
-  </div>
   {:else}
     <div class="settings-popup" role="dialog" aria-label="Settings">
       <div class="settings-header">
@@ -243,7 +236,9 @@
         </div>
       </div>
       <div class="settings-content">
-        <p style="color: #9ca3af; font-size: 14px;">No settings available for this intent.</p>
+        <p style="color: #9ca3af; font-size: 14px;">
+          No settings available for this intent.
+        </p>
       </div>
     </div>
   {/if}
@@ -320,6 +315,10 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+    height: calc(100vh - 300px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #374151 transparent;
   }
 
   /* .reset-button {
