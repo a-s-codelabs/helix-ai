@@ -40,11 +40,16 @@ export const buildTranslatePrompt = ({
   text,
   sourceLanguage = 'auto',
   targetLanguage = 'en',
+  pageContext,
 }: {
   text: string;
   sourceLanguage?: string;
   targetLanguage: string;
-}) => `Translate the following text ${sourceLanguage !== 'auto' ? `from ${sourceLanguage} ` : ''}to ${targetLanguage}. Preserve meaning and tone.\n---\n${text}`;
+  pageContext?: string;
+}) => {
+  const ctx = pageContext ? `\nUse this page context if relevant:\n${pageContext.substring(0, 1500)}` : '';
+  return `Translate the following text ${sourceLanguage !== 'auto' ? `from ${sourceLanguage} ` : ''}to ${targetLanguage}. Preserve meaning and tone.${ctx}\n---\n${text}`;
+};
 
 export const buildWritePrompt = ({
   text,
@@ -71,10 +76,15 @@ export const buildRewritePrompt = ({
   format = 'as-is',
   length = 'as-is',
   outputLanguage,
+  pageContext,
 }: {
   text: string;
   tone?: string;
   format?: string;
   length?: string;
   outputLanguage?: string;
-}) => `Rewrite the text with tone=${tone}, length=${length}, format=${format}${outputLanguage ? `, language=${outputLanguage}` : ''}. Keep original meaning.\n---\n${text}`;
+  pageContext?: string;
+}) => {
+  const ctx = pageContext ? `\nUse this page context if helpful:\n${pageContext.substring(0, 1500)}` : '';
+  return `Rewrite the text with tone=${tone}, length=${length}, format=${format}${outputLanguage ? `, language=${outputLanguage}` : ''}. Keep original meaning.${ctx}\n---\n${text}`;
+};

@@ -1,25 +1,25 @@
 <script lang="ts">
-  import MicIcon from './icons/Mic.svelte';
-  import AttachmentIcon from './icons/Attachment.svelte';
-  import SearchAiIcon from './icons/SearchAi.svelte';
-  import CloseIcon from './icons/Close.svelte';
-  import SettingsIcon from './icons/Settings.svelte';
-  import type { InputProps, State } from './type';
-  import SendIcon from './icons/Send.svelte';
-  import StopIcon from './icons/Stop.svelte';
-  import { globalStorage } from '@/lib/globalStorage';
-  import AddToChat from './icons/AddToChat.svelte';
-  import SummariseIcon from './icons/Summarise.svelte';
-  import TranslateIcon from './icons/Translate.svelte';
-  import WriterIcon from './icons/Writer.svelte';
-  import RewriterIcon from './icons/Rewriter.svelte';
-  import SettingsPopup from './SettingsPopup.svelte';
-  type Intent = 'prompt' | 'summarise' | 'translate' | 'write' | 'rewrite';
+  import MicIcon from "./icons/Mic.svelte";
+  import AttachmentIcon from "./icons/Attachment.svelte";
+  import SearchAiIcon from "./icons/SearchAi.svelte";
+  import CloseIcon from "./icons/Close.svelte";
+  import SettingsIcon from "./icons/Settings.svelte";
+  import type { InputProps, State } from "./type";
+  import SendIcon from "./icons/Send.svelte";
+  import StopIcon from "./icons/Stop.svelte";
+  import { globalStorage } from "@/lib/globalStorage";
+  import AddToChat from "./icons/AddToChat.svelte";
+  import SummariseIcon from "./icons/Summarise.svelte";
+  import TranslateIcon from "./icons/Translate.svelte";
+  import WriterIcon from "./icons/Writer.svelte";
+  import RewriterIcon from "./icons/Rewriter.svelte";
+  import SettingsPopup from "./SettingsPopup.svelte";
+  type Intent = "prompt" | "summarise" | "translate" | "write" | "rewrite";
 
   let {
-    inputState = $bindable('ask' as State),
-    inputValue = $bindable(''),
-    placeholder = 'Summarize this site...',
+    inputState = $bindable("ask" as State),
+    inputValue = $bindable(""),
+    placeholder = "Summarize this site...",
     isExpanded = false,
     quotedContent = $bindable([]),
     disabled = false,
@@ -41,7 +41,7 @@
   let isCompactAction = $state(false);
 
   let showIntentMenu = $state(false);
-  let selectedIntent = $state<Intent>('prompt');
+  let selectedIntent = $state<Intent>("prompt");
   let intentTriggerElement = $state<HTMLDivElement | null>(null);
 
   let showSettingsPopup = $state(false);
@@ -51,11 +51,11 @@
   const storage = globalStorage();
 
   const intentToPlaceholder: Record<Intent, string> = {
-    prompt: 'Ask...',
-    summarise: 'Summarize this site...',
-    translate: 'Translate this content...',
-    write: 'Write content...',
-    rewrite: 'Rewrite selected text...',
+    prompt: "Ask...",
+    summarise: "Summarize this site...",
+    translate: "Translate this content...",
+    write: "Write content...",
+    rewrite: "Rewrite selected text...",
   };
 
   const intentToIcon: Record<Intent, typeof SearchAiIcon> = {
@@ -84,7 +84,7 @@
 
   let dynamicPlaceholder = $derived(
     (() => {
-      const base = intentToPlaceholder[selectedIntent] ?? 'Ask...';
+      const base = intentToPlaceholder[selectedIntent] ?? "Ask...";
       return base;
     })()
   );
@@ -97,7 +97,7 @@
     const clickedInsideSettings =
       settingsButtonElement?.contains(target) ?? false;
     const clickedInsideSettingsPopup =
-      (event.target as HTMLElement)?.closest('.settings-popup') !== null;
+      (event.target as HTMLElement)?.closest(".settings-popup") !== null;
     if (!clickedInsideIntent && !clickedInsideBar) {
       showIntentMenu = false;
     }
@@ -131,14 +131,14 @@
     values: Record<string, string | number>;
   }) {
     try {
-      const currentSettings = (await storage.get('telescopeSettings')) || {};
+      const currentSettings = (await storage.get("telescopeSettings")) || {};
       const updatedSettings = {
         ...currentSettings,
         [intent]: values,
       };
-      await storage.set('telescopeSettings', updatedSettings);
+      await storage.set("telescopeSettings", updatedSettings);
     } catch (error) {
-      console.error('Failed to save settings:', error);
+      console.error("Failed to save settings:", error);
     }
   }
 
@@ -146,7 +146,7 @@
     if (!selectedIntent) return;
     (async () => {
       try {
-        const savedSettings = await storage.get('telescopeSettings');
+        const savedSettings = await storage.get("telescopeSettings");
         if (savedSettings && savedSettings[selectedIntent]) {
           settingsValues = {
             ...settingsValues,
@@ -156,15 +156,15 @@
           settingsValues = {};
         }
       } catch (error) {
-        console.error('Failed to load settings:', error);
+        console.error("Failed to load settings:", error);
       }
     })();
   });
 
   $effect(() => {
-    document.addEventListener('click', handleDocumentClick, true);
+    document.addEventListener("click", handleDocumentClick, true);
     return () =>
-      document.removeEventListener('click', handleDocumentClick, true);
+      document.removeEventListener("click", handleDocumentClick, true);
   });
 
   let inputElement: HTMLTextAreaElement;
@@ -173,7 +173,7 @@
   // let quotedContent = $state<string[]>([]);
   let isInputExpanded = $derived(
     inputValue.length > CHAR_EXPAND_LIMIT ||
-      inputValue.includes('\n') ||
+      inputValue.includes("\n") ||
       quotedContent.length > 0 ||
       inputImageAttached.length > 0
   );
@@ -193,10 +193,8 @@
   //   }
   // });
 
-
   $effect(() => {
     if (inputElement && !disabled) {
-
       setTimeout(() => {
         inputElement.focus();
         inputElement.select();
@@ -211,12 +209,12 @@
   }
 
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Enter' && !event.shiftKey) {
+    if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       const quotedText =
         quotedContent.length > 0
-          ? quotedContent.join('\n\n---\n\n') + '\n\n'
-          : '';
+          ? quotedContent.join("\n\n---\n\n") + "\n\n"
+          : "";
       const finalMessage = quotedText + inputValue;
       handleSendData();
       resetInput();
@@ -236,8 +234,8 @@
   function handleAsk() {
     const quotedText =
       quotedContent.length > 0
-        ? quotedContent.join('\n\n---\n\n') + '\n\n'
-        : '';
+        ? quotedContent.join("\n\n---\n\n") + "\n\n"
+        : "";
     const finalMessage = quotedText + inputValue;
     handleSendData();
     resetInput();
@@ -248,16 +246,16 @@
   }
 
   function handleAttachment() {
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = 'image/*';
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "image/*";
     fileInput.multiple = true;
 
     fileInput.onchange = (event) => {
       const files = (event.target as HTMLInputElement).files;
       if (files && files.length > 0) {
         Array.from(files).forEach((file) => {
-          if (file.type.startsWith('image/')) {
+          if (file.type.startsWith("image/")) {
             const reader = new FileReader();
             reader.onload = (e) => {
               const result = e.target?.result as string;
@@ -277,7 +275,7 @@
   }
 
   function handleClose() {
-    onStateChange?.({ state: 'ask' });
+    onStateChange?.({ state: "ask" });
     resetInput();
     onClear?.();
     onClose?.();
@@ -296,8 +294,8 @@
   }
 
   function resetInput() {
-    inputValue = '';
-    inputElement.value = '';
+    inputValue = "";
+    inputElement.value = "";
     inputImageAttached = [];
     quotedContent = [];
   }
@@ -370,10 +368,16 @@
           aria-haspopup="menu"
           aria-expanded={showIntentMenu}
           onkeydown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
               showIntentMenu = !showIntentMenu;
             }
+          }}
+          onkeyup={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
           }}
         >
           <CurrentIntentIcon />
@@ -384,9 +388,9 @@
                   ? 'active'
                   : ''}"
                 role="menuitemradio"
-                aria-checked={selectedIntent === 'prompt'}
+                aria-checked={selectedIntent === "prompt"}
                 onclick={() => {
-                  selectedIntent = 'prompt';
+                  selectedIntent = "prompt";
                   showIntentMenu = false;
                 }}
               >
@@ -398,9 +402,9 @@
                   ? 'active'
                   : ''}"
                 role="menuitemradio"
-                aria-checked={selectedIntent === 'summarise'}
+                aria-checked={selectedIntent === "summarise"}
                 onclick={() => {
-                  selectedIntent = 'summarise';
+                  selectedIntent = "summarise";
                   showIntentMenu = false;
                 }}
               >
@@ -412,9 +416,9 @@
                   ? 'active'
                   : ''}"
                 role="menuitemradio"
-                aria-checked={selectedIntent === 'translate'}
+                aria-checked={selectedIntent === "translate"}
                 onclick={() => {
-                  selectedIntent = 'translate';
+                  selectedIntent = "translate";
                   showIntentMenu = false;
                 }}
               >
@@ -424,9 +428,9 @@
               <button
                 class="intent-item {selectedIntent === 'write' ? 'active' : ''}"
                 role="menuitemradio"
-                aria-checked={selectedIntent === 'write'}
+                aria-checked={selectedIntent === "write"}
                 onclick={() => {
-                  selectedIntent = 'write';
+                  selectedIntent = "write";
                   showIntentMenu = false;
                 }}
               >
@@ -440,9 +444,9 @@
                   ? 'active'
                   : ''}"
                 role="menuitemradio"
-                aria-checked={selectedIntent === 'rewrite'}
+                aria-checked={selectedIntent === "rewrite"}
                 onclick={() => {
-                  selectedIntent = 'rewrite';
+                  selectedIntent = "rewrite";
                   showIntentMenu = false;
                 }}
               >
@@ -516,13 +520,13 @@
           </button>
         </div>
 
-        {#if inputState === 'ask'}
+        {#if inputState === "ask"}
           <div class="ask-button-container">
             <button
               class="ask-button"
               class:streaming={isStreaming}
               onclick={isStreaming ? handleStop : handleAsk}
-              aria-label={isStreaming ? 'Stop streaming' : 'Send message'}
+              aria-label={isStreaming ? "Stop streaming" : "Send message"}
             >
               {#if isStreaming}
                 <StopIcon />
@@ -543,10 +547,10 @@
           </div>
         {/if}
 
-        {#if inputState === 'chat'}
+        {#if inputState === "chat"}
           <button
             class="send-button"
-            aria-label={isStreaming ? 'Stop streaming' : 'Send message'}
+            aria-label={isStreaming ? "Stop streaming" : "Send message"}
             onclick={isStreaming ? handleStop : handleAsk}
           >
             {#if isStreaming}
@@ -577,9 +581,9 @@
                     ? 'active'
                     : ''}"
                   role="menuitemradio"
-                  aria-checked={selectedIntent === 'prompt'}
+                  aria-checked={selectedIntent === "prompt"}
                   onclick={() => {
-                    selectedIntent = 'prompt';
+                    selectedIntent = "prompt";
                     showIntentMenu = false;
                   }}
                 >
@@ -591,9 +595,9 @@
                     ? 'active'
                     : ''}"
                   role="menuitemradio"
-                  aria-checked={selectedIntent === 'summarise'}
+                  aria-checked={selectedIntent === "summarise"}
                   onclick={() => {
-                    selectedIntent = 'summarise';
+                    selectedIntent = "summarise";
                     showIntentMenu = false;
                   }}
                 >
@@ -605,9 +609,9 @@
                     ? 'active'
                     : ''}"
                   role="menuitemradio"
-                  aria-checked={selectedIntent === 'translate'}
+                  aria-checked={selectedIntent === "translate"}
                   onclick={() => {
-                    selectedIntent = 'translate';
+                    selectedIntent = "translate";
                     showIntentMenu = false;
                   }}
                 >
@@ -619,9 +623,9 @@
                     ? 'active'
                     : ''}"
                   role="menuitemradio"
-                  aria-checked={selectedIntent === 'write'}
+                  aria-checked={selectedIntent === "write"}
                   onclick={() => {
-                    selectedIntent = 'write';
+                    selectedIntent = "write";
                     showIntentMenu = false;
                   }}
                 >
@@ -635,9 +639,9 @@
                     ? 'active'
                     : ''}"
                   role="menuitemradio"
-                  aria-checked={selectedIntent === 'rewrite'}
+                  aria-checked={selectedIntent === "rewrite"}
                   onclick={() => {
-                    selectedIntent = 'rewrite';
+                    selectedIntent = "rewrite";
                     showIntentMenu = false;
                   }}
                 >
@@ -698,13 +702,13 @@
               </button>
             </div>
 
-            {#if inputState === 'ask'}
+            {#if inputState === "ask"}
               <div class="ask-button-container">
                 <button
                   class="ask-button"
                   class:streaming={isStreaming}
                   onclick={isStreaming ? handleStop : handleAsk}
-                  aria-label={isStreaming ? 'Stop streaming' : 'Send message'}
+                  aria-label={isStreaming ? "Stop streaming" : "Send message"}
                 >
                   {#if isStreaming}
                     <StopIcon />
@@ -725,10 +729,10 @@
               </div>
             {/if}
 
-            {#if inputState === 'chat'}
+            {#if inputState === "chat"}
               <button
                 class="send-button"
-                aria-label={isStreaming ? 'Stop streaming' : 'Send message'}
+                aria-label={isStreaming ? "Stop streaming" : "Send message"}
                 onclick={isStreaming ? handleStop : handleAsk}
               >
                 {#if isStreaming}
@@ -755,7 +759,7 @@
 </div>
 
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
+  @import url("https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap");
 
   textarea {
     field-sizing: content;
@@ -767,7 +771,12 @@
     margin: 0 auto;
     margin-bottom: 20px;
     transition: all 0.3s ease;
-    font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    font-family:
+      "Sora",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
       sans-serif;
   }
 
@@ -1078,7 +1087,9 @@
     position: relative;
     padding: 6px;
     border-radius: 50%;
-    transition: background 0.2s ease, color 0.2s ease;
+    transition:
+      background 0.2s ease,
+      color 0.2s ease;
   }
   .intent-trigger:hover {
     background: #404040;
@@ -1162,7 +1173,7 @@
     min-height: 24px;
     max-height: 240px;
     line-height: 1.4;
-    font-family: 'Sora', inherit;
+    font-family: "Sora", inherit;
     resize: none;
     overflow: auto;
     overscroll-behavior: none;
