@@ -108,6 +108,20 @@ export default defineBackground(() => {
       return true;
     }
 
+    if (message.type === 'OPEN_FLOATING_TELESCOPE') {
+      // Forward to active tab to ensure the content script mounts the floating UI
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const activeTab = tabs[0];
+        if (activeTab?.id) {
+          chrome.tabs.sendMessage(activeTab.id, { action: 'openTelescope' });
+          sendResponse({ success: true });
+        } else {
+          sendResponse({ success: false, error: 'No active tab' });
+        }
+      });
+      return true;
+    }
+
     if (message.type === 'OPEN_SHORTCUTS_PAGE') {
       chrome.tabs.create(
         { url: 'chrome://extensions/shortcuts' },

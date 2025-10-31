@@ -2,11 +2,13 @@
   import Telescope from "./Telescope.svelte";
   import { chatStore } from "@/lib/chatStore";
   import { sidePanelUtils, sidePanelStore } from "@/lib/sidePanelStore";
-  import { globalStorage } from "@/lib/globalStorage";
+import { globalStorage } from "@/lib/globalStorage";
+import { DB_SCHEMA } from "@/lib/dbSchema";
   import type { Message, State } from "./type";
   import TelescopeSidepanelHeader from "./TelescopeSidepanelHeader.svelte";
   import { handleAskHelper } from "./handleAsk";
   import type { AskOptions } from "./handleAsk";
+  import VoiceInputModal from "./VoiceInputModal.svelte";
 
   let currentState: State = $state("ask");
   let inputValue = $state("");
@@ -16,6 +18,7 @@
   let isStreaming = $state(false);
   let streamingMessageId = $state<number | null>(null);
   let quotedContent = $state<string[]>([]);
+  let showVoiceModal = $state(false);
 
   let { isInSidePanel }: { isInSidePanel: boolean } = $props();
   $effect(() => {
@@ -86,10 +89,37 @@
 
   $effect(() => {
     if (isInSidePanel) {
-      globalStorage().watch(
-        globalStorage().ACTION_STATE_EVENT,
-        updateStateFromStorage
-      );
+      globalStorage().watch(globalStorage().ACTION_STATE_EVENT, updateStateFromStorage);
+      // Watch for voice transcription results saved by the page instance
+      const voiceKey = DB_SCHEMA.voice_result.storageKey;
+      const handleVoiceResult = async () => {
+        const res = await globalStorage().get("voice_result");
+        if (res && typeof (res as any).text === "string" && (res as any).text.trim()) {
+          await globalStorage().delete("voice_result");
+          handleAsk({ value: (res as any).text, images: [] });
+        }
+      };
+      globalStorage().watch(voiceKey, handleVoiceResult);
+      return () => {
+        globalStorage().unwatch();
+      };
+    }
+  });
+
+  // In page context, watch for side panel's voice open requests and open the modal
+  $effect(() => {
+    if (!isInSidePanel) {
+      const requestKey = DB_SCHEMA.voice_request.storageKey;
+      const openIfRequested = async () => {
+        const req = await globalStorage().get("voice_request");
+        if (req && (req as any).requested) {
+          showVoiceModal = true;
+          await globalStorage().delete("voice_request");
+        }
+      };
+      globalStorage().watch(requestKey, openIfRequested);
+      // Check immediately in case request happened before mount
+      openIfRequested();
       return () => {
         globalStorage().unwatch();
       };
@@ -121,6 +151,36 @@
 
   function handleVoiceInput() {
     console.log("Voice input clicked");
+    if (isInSidePanel) {
+      // Request page instance to open voice modal via storage (reliable across contexts)
+      globalStorage().set("voice_request", { requested: true, ts: Date.now() });
+      // Also try postMessage as a best-effort fallback
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ action: "openVoiceModalFromSidePanel" }, "*");
+      }
+      // Ensure the page UI is mounted by asking background to open/toggle telescope on the active tab
+      try {
+        if (typeof chrome !== 'undefined' && chrome.runtime) {
+          chrome.runtime.sendMessage({ type: 'OPEN_FLOATING_TELESCOPE' });
+        }
+      } catch {}
+      return;
+    }
+    showVoiceModal = true;
+  }
+
+  function handleVoiceModalClose() {
+    showVoiceModal = false;
+  }
+
+  function handleVoiceTranscribe(text: string) {
+    console.log("Voice transcribed:", text);
+    // Send the transcribed text to chat in this context
+    handleAsk({ value: text, images: [] });
+    // If we're on the main page (not side panel), persist for the side panel to consume
+    if (!isInSidePanel) {
+      globalStorage().set("voice_result", { text, ts: Date.now() });
+    }
   }
 
   function handleAttachment() {
@@ -210,7 +270,12 @@
   });
 
   function handleMessage(event: MessageEvent) {
-    console.log({ event });
+    const data = (event && event.data) || {};
+    // From side panel: request to open the voice modal centered on the page
+    if (!isInSidePanel && data.action === "openVoiceModalFromSidePanel") {
+      showVoiceModal = true;
+      return;
+    }
   }
 </script>
 
@@ -237,7 +302,7 @@
       onStateChange={handleStateChange}
       onInput={handleInput}
       onAsk={({ value, images, settings, intent }) =>
-        handleAsk({ value, images, settings, intent: intent as any })}
+        handleAsk({ value, images, settings, intent })}
       onVoiceInput={handleVoiceInput}
       onAttachment={handleAttachment}
       onSuggestedQuestion={handleSuggestedQuestion}
@@ -247,6 +312,12 @@
     />
   </div>
 {/if}
+
+<VoiceInputModal
+  isOpen={showVoiceModal}
+  onClose={handleVoiceModalClose}
+  onTranscribe={handleVoiceTranscribe}
+/>
 
 <style>
   .telescope-container {

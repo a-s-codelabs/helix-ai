@@ -24,10 +24,9 @@ export const DB_SCHEMA = {
       maxTemperature: 1.0 as number | undefined,
       floatingTelescopeEnabled: true,
       selectionTelescopeEnabled: true,
-      assignedTelescopeCommand: undefined as boolean | undefined
-      ,
+      assignedTelescopeCommand: undefined as boolean | undefined,
       aiProvider: 'builtin' as 'builtin' | 'openai' | 'anthropic' | 'gemini',
-      aiModel: '' as string | undefined
+      aiModel: '' as string | undefined,
     },
   },
   tabIds: {
@@ -76,20 +75,20 @@ export const DB_SCHEMA = {
       // isStreaming: boolean;
       // streamingId: number | null;
     } & (
-        | {
+      | {
           actionSource: 'addToChat';
           content: string;
         }
-        | {
+      | {
           actionSource: 'summarise';
           content: string;
         }
-        | {
+      | {
           actionSource: 'translate';
           content: string;
           targetLanguage: string | null;
         }
-        | {
+      | {
           actionSource: 'input-options';
           messages: {
             id: number;
@@ -100,14 +99,14 @@ export const DB_SCHEMA = {
             actionSource: InputIntent;
           }[];
         }
-        | {
+      | {
           actionSource: 'popup';
         }
-        | {
+      | {
           actionSource: 'context-image';
           content: string;
         }
-      ),
+    ),
   },
   telescopeSettings: {
     storageKey: 'local:global:telescopeSettings' as const,
@@ -131,6 +130,20 @@ export const DB_SCHEMA = {
       },
       // stored salt for key derivation
       kdfSalt: null as null | string,
+    },
+  },
+  voice_result: {
+    storageKey: 'local:global:voice_result' as const,
+    default: {
+      text: '' as string,
+      ts: 0 as number,
+    },
+  },
+  voice_request: {
+    storageKey: 'local:global:voice_request' as const,
+    default: {
+      requested: false as boolean,
+      ts: 0 as number,
     },
   },
 };
