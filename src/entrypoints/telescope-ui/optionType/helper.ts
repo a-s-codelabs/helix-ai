@@ -34,36 +34,36 @@ export const translateOption = [
 ] as const;
 
 export const defaultOption = [
-  {
-    uiType: 'dropdown',
-    name: 'AI Platform',
-    id: 'aiPlatform',
-    options: [
-      { label: 'Built-in (Private)', value: 'builtin' },
-      { label: 'OpenAI', value: 'openai' },
-      // { label: 'Claude', value: 'anthropic' },
-      { label: 'Gemini', value: 'gemini' },
-    ],
-  },
-  {
-    uiType: 'dropdown',
-    name: 'Model',
-    id: 'aiModel',
-    options: [
-      // OpenAI
-      { label: 'OpenAI - gpt-4o', value: 'gpt-4o' },
-      { label: 'OpenAI - gpt-4o-mini', value: 'gpt-4o-mini' },
-      { label: 'OpenAI - o3-mini', value: 'o3-mini' },
-      // Anthropic
-      // { label: 'Claude - claude-3-5-sonnet-latest', value: 'claude-3-5-sonnet-latest' },
-      // { label: 'Claude - claude-3-5-haiku-latest', value: 'claude-3-5-haiku-latest' },
-      // { label: 'Claude - claude-3-opus-latest', value: 'claude-3-opus-latest' },
-      // Gemini
-      { label: 'Gemini 2.5 Pro (best quality)', value: 'gemini-2.5-pro' },
-      { label: 'Gemini 2.5 Flash (value for money)', value: 'gemini-2.5-flash' },
-      { label: 'Gemini 2.5 Flash-Lite (low cost)', value: 'gemini-2.5-flash-lite' },
-    ],
-  },
+  // {
+  //   uiType: 'dropdown',
+  //   name: 'AI Platform',
+  //   id: 'aiPlatform',
+  //   options: [
+  //     { label: 'Built-in (Private)', value: 'builtin' },
+  //     { label: 'OpenAI', value: 'openai' },
+  //     // { label: 'Claude', value: 'anthropic' },
+  //     { label: 'Gemini', value: 'gemini' },
+  //   ],
+  // },
+  // {
+  //   uiType: 'dropdown',
+  //   name: 'Model',
+  //   id: 'aiModel',
+  //   options: [
+  //     // OpenAI
+  //     { label: 'OpenAI - gpt-4o', value: 'gpt-4o' },
+  //     { label: 'OpenAI - gpt-4o-mini', value: 'gpt-4o-mini' },
+  //     { label: 'OpenAI - o3-mini', value: 'o3-mini' },
+  //     // Anthropic
+  //     // { label: 'Claude - claude-3-5-sonnet-latest', value: 'claude-3-5-sonnet-latest' },
+  //     // { label: 'Claude - claude-3-5-haiku-latest', value: 'claude-3-5-haiku-latest' },
+  //     // { label: 'Claude - claude-3-opus-latest', value: 'claude-3-opus-latest' },
+  //     // Gemini
+  //     { label: 'Gemini 2.5 Pro (best quality)', value: 'gemini-2.5-pro' },
+  //     { label: 'Gemini 2.5 Flash (value for money)', value: 'gemini-2.5-flash' },
+  //     { label: 'Gemini 2.5 Flash-Lite (low cost)', value: 'gemini-2.5-flash-lite' },
+  //   ],
+  // },
   {
     uiType: 'slider',
     name: 'Temperature',

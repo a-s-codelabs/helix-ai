@@ -111,7 +111,9 @@
 </script>
 
 <div class="sidepanel-header" class:has-chat-box={hasChatBox}>
-  <p>Telescope</p>
+  <span class="brand-name">Telescope</span>
+
+
   {#if showDownloadingDropdown}
     <div
       class="dropdown-container"
@@ -145,32 +147,32 @@
       {#if showDropdown}
         <div class="dropdown-menu">
           <div class="download-history">
-            <div class="history-header">Modal download history</div>
+            <div class="history-header">
+              <span class="history-title">Downloads</span>
+              <span class="history-sub">Recent activity</span>
+            </div>
             {#each downloadHistory as download}
               <div class="download-item">
                 <div class="download-info">
-                  <span class="download-source"
-                    >{getSourceDisplayName(download.source)}</span
-                  >
-                  <span class="download-time"
-                    >{formatTimestamp(download.createdAt)}</span
-                  >
+                  <div class="download-left">
+                    <span class="download-dot" aria-hidden="true"></span>
+                    <span class="download-source">{getSourceDisplayName(download.source)}</span>
+                  </div>
+                  <span class="download-time">{formatTimestamp(download.createdAt)}</span>
                 </div>
                 <div class="download-progress">
                   {#if download.loaded < 1}
-                    <div class="progress-bar">
+                    <div class="progress-bar is-active">
                       <div
                         class="progress-fill"
                         style="width: {download.loaded * 100}%"
                       ></div>
                     </div>
-                    <span class="progress-text"
-                      >{formatProgress(download.loaded)}</span
-                    >
+                    <span class="chip chip-info">{formatProgress(download.loaded)}</span>
                   {:else if download.loaded >= 1}
-                    <span class="completed">✓ Complete</span>
+                    <span class="chip chip-success">✓ Complete</span>
                   {:else}
-                    <span class="pending">Pending</span>
+                    <span class="chip chip-warn">Pending</span>
                   {/if}
                 </div>
               </div>
@@ -193,9 +195,43 @@
     background: transparent;
     user-select: none;
     padding: 0 0.7em;
+    height: 42px;
   }
   .sidepanel-header.has-chat-box {
     background: #131723;
+    border-bottom: 1px solid #23253a;
+    box-shadow: 0 1px 0 0 #0b0e18;
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #e5e7eb;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #0f1422, #0b1020);
+    border: 1px solid #23253a;
+    box-shadow: inset 0 1px 0 0 #1b2132; /* subtle inner */
+  }
+  .brand-icon {
+    color: #00baff;
+    display: inline-flex;
+  }
+  .brand-name {
+    font-size: 0.95rem;
+  }
+  .brand-badge {
+    font-size: 10px;
+    line-height: 1;
+    color: #00baff;
+    background: #062635;
+    border: 1px solid #0b3f57;
+    padding: 3px 6px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
   }
   .dropdown-container {
     position: relative;
@@ -230,7 +266,9 @@
     border-radius: 50%;
     animation: spin 1s linear infinite;
     pointer-events: none;
+    margin-left: -5px;
   }
+
   @keyframes spin {
     to {
       transform: rotate(360deg);
@@ -240,16 +278,17 @@
     position: absolute;
     top: 110%;
     right: 0;
-    background: #23223a;
+    background: #0e1322;
     color: #fff;
-    box-shadow: 0 2px 8px 0 #0005;
-    border-radius: 8px;
-    padding: 0.65em 1.25em;
-    min-width: 250px;
-    max-width: 300px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    border-radius: 12px;
+    padding: 0.85em 1.1em 1em 1.1em;
+    min-width: 280px;
+    max-width: 320px;
     z-index: 99;
     font-size: 0.93rem;
     margin-top: 0.2em;
+    border: 1px solid #1d2334;
   }
 
   .download-history {
@@ -259,26 +298,49 @@
   }
 
   .history-header {
-    letter-spacing: 0.12em;
-    font-weight: 600;
-    margin-bottom: 0.5em;
-    padding-bottom: 0.5em;
-    border-bottom: 1px solid #444;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 0.75em;
+    padding-bottom: 0.6em;
+    border-bottom: 1px solid #23283b;
+  }
+  .history-title {
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #e5e7eb;
+  }
+  .history-sub {
+    font-size: 12px;
+    color: #7d889a;
   }
 
   .download-item {
     display: flex;
     flex-direction: column;
-    gap: 0.25em;
-    padding: 0.5em;
-    background: #1a1a2e;
-    border-radius: 4px;
+    gap: 0.4em;
+    padding: 0.6em 0.6em 0.55em 0.6em;
+    background: linear-gradient(180deg, #0f1526, #0d1324);
+    border-radius: 10px;
+    border: 1px solid #1b2132;
   }
 
   .download-info {
     display: flex;
     justify-content: space-between;
     align-items: center;
+  }
+  .download-left {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .download-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: #00baff;
+    box-shadow: 0 0 0 2px rgba(0,186,255,0.2);
   }
 
   .download-source {
@@ -300,9 +362,23 @@
   .progress-bar {
     flex: 1;
     height: 4px;
-    background: #333;
-    border-radius: 2px;
+    background: #1a2133;
+    border-radius: 999px;
     overflow: hidden;
+    position: relative;
+  }
+  .progress-bar.is-active::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.2s linear infinite;
+    pointer-events: none;
+  }
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
   }
 
   .progress-fill {
@@ -310,24 +386,17 @@
     background: linear-gradient(90deg, #00baff, #0088cc);
     transition: width 0.3s ease;
   }
-
-  .progress-text {
-    font-size: 0.8em;
-    color: #00baff;
-    min-width: 35px;
-    text-align: right;
+  .chip {
+    font-size: 11px;
+    line-height: 1;
+    padding: 6px 8px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-weight: 600;
   }
-
-  .completed {
-    font-size: 0.8em;
-    color: #4caf50;
-    font-weight: 500;
-  }
-
-  .pending {
-    font-size: 0.8em;
-    color: #ff9800;
-  }
+  .chip-info { color: #00baff; background: #062635; border-color: #0b3f57; }
+  .chip-success { color: #4caf50; background: #083017; border-color: #1b5e20; }
+  .chip-warn { color: #ffb74d; background: #3a2608; border-color: #5d3a0c; }
 
   .no-downloads {
     text-align: center;
