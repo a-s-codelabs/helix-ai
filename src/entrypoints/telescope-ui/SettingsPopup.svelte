@@ -16,11 +16,14 @@
     onClose,
     onSave,
     onReset,
+    anchorEl,
   } = $props();
 
   const currentOptions = $derived(
     intent && option[intent as IntentKey] ? option[intent as IntentKey] : []
   );
+
+  let popupEl: HTMLDivElement | null = null;
 
   $effect(() => {
     if (!intent) return;
@@ -128,11 +131,28 @@
   function getCurrentValue(optionId: string): OptionValue {
     return values[optionId] ?? "";
   }
+
+  $effect(() => {
+    function handleDocumentMouseDown(event: MouseEvent) {
+      if (!popupEl) return;
+      const target = event.target as Node | null;
+      const clickedAnchor = anchorEl ? (anchorEl.contains(target as Node)) : false;
+      if (clickedAnchor) return;
+      if (target && !popupEl.contains(target)) {
+        onClose?.();
+      }
+    }
+
+    document.addEventListener("mousedown", handleDocumentMouseDown, true);
+    return () => {
+      document.removeEventListener("mousedown", handleDocumentMouseDown, true);
+    };
+  });
 </script>
 
 {#if intent}
   {#if currentOptions.length > 0}
-    <div class="settings-popup" role="dialog" aria-label="Settings">
+    <div class="settings-popup" role="dialog" aria-label="Settings" bind:this={popupEl}>
       <div class="settings-header">
         <h3 class="settings-title">Settings</h3>
         <div class="header-buttons">
@@ -213,7 +233,7 @@
       </div>
     </div>
   {:else}
-    <div class="settings-popup" role="dialog" aria-label="Settings">
+    <div class="settings-popup" role="dialog" aria-label="Settings" bind:this={popupEl}>
       <div class="settings-header">
         <h3 class="settings-title">Settings</h3>
         <div class="header-buttons">

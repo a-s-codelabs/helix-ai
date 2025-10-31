@@ -494,6 +494,7 @@
               onClose={handleSettingsClose}
               onSave={handleSettingsSave}
               onReset={() => {}}
+              anchorEl={settingsButtonElement}
             />
           {/if}
         </div>
@@ -676,6 +677,7 @@
                   onClose={handleSettingsClose}
                   onSave={handleSettingsSave}
                   onReset={() => {}}
+                  anchorEl={settingsButtonElement}
                 />
               {/if}
             </div>
