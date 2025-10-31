@@ -1197,13 +1197,22 @@ function createChatStore() {
 
 function getActiveTabId() {
   return new Promise<number>((resolve, reject) => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs.length > 0 && tabs[0].id) {
-        resolve(tabs[0].id);
-      } else {
-        reject(new Error("No active tab found"));
+    try {
+      if (typeof chrome === 'undefined' || !chrome.tabs || !chrome.tabs.query) {
+        // Fallback for non-extension contexts
+        resolve(0);
+        return;
       }
-    });
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs && tabs.length > 0 && tabs[0].id != null) {
+          resolve(tabs[0].id);
+        } else {
+          resolve(0);
+        }
+      });
+    } catch (e) {
+      resolve(0);
+    }
   });
 }
 

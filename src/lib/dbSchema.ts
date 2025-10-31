@@ -146,6 +146,15 @@ export const DB_SCHEMA = {
       ts: 0 as number,
     },
   },
+  voice_audio: {
+    storageKey: 'local:global:voice_audio' as const,
+    default: {
+      // store as base64 data URL string for JSON-safe persistence
+      data: '' as string,
+      mime: '' as string,
+      ts: 0 as number,
+    },
+  },
 };
 export type DBStorageKey = keyof typeof DB_SCHEMA;
 

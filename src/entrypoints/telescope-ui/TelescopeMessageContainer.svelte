@@ -17,6 +17,16 @@
   let copiedMessageId = $state<number | null>(null);
   let speakingMessageId = $state<number | null>(null);
 
+  function extractAudioDataUrl(content: string): string | null {
+    if (!content) return null;
+    // Match markdown link: [label](data:audio/...) and extract URL inside parentheses
+    const mdMatch = content.match(/\((data:audio[^)]+)\)/i);
+    if (mdMatch && mdMatch[1]) return mdMatch[1];
+    // Or raw data URL in the content
+    if (/^data:audio\//i.test(content.trim())) return content.trim();
+    return null;
+  }
+
   /**
    * Copy message content to clipboard
    * @param content - The message content to copy
@@ -188,7 +198,15 @@
             {/each}
           </div>
         {/if}
-        {@html renderMarkdownContent(message.content)}
+        {#if extractAudioDataUrl(message.content)}
+          {#key message.id}
+            <div class="audio-bubble">
+              <audio class="audio-player" controls src={extractAudioDataUrl(message.content) || undefined} preload="metadata"></audio>
+            </div>
+          {/key}
+        {:else}
+          {@html renderMarkdownContent(message.content)}
+        {/if}
         {#if isStreaming && message.id === streamingMessageId}
           <span class="streaming-cursor">|</span>
         {/if}
@@ -666,6 +684,25 @@
     border-radius: 8px;
     object-fit: cover;
     border: 1px solid #404040;
+  }
+
+  .audio-bubble {
+    display: flex;
+    align-items: center;
+    background: #4177f1;
+    border-radius: 20px;
+    padding: 8px 12px;
+    max-width: 100%;
+  }
+
+  .assistant-message .audio-bubble {
+    background: #322631;
+  }
+
+  .audio-player {
+    width: 260px;
+    max-width: 100%;
+    height: 32px;
   }
 
   :global(.sidepanel-layout) .message {

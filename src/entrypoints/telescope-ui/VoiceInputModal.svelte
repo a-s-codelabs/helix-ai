@@ -2,6 +2,8 @@
   import MicIcon from './icons/Mic.svelte';
   import CloseIcon from './icons/Close.svelte';
   import StopIcon from './icons/Stop.svelte';
+  import { globalStorage } from '../../lib/globalStorage';
+  import { chatStore } from '@/lib/chatStore';
 
   let {
     isOpen = false,
@@ -15,13 +17,15 @@
 
   let isRecording = $state(false);
   let isTranscribing = $state(false);
-  let transcribedText = $state('');
+  // let transcribedText = $state(''); // transcription removed in favor of raw audio storage
   let errorMessage = $state('');
   let permissionDenied = $state(false);
   let isWaiting = $state(false);
   let mediaRecorder = $state<MediaRecorder | null>(null);
   let audioChunks = $state<Blob[]>([]);
   let recognition = $state<any>(null);
+  let mediaStream = $state<MediaStream | null>(null);
+  let recordedBlob = $state<Blob | null>(null);
 
   async function requestMicPermission(): Promise<boolean> {
     try {
@@ -40,90 +44,103 @@
   }
 
   async function startRecording() {
-    transcribedText = '';
+    // transcribedText = '';
+    recordedBlob = null;
     errorMessage = '';
     permissionDenied = false;
     isRecording = true;
 
-    const granted = await requestMicPermission();
-    if (!granted) {
+    try {
+      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err: any) {
+      if (err && (err.name === 'NotAllowedError' || err.name === 'SecurityError')) {
+        permissionDenied = true;
+        errorMessage = '';
+      } else {
+        errorMessage = 'Unable to access microphone. Please check browser settings.';
+      }
       isRecording = false;
       return;
     }
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (SpeechRecognition) {
-      recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
-
-      recognition.onresult = (event: any) => {
-        let interimTranscript = '';
-        let finalTranscript = '';
-
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalTranscript += transcript + ' ';
-          } else {
-            interimTranscript += transcript;
-          }
-        }
-
-        if (finalTranscript) {
-          transcribedText = (transcribedText + finalTranscript).trim();
+    try {
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+        ? 'audio/webm'
+        : '';
+      mediaRecorder = new MediaRecorder(mediaStream, mimeType ? { mimeType } : undefined);
+      audioChunks = [];
+      mediaRecorder.ondataavailable = (e: BlobEvent) => {
+        if (e.data && e.data.size > 0) {
+          audioChunks = [...audioChunks, e.data];
         }
       };
-
-      recognition.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
-
-        if (event.error === 'not-allowed') {
-          permissionDenied = true;
-          errorMessage = '';
-        } else {
-          errorMessage = `Error: ${event.error}`;
-        }
-        isRecording = false;
+      mediaRecorder.onstop = () => {
+        const type = mediaRecorder?.mimeType || 'audio/webm';
+        recordedBlob = new Blob(audioChunks, { type });
+        audioChunks = [];
       };
-
-      recognition.onend = () => {
-        isRecording = false;
-      };
-
-      try {
-        recognition.start();
-      } catch (error) {
-        console.error('Failed to start speech recognition:', error);
-        errorMessage = 'Failed to start voice recording. Please check your microphone permissions.';
-        isRecording = false;
-      }
-    } else {
-      errorMessage = 'Speech recognition is not supported in this browser. Please use Chrome or Edge.';
+      mediaRecorder.start();
+    } catch (error) {
+      console.error('Failed to start media recorder:', error);
+      errorMessage = 'Failed to start voice recording.';
       isRecording = false;
+      try {
+        mediaStream?.getTracks().forEach((t) => t.stop());
+      } catch {}
+      mediaStream = null;
     }
   }
 
   function stopRecording() {
-    if (recognition) {
-      recognition.stop();
-      recognition = null;
+    // if (recognition) {
+    //   recognition.stop();
+    //   recognition = null;
+    // }
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      try {
+        mediaRecorder.stop();
+      } catch {}
     }
+    try {
+      mediaStream?.getTracks().forEach((t) => t.stop());
+    } catch {}
+    mediaStream = null;
     isRecording = false;
   }
 
-  function handleSend() {
-    if (transcribedText.trim()) {
-      onTranscribe?.(transcribedText);
+  async function handleSend() {
+    // Store recorded voice as binary in chrome storage
+    if (recordedBlob && recordedBlob.size > 0) {
+      try {
+        // Convert to base64 data URL to ensure JSON-safe storage
+        const dataUrl: string = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(String(reader.result || ''));
+          reader.onerror = (e) => reject(e);
+          reader.readAsDataURL(recordedBlob!);
+        });
+        await globalStorage().set('voice_audio', {
+          data: dataUrl,
+          mime: recordedBlob.type || 'audio/webm',
+          ts: Date.now(),
+        });
+        // Send the actual voice as a markdown link to the data URL
+        // This renders as a clickable link in chat
+        await chatStore.sendMessageStreaming(`[Voice message](${dataUrl})`);
+      } catch (e) {
+        console.error('Failed to save voice audio:', e);
+        errorMessage = 'Failed to save recorded audio.';
+        return;
+      }
       handleClose();
     }
   }
 
   function handleClose() {
     stopRecording();
-    transcribedText = '';
+    // transcribedText = '';
     errorMessage = '';
     permissionDenied = false;
     onClose?.();
@@ -132,7 +149,7 @@
   $effect(() => {
     if (!isOpen) {
       stopRecording();
-      transcribedText = '';
+      // transcribedText = '';
       errorMessage = '';
       permissionDenied = false;
       isWaiting = false;
@@ -183,7 +200,7 @@
               <MicIcon />
             </div>
             <p class="idle-text">
-              {#if transcribedText}
+              {#if recordedBlob}
                 Recording complete
               {:else}
                 Click the button below to start recording
@@ -198,15 +215,8 @@
           </div>
         {/if}
 
-        {#if transcribedText}
-          <div class="transcription-box">
-            <label>Transcription:</label>
-            <textarea
-              bind:value={transcribedText}
-              placeholder="Your transcription will appear here..."
-              rows="6"
-            ></textarea>
-          </div>
+        {#if false}
+          <!-- Transcription UI removed in favor of raw audio storage -->
         {/if}
 
         <div class="modal-actions">
@@ -222,9 +232,9 @@
             </button>
           {/if}
 
-          {#if transcribedText && !isRecording}
+          {#if recordedBlob && !isRecording}
             <button class="action-button send-button" onclick={handleSend}>
-              Send to Chat
+              Save Voice
             </button>
           {/if}
         </div>
