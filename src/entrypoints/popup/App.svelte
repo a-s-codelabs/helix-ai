@@ -231,7 +231,7 @@
   <div class="header">
     <div class="header-title">
       <HelixIcon size={24} />
-      <h1>Helix</h1>
+      <h1>Helix AI</h1>
     </div>
   </div>
 

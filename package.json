@@ -1,6 +1,6 @@
 {
   "name": "helix-ai",
-  "description": "manifest.json description",
+  "description": "AI sidebar chatbot for browsing. Select text, attach images, and chat with built-in, Gemini, or OpenAI models.",
   "private": true,
   "version": "0.0.1",
   "type": "module",
