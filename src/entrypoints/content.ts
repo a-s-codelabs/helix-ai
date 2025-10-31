@@ -398,7 +398,7 @@ export default defineContentScript({
         const writableElement = target;
         setTimeout(() => {
           if (document.activeElement === writableElement) {
-            showWriterButton(writableElement);
+            showWriterButton(writableElement as HTMLTextAreaElement | HTMLInputElement | HTMLElement);
           }
         }, 100);
       }
@@ -429,7 +429,7 @@ export default defineContentScript({
         target === currentFocusedElement
       ) {
         const writableElement = target;
-        showWriterButton(writableElement);
+        showWriterButton(writableElement as HTMLTextAreaElement | HTMLInputElement | HTMLElement);
       }
     };
 
@@ -485,7 +485,7 @@ export default defineContentScript({
       const isEKey = event.key === 'y' || event.key === 'Y';
       if (isCtrlOrCmd && isEKey) {
         void toggleTelescope();
-        return;
+        return true as boolean;
       }
     }
   };
@@ -567,7 +567,7 @@ ${document.body.textContent || 'No content available'}`,
             });
           }
         })();
-        return true;
+        return true as boolean;
       }
     };
 

@@ -230,7 +230,9 @@
     border-radius: 50%;
     animation: spin 1s linear infinite;
     pointer-events: none;
+    margin-left: -5px;
   }
+
   @keyframes spin {
     to {
       transform: rotate(360deg);
