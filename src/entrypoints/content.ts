@@ -452,7 +452,7 @@ export default defineContentScript({
         const writableElement = target;
         setTimeout(() => {
           if (document.activeElement === writableElement) {
-            showWriterButton(writableElement);
+            showWriterButton(writableElement as HTMLTextAreaElement | HTMLInputElement | HTMLElement);
           }
         }, 100);
       }
@@ -483,7 +483,7 @@ export default defineContentScript({
         target === currentFocusedElement
       ) {
         const writableElement = target;
-        showWriterButton(writableElement);
+        showWriterButton(writableElement as HTMLTextAreaElement | HTMLInputElement | HTMLElement);
       }
     };
 
@@ -567,7 +567,7 @@ export default defineContentScript({
       if (message.action === 'openTelescope') {
         console.log('Opening telescope from message...');
         void toggleTelescope();
-        return true;
+        return true as boolean;
       }
 
       if (message.type === 'EXTRACT_PAGE_CONTENT') {
@@ -621,7 +621,7 @@ ${document.body.textContent || 'No content available'}`,
             });
           }
         })();
-        return true;
+        return true as boolean;
       }
     };
 

@@ -315,7 +315,8 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
-    height: calc(100vh - 300px);
+    /* height: calc(100vh - 300px); */
+    max-height: 500px;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: #374151 transparent;

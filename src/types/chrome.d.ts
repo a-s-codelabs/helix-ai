@@ -15,14 +15,14 @@ declare namespace chrome {
           message: any,
           sender: any,
           sendResponse: (response: any) => void
-        ) => void | boolean
+        ) => void | Promise<boolean | undefined > | boolean
       ): void;
       removeListener(
         callback: (
           message: any,
           sender: any,
           sendResponse: (response: any) => void
-        ) => void | boolean
+        ) => void | Promise<boolean | undefined > | boolean
       ): void;
     };
   }
