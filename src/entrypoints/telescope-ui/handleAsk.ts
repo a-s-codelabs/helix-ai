@@ -11,20 +11,20 @@ export type AskOptions = {
 // TODO: unify naming
 export function handleAskHelper(opts: AskOptions) {
   if (opts.intent === 'prompt') {
-    chatStore.sendMessageStreaming(opts.value, opts.images);
+    chatStore.promptStreaming(opts.value, opts.images);
   } else if (opts.intent === 'summarise' || opts.intent === "summarize") {
-    chatStore.summarise(opts.value);
+    chatStore.summariseStreaming(opts.value);
   } else if (opts.intent === 'translator' || opts.intent === "translate") {
-    chatStore.translate(opts.value, opts.settings?.outputLanguage as string);
+    chatStore.translateStreaming(opts.value, opts.settings?.outputLanguage as string);
   }
   else if (opts.intent === 'write') {
-    chatStore.write(opts.value, opts.settings as WriterOptions);
+    chatStore.writeStreaming(opts.value, opts.settings as WriterOptions);
   }
   else if (opts.intent === 'rewrite') {
-    chatStore.rewrite(opts.value, opts.settings as RewriterOptions);
+    chatStore.rewriteStreaming(opts.value, opts.settings as RewriterOptions);
   }
   else {
-    chatStore.sendMessageStreaming(opts.value, opts.images);
+    chatStore.promptStreaming(opts.value, opts.images);
     console.error('Invalid intent', opts.intent);
   }
 }

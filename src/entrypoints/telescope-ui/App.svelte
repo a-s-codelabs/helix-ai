@@ -70,12 +70,15 @@
       }
 
       if (storedState.actionSource === "summarise") {
-        chatStore.summarise(storedState.content);
+        chatStore.summariseStreaming(storedState.content);
       } else if (
         storedState.actionSource === "translate" &&
         storedState.targetLanguage
       ) {
-        chatStore.translate(storedState.content, storedState.targetLanguage);
+        chatStore.translateStreaming(
+          storedState.content,
+          storedState.targetLanguage
+        );
       }
     }
   };

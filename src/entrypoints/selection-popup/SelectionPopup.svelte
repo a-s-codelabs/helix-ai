@@ -36,6 +36,7 @@
   async function handleAction(action: SelectionAction) {
     const selectedText = getSelectedText();
 
+    console.log({ action });
     chrome.runtime.sendMessage({
       type: "OPEN_TO_SIDE_PANEL",
     });
@@ -53,6 +54,8 @@
       });
       onClose?.();
       return;
+    } else {
+      console.log({ action });
     }
   }
 

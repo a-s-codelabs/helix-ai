@@ -550,77 +550,7 @@ function createChatStore() {
       pageContext = context;
     },
 
-    /**
-     * Send a message to the AI
-     */
-    async sendMessage(userMessage: string, images?: string[]) {
-      if (!userMessage.trim()) return;
-
-      const userMsg = createChatMessage('user', userMessage, images);
-
-      update((state) => ({
-        ...state,
-        messages: [...state.messages, userMsg],
-        isLoading: true,
-        error: null,
-      }));
-
-      try {
-        const { provider, model, apiKey } = await resolveProviderConfig('prompt');
-        let aiResponse: string | null = null;
-        if (provider === 'builtin') {
-          if (!session) {
-            session = await createAISession({ pageContext });
-          }
-          aiResponse = await session.prompt(userMessage);
-        } else {
-          if (!apiKey || !model) {
-            throw new Error('Missing API key or model for selected provider');
-          }
-          const messages: any[] = [];
-          const attach = await shouldAttachPageContext('prompt', userMessage);
-          const sys = attach ? systemPrompt({ pageContext }) : undefined;
-          if (images && images.length) {
-            messages.push({ role: 'user', content: [textPart(userMessage), ...images.map((i) => imagePartFromDataURL(i))] });
-          } else {
-            messages.push({ role: 'user', content: userMessage });
-          }
-          const { stream } = await runProviderStream({ provider, model, apiKey }, { system: sys, messages });
-          let text = '';
-          for await (const chunk of stream as any) {
-            text += chunk;
-          }
-          aiResponse = text;
-        }
-
-        if (!aiResponse || typeof aiResponse !== 'string') {
-          throw new Error('Invalid response from AI model');
-        }
-
-        const assistantMsg = createChatMessage('assistant', aiResponse.trim());
-
-        update((state) => ({
-          ...state,
-          messages: [...state.messages, assistantMsg],
-          isLoading: false,
-        }));
-      } catch (err) {
-        const errorMessage = getErrorMessage(err);
-        const errorMsg = createErrorMessage(err);
-
-        update((state) => ({
-          ...state,
-          messages: [...state.messages, errorMsg],
-          isLoading: false,
-          error: errorMessage,
-        }));
-
-        safeDestroySession(session);
-        session = null;
-      }
-    },
-
-    async summarise(userMessage: string) {
+    async summariseStreaming(userMessage: string) {
       if (!userMessage.trim()) return;
 
       const abortController = new AbortController();
@@ -704,7 +634,7 @@ function createChatStore() {
       }
     },
 
-    async translate(userMessage: string, targetLanguage: string) {
+    async translateStreaming(userMessage: string, targetLanguage: string) {
       if (!userMessage.trim()) return;
       const abortController = new AbortController();
       const userMsg = createChatMessage('user', userMessage);
@@ -829,7 +759,7 @@ function createChatStore() {
       }
     },
 
-    async write(userMessage: string, options?: WriterOptions) {
+    async writeStreaming(userMessage: string, options?: WriterOptions) {
       if (!userMessage.trim()) return;
 
       const abortController = new AbortController();
@@ -919,7 +849,7 @@ function createChatStore() {
       }
     },
 
-    async rewrite(userMessage: string, options?: RewriterOptions) {
+    async rewriteStreaming(userMessage: string, options?: RewriterOptions) {
       if (!userMessage.trim()) return;
 
       const abortController = new AbortController();
@@ -1045,10 +975,8 @@ function createChatStore() {
         );
       }
     },
-    async sendMessageStreaming(userMessage: string, images?: string[]) {
+    async promptStreaming(userMessage: string, images?: string[]) {
       if (!userMessage.trim()) return;
-      console.log('sendMessageStreaming', userMessage, images);
-
       const abortController = new AbortController();
       const userMsg = createChatMessage('user', userMessage, images);
       const assistantMsg = createChatMessage('assistant', '');
