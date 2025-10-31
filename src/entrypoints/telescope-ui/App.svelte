@@ -19,6 +19,7 @@ import { DB_SCHEMA } from "@/lib/dbSchema";
   let streamingMessageId = $state<number | null>(null);
   let quotedContent = $state<string[]>([]);
   let showVoiceModal = $state(false);
+  let voiceOpenedFromSidePanel = $state(false);
 
   let { isInSidePanel }: { isInSidePanel: boolean } = $props();
   $effect(() => {
@@ -171,13 +172,22 @@ import { DB_SCHEMA } from "@/lib/dbSchema";
 
   function handleVoiceModalClose() {
     showVoiceModal = false;
+    voiceOpenedFromSidePanel = false;
   }
 
   function handleVoiceTranscribe(text: string) {
     console.log("Voice transcribed:", text);
-    // Send the transcribed text to chat in this context
+    // If this voice modal was opened on the page due to a side panel request,
+    // do not post into floating UI; only forward to side panel via storage.
+    if (!isInSidePanel && voiceOpenedFromSidePanel) {
+      globalStorage().set("voice_result", { text, ts: Date.now() });
+      return;
+    }
+
+    // Normal behavior: send to current context
     handleAsk({ value: text, images: [] });
-    // If we're on the main page (not side panel), persist for the side panel to consume
+
+    // If we're on the main page (not side panel), also persist for the side panel to consume
     if (!isInSidePanel) {
       globalStorage().set("voice_result", { text, ts: Date.now() });
     }
@@ -274,6 +284,7 @@ import { DB_SCHEMA } from "@/lib/dbSchema";
     // From side panel: request to open the voice modal centered on the page
     if (!isInSidePanel && data.action === "openVoiceModalFromSidePanel") {
       showVoiceModal = true;
+      voiceOpenedFromSidePanel = true;
       return;
     }
   }

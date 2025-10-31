@@ -3,7 +3,7 @@
   import CloseIcon from './icons/Close.svelte';
   import StopIcon from './icons/Stop.svelte';
   import { globalStorage } from '../../lib/globalStorage';
-  import { chatStore } from '@/lib/chatStore';
+  // import { chatStore } from '@/lib/chatStore'; // delegated to parent via onTranscribe
 
   let {
     isOpen = false,
@@ -127,8 +127,9 @@
           ts: Date.now(),
         });
         // Send the actual voice as a markdown link to the data URL
-        // This renders as a clickable link in chat
-        await chatStore.sendMessageStreaming(`[Voice message](${dataUrl})`);
+        // This renders as a clickable link in chat. Delegated to parent so it can route
+        // to the correct context (sidepanel vs floating telescope).
+        onTranscribe?.(`[Voice message](${dataUrl})`);
       } catch (e) {
         console.error('Failed to save voice audio:', e);
         errorMessage = 'Failed to save recorded audio.';
