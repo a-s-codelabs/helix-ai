@@ -11,7 +11,7 @@
   let currentState: State = $state("ask");
   let inputValue = $state("");
   let inputImageAttached = $state<string[]>([]);
-  let isVisible = $state(false);
+  let isVisible = $state(true);
   let messages: Message[] = $state([]);
   let isStreaming = $state(false);
   let streamingMessageId = $state<number | null>(null);
@@ -47,15 +47,6 @@
     }
   });
 
-  $effect(() => {
-    isVisible = true;
-  });
-
-  $effect(() => {
-    console.log("eff", {
-      quotedContent,
-    });
-  });
   const updateStateFromStorage = async () => {
     if (!isInSidePanel) return;
     const storedState = await globalStorage().get("action_state");
@@ -71,10 +62,6 @@
       }
 
       if (storedState.actionSource === "addToChat") {
-        console.log({
-          quotedContent,
-          a: storedState.content,
-        });
         quotedContent = [...quotedContent, storedState.content];
       }
 

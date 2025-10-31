@@ -241,7 +241,6 @@
 
   .action-button:active {
     transform: scale(0.95);
-    background: rgba(59, 130, 246, 0.25);
   }
 
   .action-button:focus-visible {
