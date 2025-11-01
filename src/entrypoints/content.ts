@@ -620,7 +620,6 @@ ${document.body.textContent || 'No content available'}`,
         // }
 
         // Convert and store
-        console.log('Content: Converting and storing page markdown for tab', tabId);
         await convertAndStorePageMarkdown({ tabId, url: currentUrl });
       } catch (err) {
         console.error('Content: Error converting and storing page markdown:', err);
@@ -643,8 +642,6 @@ ${document.body.textContent || 'No content available'}`,
 
         // Only process if URL actually changed
         if (newUrl !== currentUrl) {
-          console.log('Content: URL changed from', currentUrl, 'to', newUrl);
-
           // Get tab info (tabId should remain the same for the same tab)
           const { tabId, url } = await getTabInfo();
           const updatedTabId = tabId || currentTabId;
@@ -661,7 +658,6 @@ ${document.body.textContent || 'No content available'}`,
           if (currentTabId && currentTabId === updatedTabId) {
             try {
               await clearCachedMarkdown({ tabId: currentTabId });
-              console.log('Content: Cleared old cache for tab', currentTabId);
             } catch (err) {
               console.warn('Content: Error clearing old cache:', err);
             }
@@ -671,7 +667,6 @@ ${document.body.textContent || 'No content available'}`,
           // Use the actual new URL from location, not the one from getTabInfo
           currentUrl = newUrl;
 
-          console.log('Content: Processing URL change - converting and storing markdown');
           // Convert and store new page markdown
           await convertAndStoreCurrentPageMarkdown();
         }
@@ -685,20 +680,16 @@ ${document.body.textContent || 'No content available'}`,
       const { tabId } = await getTabInfo();
       currentTabId = tabId;
       currentUrl = window.location.href;
-      console.log('Content: Initial setup - tabId:', currentTabId, 'url:', currentUrl);
       if (currentTabId) {
         await convertAndStoreCurrentPageMarkdown();
       }
     })();
 
     // Listen to URL changes
-    console.log('Content: Setting up URL change listeners');
     window.addEventListener('popstate', () => {
-      console.log('Content: popstate event fired');
       handleUrlChange();
     });
     window.addEventListener('hashchange', () => {
-      console.log('Content: hashchange event fired');
       handleUrlChange();
     });
 
@@ -708,7 +699,6 @@ ${document.body.textContent || 'No content available'}`,
 
     window.history.pushState = function (...args) {
       const result = originalPushState.apply(this, args);
-      console.log('Content: pushState called, new URL will be:', args[2] || window.location.href);
       // Use setTimeout to ensure URL is updated before checking
       setTimeout(() => {
         handleUrlChange();
@@ -718,7 +708,6 @@ ${document.body.textContent || 'No content available'}`,
 
     window.history.replaceState = function (...args) {
       const result = originalReplaceState.apply(this, args);
-      console.log('Content: replaceState called, new URL will be:', args[2] || window.location.href);
       // Use setTimeout to ensure URL is updated before checking
       setTimeout(() => {
         handleUrlChange();
@@ -732,7 +721,6 @@ ${document.body.textContent || 'No content available'}`,
       const newUrl = window.location.href;
       // Check if URL actually changed (not just a reference check)
       if (newUrl !== currentUrl) {
-        console.log('Content: Periodic check detected URL change from', currentUrl, 'to', newUrl);
         handleUrlChange();
       }
     }, 2000); // Check every 2 seconds
