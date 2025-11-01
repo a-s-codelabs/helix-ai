@@ -121,18 +121,15 @@ export default defineBackground(() => {
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    console.log("Background: onMessage", message);
     if (message.type === MESSAGE_TYPE_OPEN_TO_SIDE_PANEL) {
       openSidePanel(message, sender);
       return true;
     }
 
     if (message.type === MESSAGE_TYPE_GET_TAB_ID) {
-      console.log("Background: GET_TAB_ID request");
       (async () => {
         try {
           const { tabId, url } = await getTabId();
-          console.log("Background: GET_TAB_ID response", { tabId, url });
           sendResponse({ success: true, tabId, url });
         } catch (error) {
           console.error("Background: Error in GET_TAB_ID", error);

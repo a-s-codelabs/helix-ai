@@ -133,32 +133,61 @@
   }
 
   $effect(() => {
-    function handleDocumentMouseDown(event: MouseEvent) {
+    function handleDocumentClick(event: MouseEvent) {
       if (!popupEl) return;
+
+      // Get the event path (includes shadow DOM and all ancestors)
+      const path = event.composedPath() as Node[];
       const target = event.target as Node | null;
-      const clickedAnchor = anchorEl ? (anchorEl.contains(target as Node)) : false;
+
+      // Check if click originated from anchor element
+      const clickedAnchor = anchorEl
+        ? path.some((node) => anchorEl.contains(node as Node))
+        : false;
       if (clickedAnchor) return;
-      if (target && !popupEl.contains(target)) {
+
+      // Check if any node in the event path is inside the popup
+      const clickedInsidePopup = path.some((node) => {
+        if (node === popupEl || node === document) return true;
+        if (node instanceof Element && popupEl && popupEl.contains(node))
+          return true;
+        return false;
+      });
+
+      if (!clickedInsidePopup) {
         onClose?.();
       }
     }
 
-    document.addEventListener("mousedown", handleDocumentMouseDown, true);
+    // Use bubble phase instead of capture to let events process first
+    document.addEventListener("click", handleDocumentClick, false);
     return () => {
-      document.removeEventListener("mousedown", handleDocumentMouseDown, true);
+      document.removeEventListener("click", handleDocumentClick, false);
     };
   });
 </script>
 
 {#if intent}
   {#if currentOptions.length > 0}
-    <div class="settings-popup" role="dialog" aria-label="Settings" bind:this={popupEl}>
+    <!-- svelte-ignore a11y_interactive_supports_focus -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div
+      class="settings-popup"
+      role="dialog"
+      aria-label="Settings"
+      bind:this={popupEl}
+      onclick={(e) => e.stopPropagation()}
+      onmousedown={(e) => e.stopPropagation()}
+    >
       <div class="settings-header">
         <h3 class="settings-title">Settings</h3>
         <div class="header-buttons">
           <button
             class="trash-button"
-            onclick={handleReset}
+            onclick={(e) => {
+              e.stopPropagation();
+              handleReset();
+            }}
             title="Reset to defaults"
             aria-label="Reset to defaults"
           >
@@ -166,7 +195,10 @@
           </button>
           <button
             class="close-button"
-            onclick={onClose}
+            onclick={(e) => {
+              e.stopPropagation();
+              onClose?.();
+            }}
             title="Close settings"
             aria-label="Close settings"
           >
@@ -176,8 +208,8 @@
       </div>
 
       <div class="settings-content">
-        {#each currentOptions as opt (opt.id || opt.name)}
-          {#if opt.id && opt.name}
+        {#each currentOptions as opt (opt.id)}
+          {#if opt.id}
             <div class="settings-option">
               {#if opt.uiType === "dropdown" && opt.options}
                 <label class="option-label" for={opt.id}>
@@ -187,8 +219,11 @@
                   id={opt.id}
                   class="option-dropdown"
                   value={String(getCurrentValue(opt.id))}
+                  onclick={(e) => e.stopPropagation()}
+                  onmousedown={(e) => e.stopPropagation()}
                   onchange={(e) => {
                     if (!opt.id) return;
+                    e.stopPropagation();
                     const target = e.currentTarget;
                     const selectedValue = opt.options?.find(
                       (o) => String(o.value) === target.value
@@ -220,8 +255,11 @@
                     max={opt.max ?? 100}
                     step={opt.step ?? 1}
                     value={Number(getCurrentValue(opt.id))}
+                    onclick={(e) => e.stopPropagation()}
+                    onmousedown={(e) => e.stopPropagation()}
                     oninput={(e) => {
                       if (!opt.id) return;
+                      e.stopPropagation();
                       handleSliderChange(opt.id, Number(e.currentTarget.value));
                     }}
                   />
@@ -233,13 +271,23 @@
       </div>
     </div>
   {:else}
-    <div class="settings-popup" role="dialog" aria-label="Settings" bind:this={popupEl}>
+    <div
+      class="settings-popup"
+      role="dialog"
+      aria-label="Settings"
+      bind:this={popupEl}
+      onclick={(e) => e.stopPropagation()}
+      onmousedown={(e) => e.stopPropagation()}
+    >
       <div class="settings-header">
         <h3 class="settings-title">Settings</h3>
         <div class="header-buttons">
           <button
             class="trash-button"
-            onclick={handleReset}
+            onclick={(e) => {
+              e.stopPropagation();
+              handleReset();
+            }}
             title="Reset to defaults"
             aria-label="Reset to defaults"
           >
@@ -247,7 +295,10 @@
           </button>
           <button
             class="close-button"
-            onclick={onClose}
+            onclick={(e) => {
+              e.stopPropagation();
+              onClose?.();
+            }}
             title="Close settings"
             aria-label="Close settings"
           >

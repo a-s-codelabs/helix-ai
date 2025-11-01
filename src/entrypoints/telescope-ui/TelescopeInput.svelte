@@ -43,6 +43,8 @@
   let showIntentMenu = $state(false);
   let selectedIntent = $state<Intent>("prompt");
   let intentTriggerElement = $state<HTMLDivElement | null>(null);
+  let intentMenuElement = $state<HTMLDivElement | null>(null);
+  let menuJustOpened = $state(false);
 
   let showSettingsPopup = $state(false);
   let settingsButtonElement = $state<HTMLButtonElement | null>(null);
@@ -90,15 +92,24 @@
   );
 
   function handleDocumentClick(event: MouseEvent) {
+    if (!showIntentMenu) return;
+    // Ignore clicks immediately after opening the menu
+    if (menuJustOpened) return;
     const target = event.target as Node | null;
     if (!target) return;
     const clickedInsideIntent = intentTriggerElement?.contains(target) ?? false;
     const clickedInsideBar = inputBarElement?.contains(target) ?? false;
+    const clickedInsideMenu = intentMenuElement?.contains(target) ?? false;
     const clickedInsideSettings =
       settingsButtonElement?.contains(target) ?? false;
     const clickedInsideSettingsPopup =
-      (event.target as HTMLElement)?.closest(".settings-popup") !== null;
-    if (!clickedInsideIntent && !clickedInsideBar) {
+      (event.target as HTMLElement)?.closest(".search-icon") !== null;
+    if (
+      !clickedInsideIntent &&
+      !clickedInsideBar &&
+      !clickedInsideMenu &&
+      !clickedInsideSettingsPopup
+    ) {
       showIntentMenu = false;
     }
   }
@@ -162,9 +173,15 @@
   });
 
   $effect(() => {
-    document.addEventListener("click", handleDocumentClick, true);
-    return () =>
-      document.removeEventListener("click", handleDocumentClick, true);
+    // Use setTimeout to allow button click handlers to process first
+    function handleClick(event: MouseEvent) {
+      // Delay to allow intent button clicks to process first
+      setTimeout(() => {
+        handleDocumentClick(event);
+      }, 0);
+    }
+    document.addEventListener("click", handleClick, false);
+    return () => document.removeEventListener("click", handleClick, false);
   });
 
   let inputElement: HTMLTextAreaElement;
@@ -366,7 +383,19 @@
         <div
           class="icon search-icon intent-trigger"
           bind:this={intentTriggerElement}
-          onclick={() => (showIntentMenu = !showIntentMenu)}
+          onclick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const willOpen = !showIntentMenu;
+            showIntentMenu = !showIntentMenu;
+            if (willOpen) {
+              menuJustOpened = true;
+              // Allow document clicks after a brief delay
+              setTimeout(() => {
+                menuJustOpened = false;
+              }, 100);
+            }
+          }}
           role="button"
           tabindex="0"
           aria-haspopup="menu"
@@ -391,14 +420,15 @@
         >
           <CurrentIntentIcon />
           {#if showIntentMenu}
-            <div class="intent-menu" role="menu">
+            <div class="intent-menu" role="menu" bind:this={intentMenuElement}>
               <button
                 class="intent-item {selectedIntent === 'prompt'
                   ? 'active'
                   : ''}"
                 role="menuitemradio"
                 aria-checked={selectedIntent === "prompt"}
-                onclick={() => {
+                onclick={(e) => {
+                  e.stopPropagation();
                   selectedIntent = "prompt";
                   showIntentMenu = false;
                 }}
@@ -412,7 +442,8 @@
                   : ''}"
                 role="menuitemradio"
                 aria-checked={selectedIntent === "summarise"}
-                onclick={() => {
+                onclick={(e) => {
+                  e.stopPropagation();
                   selectedIntent = "summarise";
                   showIntentMenu = false;
                 }}
@@ -426,7 +457,8 @@
                   : ''}"
                 role="menuitemradio"
                 aria-checked={selectedIntent === "translate"}
-                onclick={() => {
+                onclick={(e) => {
+                  e.stopPropagation();
                   selectedIntent = "translate";
                   showIntentMenu = false;
                 }}
@@ -438,7 +470,8 @@
                 class="intent-item {selectedIntent === 'write' ? 'active' : ''}"
                 role="menuitemradio"
                 aria-checked={selectedIntent === "write"}
-                onclick={() => {
+                onclick={(e) => {
+                  e.stopPropagation();
                   selectedIntent = "write";
                   showIntentMenu = false;
                 }}
@@ -454,7 +487,8 @@
                   : ''}"
                 role="menuitemradio"
                 aria-checked={selectedIntent === "rewrite"}
-                onclick={() => {
+                onclick={(e) => {
+                  e.stopPropagation();
                   selectedIntent = "rewrite";
                   showIntentMenu = false;
                 }}
@@ -579,22 +613,46 @@
           <div
             class="icon search-icon intent-trigger"
             bind:this={intentTriggerElement}
-            onclick={() => (showIntentMenu = !showIntentMenu)}
             role="button"
             tabindex="0"
             aria-haspopup="menu"
             aria-expanded={showIntentMenu}
           >
-            <CurrentIntentIcon />
+            <div
+              role="button"
+              tabindex="0"
+              aria-haspopup="menu"
+              aria-expanded={showIntentMenu}
+              onclick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const willOpen = !showIntentMenu;
+                showIntentMenu = !showIntentMenu;
+                if (willOpen) {
+                  menuJustOpened = true;
+                  // Allow document clicks after a brief delay
+                  setTimeout(() => {
+                    menuJustOpened = false;
+                  }, 100);
+                }
+              }}
+            >
+              <CurrentIntentIcon />
+            </div>
             {#if showIntentMenu}
-              <div class="intent-menu" role="menu">
+              <div
+                class="intent-menu"
+                role="menu"
+                bind:this={intentMenuElement}
+              >
                 <button
                   class="intent-item {selectedIntent === 'prompt'
                     ? 'active'
                     : ''}"
                   role="menuitemradio"
                   aria-checked={selectedIntent === "prompt"}
-                  onclick={() => {
+                  onclick={(e) => {
+                    e.stopPropagation();
                     selectedIntent = "prompt";
                     showIntentMenu = false;
                   }}
@@ -608,7 +666,8 @@
                     : ''}"
                   role="menuitemradio"
                   aria-checked={selectedIntent === "summarise"}
-                  onclick={() => {
+                  onclick={(e) => {
+                    e.stopPropagation();
                     selectedIntent = "summarise";
                     showIntentMenu = false;
                   }}
@@ -622,7 +681,8 @@
                     : ''}"
                   role="menuitemradio"
                   aria-checked={selectedIntent === "translate"}
-                  onclick={() => {
+                  onclick={(e) => {
+                    e.stopPropagation();
                     selectedIntent = "translate";
                     showIntentMenu = false;
                   }}
@@ -636,7 +696,8 @@
                     : ''}"
                   role="menuitemradio"
                   aria-checked={selectedIntent === "write"}
-                  onclick={() => {
+                  onclick={(e) => {
+                    e.stopPropagation();
                     selectedIntent = "write";
                     showIntentMenu = false;
                   }}
@@ -652,7 +713,8 @@
                     : ''}"
                   role="menuitemradio"
                   aria-checked={selectedIntent === "rewrite"}
-                  onclick={() => {
+                  onclick={(e) => {
+                    e.stopPropagation();
                     selectedIntent = "rewrite";
                     showIntentMenu = false;
                   }}
@@ -1061,10 +1123,10 @@
     transition: color 0.2s ease;
   }
 
-  .input-bar.input-expanded .icon {
+  /* .input-bar.input-expanded .icon {
     align-items: flex-start;
     padding-top: 2px;
-  }
+  } */
 
   .search-icon {
     color: #e5e7eb;
@@ -1078,6 +1140,13 @@
     padding: 6px;
     border-radius: 50%;
     user-select: none;
+    min-width: 24px;
+    min-height: 24px;
+    max-width: 24px;
+    max-height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center !important;
     transition:
       background 0.2s ease,
       color 0.2s ease;
