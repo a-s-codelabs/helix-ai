@@ -365,11 +365,15 @@
 {/if}
 
 <style>
+  :global(body) {
+    pointer-events: none;
+  }
   .telescope-container {
     position: relative;
     max-width: 600px;
     margin-top: 0;
     width: min-content;
+    pointer-events: all;
   }
 
   .telescope-container.draggable {
