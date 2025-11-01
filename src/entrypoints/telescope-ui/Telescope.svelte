@@ -2,11 +2,6 @@
   import TelescopeChatBox from "./TelescopeChatbox.svelte";
   import TelescopeInput from "./TelescopeInput.svelte";
   import type { InputProps } from "./type";
-  import {
-    convertAndStorePageMarkdown,
-    getCachedPageMarkdown,
-    clearCachedMarkdown,
-  } from "@/lib/chatStore/markdown-cache-helper";
 
   let {
     inputState = $bindable(),
