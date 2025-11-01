@@ -123,22 +123,17 @@
       tabindex="0"
     >
       <span class="dropdown-icon">
-        <div class="w-8 flex items-center justify-center p-[10px]">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="lucide lucide-download-icon lucide-download"
-            ><path d="M12 15V3" /><path
-              d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
-            /><path d="m7 10 5 5 5-5" /></svg
-          >
+        <div class="download-icon-circle">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <g clip-path="url(#clip0_1279_466)">
+            <path d="M8 12L3 7L4.4 5.55L7 8.15V0H9V8.15L11.6 5.55L13 7L8 12ZM2 16C1.45 16 0.979167 15.8042 0.5875 15.4125C0.195833 15.0208 0 14.55 0 14V11H2V14H14V11H16V14C16 14.55 15.8042 15.0208 15.4125 15.4125C15.0208 15.8042 14.55 16 14 16H2Z" fill="#FBFDFF"/>
+            </g>
+            <defs>
+            <clipPath id="clip0_1279_466">
+            <rect width="16" height="16" fill="white"/>
+            </clipPath>
+            </defs>
+            </svg>
           {#if isDownloading}
             <span class="loading-circle"></span>
           {/if}
@@ -155,7 +150,7 @@
               <div class="download-item">
                 <div class="download-info">
                   <div class="download-left">
-                    <span class="download-dot" aria-hidden="true"></span>
+                    <!-- <span class="download-dot" aria-hidden="true"></span> -->
                     <span class="download-source">{getSourceDisplayName(download.source)}</span>
                   </div>
                   <span class="download-time">{formatTimestamp(download.createdAt)}</span>
@@ -252,13 +247,31 @@
     align-items: center;
     justify-content: center;
   }
+  .download-icon-circle {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #3b82f6;
+    background: #3b82f6;
+    border-radius: 50%;
+    -webkit-border-radius: 50%;
+    -moz-border-radius: 50%;
+    position: relative;
+    box-sizing: border-box;
+    border: none;
+    outline: none;
+    padding: 0;
+    margin: 0;
+  }
   .loading-circle {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    margin: auto;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     width: 22px;
     height: 22px;
     border: 2.5px solid #00baff44;
@@ -266,12 +279,14 @@
     border-radius: 50%;
     animation: spin 1s linear infinite;
     pointer-events: none;
-    margin-left: -5px;
   }
 
   @keyframes spin {
+    from {
+      transform: translate(-50%, -50%) rotate(0deg);
+    }
     to {
-      transform: rotate(360deg);
+      transform: translate(-50%, -50%) rotate(360deg);
     }
   }
   .dropdown-menu {
@@ -344,8 +359,9 @@
   }
 
   .download-source {
-    font-weight: 500;
-    color: #00baff;
+    font-weight: regular;
+    font-size: 10px;
+    color: #ffffff;
   }
 
   .download-time {
