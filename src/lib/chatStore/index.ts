@@ -1247,6 +1247,128 @@ ${doc?.body?.textContent || 'No content available'}`;
         );
       }
     },
+    async proofreadStreaming({ userMessage, tabId }: { userMessage: string, tabId?: number | null }) {
+      if (!userMessage.trim()) return;
+
+      // Get tabId if not provided
+      const currentTabId = tabId || await getActiveTabId();
+
+      const abortController = new AbortController();
+      const userMsg = createChatMessage('user', userMessage);
+      const assistantMsg = createChatMessage('assistant', '');
+      const assistantMsgId = assistantMsg.id;
+
+      update((state) => ({
+        ...state,
+        messages: [...state.messages, userMsg, assistantMsg],
+        isLoading: false,
+        error: null,
+        inputValue: '',
+      }));
+
+      updateStreamingState(update, assistantMsgId, abortController, true);
+
+      let proofreader: any = null;
+
+      try {
+        if (typeof Proofreader === 'undefined') {
+          throw new Error('Proofreader API not available');
+        }
+
+        // Check availability
+        const availability = await Proofreader.availability();
+        if (availability === 'unavailable') {
+          throw new Error('Proofreader API is unavailable. Please ensure Chrome 141+ and the Proofreader API flag is enabled.');
+        }
+
+        // Create proofreader instance
+        proofreader = await createAISessionWithMonitor(
+          'proofreader',
+          {
+            expectedInputLanguages: ['en'],
+            tabId: currentTabId
+          }
+        );
+
+        // Perform proofreading
+        const result = await proofreader.proofread(userMessage);
+
+        // Format the results
+        let formattedResult = '';
+
+        if (result.corrections && result.corrections.length > 0) {
+          // Group corrections by error type
+          const errorsByType: Record<string, typeof result.corrections> = {};
+          for (const correction of result.corrections) {
+            // Handle both 'correctionType' and 'label' properties
+            const errorType = (correction as any).label || (correction as any).correctionType || 'Other';
+            if (!errorsByType[errorType]) {
+              errorsByType[errorType] = [];
+            }
+            errorsByType[errorType].push(correction);
+          }
+
+          // Build formatted output
+          formattedResult += `## 📝 Proofreading Results\n\n`;
+          formattedResult += `**Found ${result.corrections.length} error(s) in ${Object.keys(errorsByType).length} category/categories**\n\n`;
+
+          // Display errors grouped by type
+          for (const [errorType, corrections] of Object.entries(errorsByType)) {
+            formattedResult += `### ${errorType} (${corrections.length})\n\n`;
+
+            for (const correction of corrections) {
+              const original = userMessage.substring(correction.startIndex, correction.endIndex);
+              const explanation = correction.explanation || '';
+
+              formattedResult += `- **"${original}"** (position ${correction.startIndex}-${correction.endIndex})\n`;
+              if (explanation) {
+                formattedResult += `  💡 ${explanation}\n`;
+              }
+              formattedResult += `\n`;
+            }
+          }
+        } else {
+          formattedResult = `✅ **No errors found!**\n\nThe text appears to be grammatically correct.`;
+        }
+
+        updateMessageContent(
+          update,
+          assistantMsgId,
+          formattedResult,
+          {
+            isLoading: false,
+            isStreaming: false,
+            streamingMessageId: null,
+            abortController: null,
+          }
+        );
+      } catch (err) {
+        console.error('Proofreading error:', err);
+        const errorMessage = getErrorMessage(err);
+
+        updateMessageContent(
+          update,
+          assistantMsgId,
+          createErrorMessage(err).content,
+          {
+            isLoading: false,
+            isStreaming: false,
+            streamingMessageId: null,
+            abortController: null,
+            error: errorMessage,
+          }
+        );
+      } finally {
+        if (proofreader) {
+          try {
+            proofreader.destroy?.();
+          } catch (cleanupError) {
+            console.warn('Error destroying proofreader:', cleanupError);
+          }
+        }
+        updateStreamingState(update, assistantMsgId, abortController, false);
+      }
+    },
     async promptStreaming({ userMessage, images, audioBlobId, options, tabId }: { userMessage: string, images?: string[], audioBlobId?: string, options?: any, tabId?: number | null }) {
       if (!userMessage.trim() && !audioBlobId) return;
 

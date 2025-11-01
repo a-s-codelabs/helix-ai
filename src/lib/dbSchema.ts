@@ -5,7 +5,8 @@ export type InputIntent =
   | 'summarize'
   | 'prompt'
   | 'writer'
-  | 'rewriter';
+  | 'rewriter'
+  | 'proofread';
 export type Source =
   | 'translator'
   | 'summarize'

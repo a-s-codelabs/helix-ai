@@ -6,7 +6,7 @@ export type AskOptions = {
   value: string;
   images?: string[];
   settings?: Record<string, string | number>;
-  intent?: InputIntent | "summarise" | "translate" | "write" | "rewrite";
+  intent?: InputIntent | "summarise" | "translate" | "write" | "rewrite" | "proofread";
   tabId?: number | null;
   audioBlobId?: string;
 };
@@ -25,6 +25,9 @@ export function handleAskHelper(opts: AskOptions) {
   }
   else if (opts.intent === 'rewrite') {
     chatStore.rewriteStreaming({ userMessage: opts.value, options: opts.settings as RewriterOptions, tabId: opts.tabId });
+  }
+  else if (opts.intent === 'proofread') {
+    chatStore.proofreadStreaming({ userMessage: opts.value, tabId: opts.tabId });
   }
   else {
     chatStore.promptStreaming({ userMessage: opts.value, images: opts.images, audioBlobId: opts.audioBlobId, tabId: opts.tabId });

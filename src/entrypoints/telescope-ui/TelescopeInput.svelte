@@ -13,8 +13,15 @@
   import TranslateIcon from "./icons/Translate.svelte";
   import WriterIcon from "./icons/Writer.svelte";
   import RewriterIcon from "./icons/Rewriter.svelte";
+  import ProofreadIcon from "./icons/Proofread.svelte";
   import SettingsPopup from "./SettingsPopup.svelte";
-  type Intent = "prompt" | "summarise" | "translate" | "write" | "rewrite";
+  type Intent =
+    | "prompt"
+    | "summarise"
+    | "translate"
+    | "write"
+    | "rewrite"
+    | "proofread";
 
   let {
     inputState = $bindable("ask" as State),
@@ -58,6 +65,7 @@
     translate: "Translate this content...",
     write: "Write content...",
     rewrite: "Rewrite selected text...",
+    proofread: "Proofread this text...",
   };
 
   const intentToIcon: Record<Intent, typeof SearchAiIcon> = {
@@ -66,6 +74,7 @@
     translate: TranslateIcon,
     write: WriterIcon,
     rewrite: RewriterIcon,
+    proofread: ProofreadIcon,
   };
 
   const CurrentIntentIcon = $derived(
@@ -533,6 +542,21 @@
                 >
                 <span>Rewrite</span>
               </button>
+              <button
+                class="intent-item {selectedIntent === 'proofread'
+                  ? 'active'
+                  : ''}"
+                role="menuitemradio"
+                aria-checked={selectedIntent === "proofread"}
+                onclick={(e) => {
+                  e.stopPropagation();
+                  selectedIntent = "proofread";
+                  showIntentMenu = false;
+                }}
+              >
+                <span class="intent-icon-circle"><ProofreadIcon /></span>
+                <span>Proofread</span>
+              </button>
             </div>
           {/if}
         </div>
@@ -758,6 +782,21 @@
                     ><RewriterIcon /></span
                   >
                   <span>Rewrite</span>
+                </button>
+                <button
+                  class="intent-item {selectedIntent === 'proofread'
+                    ? 'active'
+                    : ''}"
+                  role="menuitemradio"
+                  aria-checked={selectedIntent === "proofread"}
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    selectedIntent = "proofread";
+                    showIntentMenu = false;
+                  }}
+                >
+                  <span class="intent-icon-circle"><ProofreadIcon /></span>
+                  <span>Proofread</span>
                 </button>
               </div>
             {/if}
