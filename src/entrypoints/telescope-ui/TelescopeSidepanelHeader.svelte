@@ -123,22 +123,17 @@
       tabindex="0"
     >
       <span class="dropdown-icon">
-        <div class="w-8 flex items-center justify-center p-[10px]">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="lucide lucide-download-icon lucide-download"
-            ><path d="M12 15V3" /><path
-              d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
-            /><path d="m7 10 5 5 5-5" /></svg
-          >
+        <div class="download-icon-circle">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <g clip-path="url(#clip0_1279_466)">
+            <path d="M8 12L3 7L4.4 5.55L7 8.15V0H9V8.15L11.6 5.55L13 7L8 12ZM2 16C1.45 16 0.979167 15.8042 0.5875 15.4125C0.195833 15.0208 0 14.55 0 14V11H2V14H14V11H16V14C16 14.55 15.8042 15.0208 15.4125 15.4125C15.0208 15.8042 14.55 16 14 16H2Z" fill="#FBFDFF"/>
+            </g>
+            <defs>
+            <clipPath id="clip0_1279_466">
+            <rect width="16" height="16" fill="white"/>
+            </clipPath>
+            </defs>
+            </svg>
           {#if isDownloading}
             <span class="loading-circle"></span>
           {/if}
@@ -155,7 +150,7 @@
               <div class="download-item">
                 <div class="download-info">
                   <div class="download-left">
-                    <span class="download-dot" aria-hidden="true"></span>
+                    <!-- <span class="download-dot" aria-hidden="true"></span> -->
                     <span class="download-source">{getSourceDisplayName(download.source)}</span>
                   </div>
                   <span class="download-time">{formatTimestamp(download.createdAt)}</span>
@@ -170,7 +165,12 @@
                     </div>
                     <span class="chip chip-info">{formatProgress(download.loaded)}</span>
                   {:else if download.loaded >= 1}
-                    <span class="chip chip-success">✓ Complete</span>
+                    <span class="chip chip-success">
+                      <svg width="12" height="12" viewBox="0 0 7 7" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2.78411 4.66797L1.12891 3.01276L1.54453 2.59714L2.78411 3.83672L5.45286 1.16797L5.86849 1.58359L2.78411 4.66797ZM1.45703 5.83464V5.2513H5.54036V5.83464H1.45703Z" fill="white"/>
+                        </svg>
+                        <span>Completed</span>
+                      </span>
                   {:else}
                     <span class="chip chip-warn">Pending</span>
                   {/if}
@@ -194,13 +194,13 @@
     justify-content: space-between;
     background: transparent;
     user-select: none;
-    padding: 0 0.7em;
+    padding: 6px 0.7em;
     height: 42px;
   }
   .sidepanel-header.has-chat-box {
     background: #131723;
     border-bottom: 1px solid #23253a;
-    box-shadow: 0 1px 0 0 #0b0e18;
+    /* box-shadow: 0 1px 0 0 #0b0e18; */
   }
   .brand {
     display: inline-flex;
@@ -213,7 +213,7 @@
     border-radius: 10px;
     background: linear-gradient(180deg, #0f1422, #0b1020);
     border: 1px solid #23253a;
-    box-shadow: inset 0 1px 0 0 #1b2132; /* subtle inner */
+    /* box-shadow: inset 0 1px 0 0 #1b2132;  */
   }
   .brand-icon {
     color: #00baff;
@@ -243,44 +243,67 @@
   }
 
   .dropdown-container:focus {
-    outline: 2px solid #00baff;
-    outline-offset: 2px;
+    outline: none;
   }
   .dropdown-icon {
     position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    border: none;
+    outline: none;
+  }
+  .download-icon-circle {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #3b82f6;
+    background: #3b82f6;
+    border-radius: 50%;
+    -webkit-border-radius: 50%;
+    -moz-border-radius: 50%;
+    position: relative;
+    box-sizing: border-box;
+    border: none;
+    outline: none;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    box-shadow: none;
   }
   .loading-circle {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    margin: auto;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     width: 22px;
     height: 22px;
-    border: 2.5px solid #00baff44;
-    border-bottom-color: #00baff;
+    border: 2.5px solid rgba(59, 130, 246, 0.27);
+    border-bottom-color: #3b82f6;
     border-radius: 50%;
     animation: spin 1s linear infinite;
     pointer-events: none;
-    margin-left: -5px;
   }
 
   @keyframes spin {
+    from {
+      transform: translate(-50%, -50%) rotate(0deg);
+    }
     to {
-      transform: rotate(360deg);
+      transform: translate(-50%, -50%) rotate(360deg);
     }
   }
   .dropdown-menu {
     position: absolute;
     top: 110%;
     right: 0;
-    background: #0e1322;
+    background: #262832;
     color: #fff;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    /* box-shadow: 0 8px 24px #262832; */
     border-radius: 12px;
     padding: 0.85em 1.1em 1em 1.1em;
     min-width: 280px;
@@ -303,24 +326,24 @@
     justify-content: space-between;
     margin-bottom: 0.75em;
     padding-bottom: 0.6em;
-    border-bottom: 1px solid #23283b;
+    border-bottom: 0.3px solid #9CA3AF;
   }
   .history-title {
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.02em;
-    color: #e5e7eb;
+    color: #ffffff;
   }
   .history-sub {
     font-size: 12px;
-    color: #7d889a;
+    color: rgb(156, 163, 175);
   }
 
   .download-item {
     display: flex;
     flex-direction: column;
-    gap: 0.4em;
+    gap: 0.5em;
     padding: 0.6em 0.6em 0.55em 0.6em;
-    background: linear-gradient(180deg, #0f1526, #0d1324);
+    background: #353740;
     border-radius: 10px;
     border: 1px solid #1b2132;
   }
@@ -335,22 +358,23 @@
     align-items: center;
     gap: 8px;
   }
-  .download-dot {
+  /* .download-dot {
     width: 6px;
     height: 6px;
     border-radius: 999px;
     background: #00baff;
     box-shadow: 0 0 0 2px rgba(0,186,255,0.2);
-  }
+  } */
 
   .download-source {
-    font-weight: 500;
-    color: #00baff;
+    font-weight: 300;
+    font-size: 0.93rem;
+    color: #ffffff;
   }
 
   .download-time {
     font-size: 0.8em;
-    color: #888;
+    color: rgb(156, 163, 175);
   }
 
   .download-progress {
@@ -383,7 +407,7 @@
 
   .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #00baff, #0088cc);
+    background: #3b82f6;
     transition: width 0.3s ease;
   }
   .chip {
@@ -393,9 +417,12 @@
     border-radius: 999px;
     border: 1px solid transparent;
     font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
   }
-  .chip-info { color: #00baff; background: #062635; border-color: #0b3f57; }
-  .chip-success { color: #4caf50; background: #083017; border-color: #1b5e20; }
+  .chip-info { color: #3b82f6; background: #062635; border-color: #0b3f57; }
+  .chip-success { color: #ffffff; background: #3b82f6; border-color: #3b82f6; }
   .chip-warn { color: #ffb74d; background: #3a2608; border-color: #5d3a0c; }
 
   .no-downloads {
