@@ -51,7 +51,14 @@ export const DB_SCHEMA = {
   },
   pageMarkdown: {
     storageKey: 'local:global:pageMarkdown' as const,
-    default: {} as Record<TabId, string>,
+    default: {} as Record<
+      string,
+      {
+        content: string;
+        url: string;
+        createdAt: number;
+      }
+    >,
     maxLimit: 100,
   },
   state_tabId_message: {
@@ -131,6 +138,13 @@ export const DB_SCHEMA = {
       },
       // stored salt for key derivation
       kdfSalt: null as null | string,
+    },
+  },
+  active_tab_id: {
+    storageKey: 'local:global:active_tab_id' as const,
+    default: {} as {
+      tabId: number | null;
+      url: string | null;
     },
   },
 };

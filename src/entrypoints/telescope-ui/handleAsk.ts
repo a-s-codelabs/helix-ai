@@ -7,24 +7,26 @@ export type AskOptions = {
   images?: string[];
   settings?: Record<string, string | number>;
   intent?: InputIntent | "summarise" | "translate" | "write" | "rewrite";
+  tabId?: number | null;
 };
 // TODO: unify naming
 export function handleAskHelper(opts: AskOptions) {
+  console.log('handleAskHelper', opts);
   if (opts.intent === 'prompt') {
-    chatStore.promptStreaming(opts.value, opts.images);
+    chatStore.promptStreaming({ userMessage: opts.value, images: opts.images, tabId: opts.tabId });
   } else if (opts.intent === 'summarise' || opts.intent === "summarize") {
-    chatStore.summariseStreaming(opts.value);
+    chatStore.summariseStreaming({ userMessage: opts.value, tabId: opts.tabId });
   } else if (opts.intent === 'translator' || opts.intent === "translate") {
-    chatStore.translateStreaming(opts.value, opts.settings?.outputLanguage as string);
+    chatStore.translateStreaming({ userMessage: opts.value, targetLanguage: opts.settings?.outputLanguage as string, tabId: opts.tabId });
   }
   else if (opts.intent === 'write') {
-    chatStore.writeStreaming(opts.value, opts.settings as WriterOptions);
+    chatStore.writeStreaming({ userMessage: opts.value, options: opts.settings as WriterOptions, tabId: opts.tabId });
   }
   else if (opts.intent === 'rewrite') {
-    chatStore.rewriteStreaming(opts.value, opts.settings as RewriterOptions);
+    chatStore.rewriteStreaming({ userMessage: opts.value, options: opts.settings as RewriterOptions, tabId: opts.tabId });
   }
   else {
-    chatStore.promptStreaming(opts.value, opts.images);
+    chatStore.promptStreaming({ userMessage: opts.value, images: opts.images, tabId: opts.tabId });
     console.error('Invalid intent', opts.intent);
   }
 }

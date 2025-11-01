@@ -6,6 +6,38 @@ export default defineBackground(() => {
   const PARENT_ID = 'helix_ai_menu';
   const ADD_TO_CHAT_ID = 'helix_ai_add_to_chat';
 
+  // Message type constants
+  const MESSAGE_TYPE_OPEN_TO_SIDE_PANEL = 'OPEN_TO_SIDE_PANEL';
+  const MESSAGE_TYPE_OPEN_SHORTCUTS_PAGE = 'OPEN_SHORTCUTS_PAGE';
+  const MESSAGE_TYPE_CLEAR_TELESCOPE_STATE = 'CLEAR_TELESCOPE_STATE';
+  const MESSAGE_TYPE_GET_PAGE_CONTENT = 'GET_PAGE_CONTENT';
+  const MESSAGE_TYPE_EXTRACT_PAGE_CONTENT = 'EXTRACT_PAGE_CONTENT';
+  const MESSAGE_TYPE_GET_TAB_ID = 'GET_TAB_ID';
+
+  /**
+   * Get the active tab ID
+   * @returns Promise resolving to the active tab ID or null if not found
+   */
+  async function getTabId(): Promise<{ tabId: number | null, url: string | null }> {
+    try {
+      const tabs = await new Promise<chrome.tabs.Tab[]>((resolve) => {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          resolve(tabs || []);
+        });
+      });
+      return {
+        tabId: tabs[0]?.id || null,
+        url: tabs[0]?.url || null,
+      };
+    } catch (error) {
+      console.error('Background: Error getting tab ID:', error);
+      return {
+        tabId: null,
+        url: null,
+      };
+    }
+  }
+
   async function createContextMenus() {
     try {
       const ctx = (chrome as any).contextMenus;
@@ -75,21 +107,9 @@ export default defineBackground(() => {
             return;
           }
 
-          const tabs = await new Promise<chrome.tabs.Tab[]>((resolve) => {
-            chrome.tabs.query(
-              {
-                active: true,
-                currentWindow: true,
-              },
-              (result) => {
-                resolve(result || []);
-              }
-            );
-          });
-
-          const activeTab = tabs[0];
-          if (activeTab?.id) {
-            chrome.tabs.sendMessage(activeTab.id, {
+          const { tabId } = await getTabId();
+          if (tabId) {
+            chrome.tabs.sendMessage(tabId, {
               action: 'openTelescope',
             });
           }
@@ -101,12 +121,28 @@ export default defineBackground(() => {
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'OPEN_TO_SIDE_PANEL') {
+    console.log("Background: onMessage", message);
+    if (message.type === MESSAGE_TYPE_OPEN_TO_SIDE_PANEL) {
       openSidePanel(message, sender);
       return true;
     }
 
-    if (message.type === 'OPEN_SHORTCUTS_PAGE') {
+    if (message.type === MESSAGE_TYPE_GET_TAB_ID) {
+      console.log("Background: GET_TAB_ID request");
+      (async () => {
+        try {
+          const { tabId, url } = await getTabId();
+          console.log("Background: GET_TAB_ID response", { tabId, url });
+          sendResponse({ success: true, tabId, url });
+        } catch (error) {
+          console.error("Background: Error in GET_TAB_ID", error);
+          sendResponse({ success: false, error: (error as Error).message });
+        }
+      })();
+      return true; // Keep message channel open for async response
+    }
+
+    if (message.type === MESSAGE_TYPE_OPEN_SHORTCUTS_PAGE) {
       chrome.tabs.create(
         { url: 'chrome://extensions/shortcuts' },
         (tab: chrome.tabs.Tab) => {
@@ -127,7 +163,7 @@ export default defineBackground(() => {
       return true;
     }
 
-    if (message.type === 'CLEAR_TELESCOPE_STATE') {
+    if (message.type === MESSAGE_TYPE_CLEAR_TELESCOPE_STATE) {
 
       try {
         if (chrome.storage) {
@@ -144,20 +180,27 @@ export default defineBackground(() => {
       return true;
     }
 
-    if (message.type === 'GET_PAGE_CONTENT') {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        const activeTab = tabs[0];
-
-        if (!activeTab || !activeTab.id) {
+    if (message.type === MESSAGE_TYPE_GET_PAGE_CONTENT) {
+      (async () => {
+        const { tabId } = await getTabId();
+        if (!tabId) {
           console.error('Background: No active tab found');
           sendResponse({ success: false, error: 'No active tab found' });
           return;
         }
 
+        const tabs = await new Promise<chrome.tabs.Tab[]>((resolve) => {
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            resolve(tabs || []);
+          });
+        });
+        const activeTab = tabs[0];
+        const tabUrl = activeTab?.url || '';
+
         chrome.tabs.sendMessage(
-          activeTab.id,
-          { type: 'EXTRACT_PAGE_CONTENT' },
-          (response) => {
+          tabId,
+          { type: MESSAGE_TYPE_EXTRACT_PAGE_CONTENT },
+          async (response) => {
             if (chrome.runtime.lastError) {
               console.error(
                 'Background: Error communicating with content script:',
@@ -171,6 +214,16 @@ export default defineBackground(() => {
             }
 
             if (response && response.success && response.pageContext) {
+              // Store in cache if we have the tab ID and URL
+              if (tabId && tabUrl) {
+                try {
+                  const { storePageMarkdown } = await import('@/lib/chatStore/markdown-cache-helper');
+                  await storePageMarkdown({ url: tabUrl, content: response.pageContext, tabId });
+                } catch (storeErr) {
+                  console.warn('Background: Failed to store markdown in cache:', storeErr);
+                }
+              }
+
               sendResponse({
                 success: true,
                 pageContext: response.pageContext,
@@ -187,7 +240,7 @@ export default defineBackground(() => {
             }
           }
         );
-      });
+      })();
 
       return true;
     }

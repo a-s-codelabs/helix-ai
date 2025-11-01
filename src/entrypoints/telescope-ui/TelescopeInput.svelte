@@ -371,6 +371,7 @@
           tabindex="0"
           aria-haspopup="menu"
           aria-expanded={showIntentMenu}
+          autofocus={true}
           onkeydown={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -380,6 +381,10 @@
             }
           }}
           onkeyup={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onkeypress={(e) => {
             e.preventDefault();
             e.stopPropagation();
           }}

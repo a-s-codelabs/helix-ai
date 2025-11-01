@@ -12,6 +12,8 @@ export type InputProps = {
   searchIndex?: number;
   totalResults?: number;
   isExpanded?: boolean;
+  tabId?: number | null;
+  currentUrl?: string | null;
   suggestedQuestions?: string[];
   disabled?: boolean;
   inputImageAttached?: string[];

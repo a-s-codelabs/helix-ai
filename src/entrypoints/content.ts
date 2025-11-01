@@ -12,6 +12,10 @@ import { sidePanelUtils } from '../lib/sidePanelStore';
 import type { SelectionAction } from './selection-popup/types';
 import { globalStorage } from '@/lib/globalStorage';
 import { getFeatureConfig } from '../lib/featureConfig';
+import { convertAndStorePageMarkdown, getCachedPageMarkdown, clearCachedMarkdown } from '../lib/chatStore/markdown-cache-helper';
+
+// Message type constants
+const MESSAGE_TYPE_GET_TAB_ID = 'GET_TAB_ID';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -563,6 +567,176 @@ ${document.body.textContent || 'No content available'}`,
 
     chrome.runtime.onMessage.addListener(handleMessage);
 
+    // Get tab ID and URL from background
+    async function getTabInfo(): Promise<{ tabId: number | null; url: string | null }> {
+      return new Promise((resolve) => {
+        if (typeof chrome === 'undefined' || !chrome.runtime) {
+          resolve({ tabId: null, url: null });
+          return;
+        }
+
+        const timeout = setTimeout(() => {
+          resolve({ tabId: null, url: null });
+        }, 5000);
+
+        chrome.runtime.sendMessage(
+          { type: MESSAGE_TYPE_GET_TAB_ID },
+          (response) => {
+            clearTimeout(timeout);
+            if (chrome.runtime.lastError || !response?.success) {
+              resolve({ tabId: null, url: null });
+              return;
+            }
+            resolve({
+              tabId: response.tabId || null,
+              url: response.url || null,
+            });
+          }
+        );
+      });
+    }
+
+    // Convert and store page markdown
+    async function convertAndStoreCurrentPageMarkdown() {
+      try {
+        const { tabId, url } = await getTabInfo();
+
+        if (!tabId) {
+          console.warn('Content: Unable to get tab ID for markdown conversion');
+          return;
+        }
+
+        const currentUrl = url || window.location.href;
+        if (!currentUrl) {
+          console.warn('Content: Unable to get URL for markdown conversion');
+          return;
+        }
+
+        // Check cache first
+        const cached = await getCachedPageMarkdown({ tabId });
+        if (cached) {
+          console.log('Content: Using cached markdown for tab', tabId);
+          return;
+        }
+
+        // Convert and store
+        console.log('Content: Converting and storing page markdown for tab', tabId);
+        await convertAndStorePageMarkdown({ tabId, url: currentUrl });
+      } catch (err) {
+        console.error('Content: Error converting and storing page markdown:', err);
+      }
+    }
+
+    // Setup URL change detection and automatic markdown conversion
+    let currentTabId: number | null = null;
+    let currentUrl = window.location.href;
+    let urlChangeTimeout: number | null = null;
+
+    const handleUrlChange = async () => {
+      // Debounce URL change detection
+      if (urlChangeTimeout) {
+        clearTimeout(urlChangeTimeout);
+      }
+
+      urlChangeTimeout = window.setTimeout(async () => {
+        const newUrl = window.location.href;
+
+        // Only process if URL actually changed
+        if (newUrl !== currentUrl) {
+          console.log('Content: URL changed from', currentUrl, 'to', newUrl);
+
+          // Get tab info (tabId should remain the same for the same tab)
+          const { tabId, url } = await getTabInfo();
+          const updatedTabId = tabId || currentTabId;
+          const updatedUrl = url || newUrl;
+
+          if (!updatedTabId) {
+            console.warn('Content: Unable to get tab ID for URL change');
+            // Still update currentUrl to prevent repeated false positives
+            currentUrl = newUrl;
+            return;
+          }
+
+          // Clear old cache entry if tabId exists and URL actually changed
+          if (currentTabId && currentTabId === updatedTabId) {
+            try {
+              await clearCachedMarkdown({ tabId: currentTabId });
+              console.log('Content: Cleared old cache for tab', currentTabId);
+            } catch (err) {
+              console.warn('Content: Error clearing old cache:', err);
+            }
+          }
+
+          currentTabId = updatedTabId;
+          // Use the actual new URL from location, not the one from getTabInfo
+          currentUrl = newUrl;
+
+          console.log('Content: Processing URL change - converting and storing markdown');
+          // Convert and store new page markdown
+          await convertAndStoreCurrentPageMarkdown();
+        }
+      }, 500); // 500ms debounce
+    };
+
+    // Initial conversion on page load
+    (async () => {
+      // Wait a bit for page to fully load
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { tabId } = await getTabInfo();
+      currentTabId = tabId;
+      currentUrl = window.location.href;
+      console.log('Content: Initial setup - tabId:', currentTabId, 'url:', currentUrl);
+      if (currentTabId) {
+        await convertAndStoreCurrentPageMarkdown();
+      }
+    })();
+
+    // Listen to URL changes
+    console.log('Content: Setting up URL change listeners');
+    window.addEventListener('popstate', () => {
+      console.log('Content: popstate event fired');
+      handleUrlChange();
+    });
+    window.addEventListener('hashchange', () => {
+      console.log('Content: hashchange event fired');
+      handleUrlChange();
+    });
+
+    // Patch pushState/replaceState for SPA navigation
+    const originalPushState = window.history.pushState;
+    const originalReplaceState = window.history.replaceState;
+
+    window.history.pushState = function (...args) {
+      const result = originalPushState.apply(this, args);
+      console.log('Content: pushState called, new URL will be:', args[2] || window.location.href);
+      // Use setTimeout to ensure URL is updated before checking
+      setTimeout(() => {
+        handleUrlChange();
+      }, 0);
+      return result;
+    };
+
+    window.history.replaceState = function (...args) {
+      const result = originalReplaceState.apply(this, args);
+      console.log('Content: replaceState called, new URL will be:', args[2] || window.location.href);
+      // Use setTimeout to ensure URL is updated before checking
+      setTimeout(() => {
+        handleUrlChange();
+      }, 0);
+      return result;
+    };
+
+    // Periodic check as fallback for SPAs that might bypass history API
+    let urlCheckInterval: number | null = null;
+    urlCheckInterval = window.setInterval(() => {
+      const newUrl = window.location.href;
+      // Check if URL actually changed (not just a reference check)
+      if (newUrl !== currentUrl) {
+        console.log('Content: Periodic check detected URL change from', currentUrl, 'to', newUrl);
+        handleUrlChange();
+      }
+    }, 2000); // Check every 2 seconds
+
     ctx.onInvalidated(() => {
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('selectionchange', handleSelectionChange);
@@ -571,7 +745,21 @@ ${document.body.textContent || 'No content available'}`,
       document.removeEventListener('focusout', handleTextareaBlur, true);
       document.removeEventListener('click', handleTextareaClick, true);
       window.removeEventListener('telescope-close', handleTelescopeClose);
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('hashchange', handleUrlChange);
       chrome.runtime.onMessage.removeListener(handleMessage);
+
+      // Restore original history methods
+      window.history.pushState = originalPushState;
+      window.history.replaceState = originalReplaceState;
+
+      if (urlChangeTimeout) {
+        clearTimeout(urlChangeTimeout);
+      }
+
+      if (urlCheckInterval) {
+        clearInterval(urlCheckInterval);
+      }
 
       if (ui && isVisible) {
         ui.remove();

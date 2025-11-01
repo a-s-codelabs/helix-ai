@@ -7,6 +7,10 @@
   import TelescopeSidepanelHeader from "./TelescopeSidepanelHeader.svelte";
   import { handleAskHelper } from "./handleAsk";
   import type { AskOptions } from "./handleAsk";
+  import {
+    convertAndStorePageMarkdown,
+    getCachedPageMarkdown,
+  } from "@/lib/chatStore/markdown-cache-helper";
 
   let currentState: State = $state("ask");
   let inputValue = $state("");
@@ -17,7 +21,10 @@
   let streamingMessageId = $state<number | null>(null);
   let quotedContent = $state<string[]>([]);
 
+  let tabId = $state<number | null>(null);
   let { isInSidePanel }: { isInSidePanel: boolean } = $props();
+  let currentUrl = $state<string | null>(null);
+
   $effect(() => {
     const unsubscribe = chatStore.subscribe((state) => {
       messages = state.messages;
@@ -25,6 +32,52 @@
       streamingMessageId = state.streamingMessageId;
     });
     return unsubscribe;
+  });
+
+  $effect(() => {
+    // Get tab ID for both sidepanel and floating modes
+    if (typeof chrome !== "undefined" && chrome.runtime) {
+      chrome.runtime.sendMessage({ type: "GET_TAB_ID" }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error(
+            "App: Error getting tab ID:",
+            chrome.runtime.lastError.message
+          );
+          return;
+        }
+        if (response?.success && response.tabId) {
+          console.log("App: Got tab ID", {
+            tabId: response.tabId,
+            url: response.url,
+            isInSidePanel,
+          });
+          tabId = response.tabId;
+          currentUrl = response.url;
+        } else {
+          console.warn("App: Failed to get tab ID", response);
+          // Retry after a short delay if it failed
+          setTimeout(() => {
+            chrome.runtime.sendMessage(
+              { type: "GET_TAB_ID" },
+              (retryResponse) => {
+                if (
+                  !chrome.runtime.lastError &&
+                  retryResponse?.success &&
+                  retryResponse.tabId
+                ) {
+                  console.log("App: Got tab ID on retry", {
+                    tabId: retryResponse.tabId,
+                    url: retryResponse.url,
+                  });
+                  tabId = retryResponse.tabId;
+                  currentUrl = retryResponse.url;
+                }
+              }
+            );
+          }, 500);
+        }
+      });
+    }
   });
 
   $effect(() => {
@@ -49,6 +102,24 @@
 
   const updateStateFromStorage = async () => {
     if (!isInSidePanel) return;
+
+    // Ensure we have tabId before processing
+    if (!tabId && typeof chrome !== "undefined" && chrome.runtime) {
+      const response = await new Promise<{
+        success?: boolean;
+        tabId?: number;
+        url?: string;
+      }>((resolve) => {
+        chrome.runtime.sendMessage({ type: "GET_TAB_ID" }, (response) => {
+          resolve(response || {});
+        });
+      });
+      if (response?.success && response.tabId) {
+        tabId = response.tabId;
+        currentUrl = response.url || null;
+      }
+    }
+
     const storedState = await globalStorage().get("action_state");
     if (storedState) {
       globalStorage().delete("action_state");
@@ -66,15 +137,19 @@
       }
 
       if (storedState.actionSource === "summarise") {
-        chatStore.summariseStreaming(storedState.content);
+        chatStore.summariseStreaming({
+          userMessage: storedState.content,
+          tabId: tabId,
+        });
       } else if (
         storedState.actionSource === "translate" &&
         storedState.targetLanguage
       ) {
-        chatStore.translateStreaming(
-          storedState.content,
-          storedState.targetLanguage
-        );
+        chatStore.translateStreaming({
+          userMessage: storedState.content,
+          targetLanguage: storedState.targetLanguage,
+          tabId,
+        });
       }
     }
   };
@@ -106,7 +181,7 @@
   }
 
   function handleAsk(opts: AskOptions) {
-    handleAskHelper(opts);
+    handleAskHelper({ ...opts, tabId: tabId });
   }
 
   function handleSuggestedQuestion({ question }: { question: string }) {
@@ -190,6 +265,70 @@
       };
     }
   });
+
+  $effect(() => {
+    console.log("Telescope: Listening to url changes", {
+      a: !isInSidePanel,
+      b: typeof window !== "undefined",
+    });
+    // Listen to url changes and react accordingly (for floating mode)
+    if (!isInSidePanel && typeof window !== "undefined") {
+      const handleUrlChange = () => {
+        console.log("Telescope: Url changed");
+        // reload the page context if the url changes
+        // this mimics the logic that runs on init
+        // You may want to debounce this if navigation is frequent
+        (async () => {
+          try {
+            console.log("Telescope: Url changed", {
+              tabId,
+              currentUrl,
+            });
+            if (!tabId) return;
+
+            const cached = await getCachedPageMarkdown({ tabId: tabId });
+            if (cached) {
+              // Use cached
+            } else {
+              if (currentUrl) {
+                console.log("Telescope: Converting and storing page markdown", {
+                  tabId,
+                  currentUrl,
+                });
+                await convertAndStorePageMarkdown({
+                  tabId: tabId,
+                  url: currentUrl,
+                });
+              }
+            }
+          } catch (err) {
+            console.error("Telescope: Error handling url change:", err);
+          }
+        })();
+      };
+
+      handleUrlChange();
+      // Listen to popstate & hashchange as proxies for url change
+      window.addEventListener("popstate", handleUrlChange);
+      window.addEventListener("hashchange", handleUrlChange);
+
+      // For single page apps, often pushState is called directly,
+      // so also patch pushState to notify us.
+      const originalPushState = window.history.pushState;
+      window.history.pushState = function (...args) {
+        const result = originalPushState.apply(this, args);
+        window.dispatchEvent(new Event("popstate"));
+        return result;
+      };
+
+      return () => {
+        window.removeEventListener("popstate", handleUrlChange);
+        window.removeEventListener("hashchange", handleUrlChange);
+        // Optionally restore original pushState if needed
+        window.history.pushState = originalPushState;
+      };
+    }
+  });
 </script>
 
 {#if isVisible || isInSidePanel}
@@ -208,6 +347,8 @@
       bind:inputValue
       bind:inputImageAttached
       bind:quotedContent
+      {tabId}
+      {currentUrl}
       {messages}
       {isStreaming}
       {streamingMessageId}

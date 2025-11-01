@@ -15,6 +15,8 @@ import { systemPrompt, buildSummarizePrompt, buildTranslatePrompt, buildWritePro
 import { runProviderStream, imagePartFromDataURL, textPart, type Provider } from "../ai/providerClient";
 import { loadProviderKey } from "../secureStore";
 import { RewriterOptions, WriterOptions } from "../writerApiHelper";
+import { cleanHTML, htmlToMarkdown, processTextForLLM } from "../utils/converters";
+import { getCachedPageMarkdown, convertAndStorePageMarkdown, storePageMarkdown } from "./markdown-cache-helper";
 
 async function processStream<T>(
   stream: ReadableStream<T>,
@@ -115,10 +117,24 @@ async function createAISessionWithMonitor(
     }
   }
 
+  // Fetch pageContext from cache if tabId is provided
+  let pageContext = '';
+  if (options.tabId) {
+    try {
+      const cached = await getCachedPageMarkdown({ tabId: options.tabId });
+      if (cached) {
+        pageContext = cached;
+        console.log('createAISessionWithMonitor: Using cached pageContext for tab', options.tabId);
+      }
+    } catch (err) {
+      console.warn('Error fetching page context from cache:', err);
+    }
+  }
+
   switch (sessionType) {
     case 'prompt':
       await checkAvailability('LanguageModel');
-      return await createAISession({ ...options, monitor });
+      return await createAISession({ pageContext, ...options, monitor });
     case 'summarizer':
       await checkAvailability('Summarizer');
       return await Summarizer!.create({ ...options, monitor });
@@ -381,6 +397,7 @@ export type ChatState = {
 };
 
 async function createAISession({ pageContext, language = 'en', outputLanguage = 'en', temperature = 0.4, topK = 4 }: { pageContext: string, language?: string, outputLanguage?: string, temperature?: number, topK?: number }): Promise<AILanguageModel> {
+  console.log('createAISession', pageContext);
   if (typeof LanguageModel !== 'undefined') {
     const config = {
       // TODO: Check which system prompt to use based on the user's language
@@ -486,6 +503,192 @@ function createChatStore() {
 
   let session: AILanguageModel | null = null;
   let pageContext = '';
+  let isInSidePanel = false;
+
+  // Helper function to get tab ID
+  async function getActiveTabId(): Promise<number | null> {
+    try {
+      if (typeof chrome !== 'undefined' && chrome.tabs) {
+        const tabs = await new Promise<chrome.tabs.Tab[]>((resolve) => {
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            resolve(tabs || []);
+          });
+        });
+        return tabs[0]?.id || null;
+      }
+      return null;
+    } catch (err) {
+      console.error('Error getting active tab ID:', err);
+      return null;
+    }
+  }
+
+  // Helper function to get tab ID via background script (works in both sidepanel and floating modes)
+  async function getTabIdFromBackground(): Promise<{ tabId: number | null; url: string | null }> {
+    return new Promise((resolve) => {
+      if (typeof chrome === 'undefined' || !chrome.runtime) {
+        resolve({ tabId: null, url: null });
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        resolve({ tabId: null, url: null });
+      }, 5000);
+
+      chrome.runtime.sendMessage({ type: 'GET_TAB_ID' }, (response) => {
+        clearTimeout(timeout);
+        if (chrome.runtime.lastError || !response?.success) {
+          resolve({ tabId: null, url: null });
+          return;
+        }
+        resolve({
+          tabId: response.tabId || null,
+          url: response.url || null,
+        });
+      });
+    });
+  }
+
+  // Helper function to get document info - defined here so it can be used in other methods
+  async function getDocumentInfoHelper(inSidePanel: boolean = false): Promise<string> {
+    // Get tab ID first - use background script for both modes to ensure accuracy
+    let tabId: number | null = null;
+    let currentUrl = '';
+
+    const tabInfo = await getTabIdFromBackground();
+    tabId = tabInfo.tabId;
+    currentUrl = tabInfo.url || '';
+
+    // Fallback for floating mode if background script fails
+    if (!tabId && !inSidePanel) {
+      tabId = await getActiveTabId();
+      currentUrl = typeof window !== 'undefined' && window.location ? window.location.href : '';
+    }
+
+    // Try to get cached markdown first
+    if (tabId) {
+      const cached = await getCachedPageMarkdown({ tabId });
+      if (cached) {
+        console.log('ChatStore: Using cached markdown for tab', tabId);
+        return cached;
+      }
+    }
+
+    // No cache found, extract fresh content
+    if (inSidePanel) {
+      // Sidepanel mode: request via background script
+      return new Promise<string>(async (resolve, reject) => {
+        if (typeof chrome === 'undefined' || !chrome.runtime) {
+          reject(new Error('Chrome runtime not available'));
+          return;
+        }
+
+        const timeout = setTimeout(() => {
+          reject(new Error('Timeout: No response from background script'));
+        }, 10000);
+
+        chrome.runtime.sendMessage(
+          {
+            type: 'GET_PAGE_CONTENT',
+          },
+          async (response) => {
+            clearTimeout(timeout);
+
+            if (chrome.runtime.lastError) {
+              console.error(
+                'Chrome runtime error:',
+                chrome.runtime.lastError.message
+              );
+              reject(new Error(chrome.runtime.lastError.message));
+              return;
+            }
+
+            if (response?.success && response.pageContext) {
+              // Store the extracted content in cache
+              if (tabId && currentUrl) {
+                try {
+                  await storePageMarkdown({ url: currentUrl, content: response.pageContext, tabId });
+                } catch (storeErr) {
+                  console.warn('Failed to store markdown in cache:', storeErr);
+                }
+              }
+              resolve(response.pageContext);
+            } else {
+              const errorMsg = response?.error || 'Failed to get page content';
+              console.error('Failed to get page content:', errorMsg);
+              reject(new Error(errorMsg));
+            }
+          }
+        );
+      });
+    } else {
+      // Floating mode: use window.document directly
+      try {
+        // Try to get document from window (for shadow DOM in content script)
+        const doc = typeof window !== 'undefined' ? window.document : document;
+
+        if (!doc) {
+          throw new Error('Document not available');
+        }
+
+        const html = (
+          doc.querySelector('article') ||
+          doc.querySelector('main') ||
+          doc.querySelector('[role="main"]') ||
+          doc.querySelector('#main') ||
+          doc.documentElement
+        )?.outerHTML || '';
+
+        const cleanedHTML = cleanHTML(html);
+        const markdown = htmlToMarkdown(cleanedHTML);
+        const processedMarkdown = processTextForLLM(markdown);
+
+        const metaDescription =
+          doc.querySelector('meta[name="description"]')
+            ?.getAttribute?.('content') || '';
+        const url = currentUrl || (typeof window !== 'undefined' && window.location ? window.location.href : 'unknown');
+        const metadata = `# ${doc.title || 'Web Page'}
+**Title:** ${doc.title}
+**Description:** ${metaDescription}
+**URL:** ${url}
+**Date:** ${new Date().toISOString()}
+
+---
+
+`;
+
+        const maxLength = 60_000;
+        const finalContent = metadata + processedMarkdown;
+
+        const data =
+          finalContent.length > maxLength
+            ? finalContent.substring(0, maxLength) +
+            '\n\n... [Content truncated for AI context]'
+            : finalContent;
+
+        // Store in cache
+        if (tabId && url && url !== 'unknown') {
+          try {
+            await storePageMarkdown({ url, content: data, tabId });
+          } catch (storeErr) {
+            console.warn('Failed to store markdown in cache:', storeErr);
+          }
+        }
+
+        return data;
+      } catch (err) {
+        console.error('Error extracting page content from document:', err);
+        const doc = typeof window !== 'undefined' ? window.document : document;
+        return `# ${doc?.title || 'Web Page'}
+
+**Error:** Failed to convert to markdown, using fallback text extraction
+
+---
+
+${doc?.body?.textContent || 'No content available'}`;
+      }
+    }
+  }
 
   async function resolveProviderConfig(intent: 'prompt' | 'summarise' | 'translate' | 'write' | 'rewrite'): Promise<{ provider: 'builtin' | Provider; model?: string; apiKey?: string }> {
     const store = globalStorage();
@@ -525,7 +728,8 @@ function createChatStore() {
     /**
      * Initialize and check AI availability
      */
-    async init(providedPageContext?: string) {
+    async init(providedPageContext?: string, inSidePanel: boolean = false) {
+      isInSidePanel = inSidePanel;
       const status = await checkAPIStatus();
       update((state) => ({
         ...state,
@@ -533,13 +737,31 @@ function createChatStore() {
         aiStatus: status.message,
       }));
 
-      const tabId = await getActiveTabId();
-
       if (providedPageContext) {
         pageContext = providedPageContext;
       } else {
-        globalStorage().get('pageMarkdown', { whereKey: tabId.toString() });
-        pageContext = await extractPageContent({ tabId });
+        // Use getDocumentInfo to fetch page content
+        try {
+          pageContext = await getDocumentInfoHelper(inSidePanel);
+        } catch (err) {
+          console.error('Failed to get document info during init:', err);
+          // Fallback to old method for floating mode
+          if (!inSidePanel) {
+            try {
+              const tabId = await getActiveTabId();
+              if (tabId) {
+                pageContext = await extractPageContent({ tabId });
+              } else {
+                pageContext = '';
+              }
+            } catch (fallbackErr) {
+              console.error('Fallback extraction also failed:', fallbackErr);
+              pageContext = '';
+            }
+          } else {
+            pageContext = '';
+          }
+        }
       }
     },
 
@@ -550,8 +772,20 @@ function createChatStore() {
       pageContext = context;
     },
 
-    async summariseStreaming(userMessage: string) {
+    /**
+     * Get document info - extracts page content as markdown
+     * For floating mode: uses window.document directly
+     * For sidepanel mode: requests via background script
+     */
+    async getDocumentInfo(inSidePanel: boolean = false): Promise<string> {
+      return getDocumentInfoHelper(inSidePanel);
+    },
+
+    async summariseStreaming({ userMessage, sharedContext, type = 'tldr', format = 'markdown', length = 'short', tabId }: { userMessage: string, sharedContext?: string, type?: 'keyPoints' | 'tldr' | 'teaser' | 'headline', format?: 'markdown' | 'plain-text', length?: 'short' | 'medium' | 'long', tabId?: number | null }) {
       if (!userMessage.trim()) return;
+
+      // Get tabId if not provided
+      const currentTabId = tabId || await getActiveTabId();
 
       const abortController = new AbortController();
       const userMsg = createChatMessage('user', userMessage);
@@ -580,6 +814,7 @@ function createChatStore() {
               sharedContext: userMessage,
               type: 'tldr',
               format: 'markdown',
+              tabId: currentTabId,
               length: 'short',
             },
           );
@@ -634,8 +869,12 @@ function createChatStore() {
       }
     },
 
-    async translateStreaming(userMessage: string, targetLanguage: string) {
+    async translateStreaming({ userMessage, targetLanguage, sharedContext, tabId }: { userMessage: string, targetLanguage: string, sharedContext?: string, tabId?: number | null }) {
       if (!userMessage.trim()) return;
+
+      // Get tabId if not provided
+      const currentTabId = tabId || await getActiveTabId();
+
       const abortController = new AbortController();
       const userMsg = createChatMessage('user', userMessage);
       const assistantMsg = createChatMessage('assistant', '');
@@ -658,7 +897,7 @@ function createChatStore() {
       try {
         detector = await createAISessionWithMonitor(
           'languageDetector',
-          { sourceLanguage: detectedLanguage, targetLanguage }
+          { sourceLanguage: detectedLanguage, targetLanguage, tabId }
         );
 
         const detectionResults = await detector!.detect(userMessage);
@@ -701,12 +940,20 @@ function createChatStore() {
           }
           translator = await createAISessionWithMonitor(
             'translator',
-            { sourceLanguage: detectedLanguage, targetLanguage }
+            { sourceLanguage: detectedLanguage, targetLanguage, tabId: currentTabId }
           );
           stream = translator!.translateStreaming(userMessage);
         } else {
           if (!apiKey || !model) throw new Error('Missing provider credentials');
           const attach = await shouldAttachPageContext('translate', userMessage);
+          // Fetch document info if needed but not available
+          if (attach && (!pageContext || pageContext.trim().length === 0)) {
+            try {
+              pageContext = await getDocumentInfoHelper(isInSidePanel);
+            } catch (err) {
+              console.warn('Failed to fetch document info for translation:', err);
+            }
+          }
           const prompt = buildTranslatePrompt({ text: userMessage, sourceLanguage: detectedLanguage, targetLanguage, pageContext: attach ? pageContext : undefined });
           const result = await runProviderStream({ provider, model, apiKey }, { messages: [{ role: 'user', content: prompt }] });
           stream = result.stream;
@@ -759,8 +1006,11 @@ function createChatStore() {
       }
     },
 
-    async writeStreaming(userMessage: string, options?: WriterOptions) {
+    async writeStreaming({ userMessage, options, tabId }: { userMessage: string, options?: WriterOptions, tabId?: number | null }) {
       if (!userMessage.trim()) return;
+
+      // Get tabId if not provided
+      const currentTabId = tabId || await getActiveTabId();
 
       const abortController = new AbortController();
       const userMsg = createChatMessage('user', userMessage);
@@ -800,7 +1050,7 @@ function createChatStore() {
         if (provider === 'builtin') {
           const session = await createAISessionWithMonitor(
             'writer',
-            writerOptions
+            { ...writerOptions, tabId: currentTabId }
           );
           stream = session!.writeStreaming(userMessage, {
             context: options?.sharedContext,
@@ -808,6 +1058,14 @@ function createChatStore() {
         } else {
           if (!apiKey || !model) throw new Error('Missing provider credentials');
           const attach = await shouldAttachPageContext('write', userMessage);
+          // Fetch document info if needed but not available
+          if (attach && (!pageContext || pageContext.trim().length === 0)) {
+            try {
+              pageContext = await getDocumentInfoHelper(isInSidePanel);
+            } catch (err) {
+              console.warn('Failed to fetch document info for write:', err);
+            }
+          }
           const prompt = buildWritePrompt({ text: userMessage, tone: writerOptions.tone as any, format: writerOptions.format as any, length: writerOptions.length as any, outputLanguage: options?.outputLanguage, pageContext: attach ? pageContext : undefined });
           const result = await runProviderStream({ provider, model, apiKey }, { messages: [{ role: 'user', content: prompt }] });
           stream = result.stream;
@@ -849,8 +1107,11 @@ function createChatStore() {
       }
     },
 
-    async rewriteStreaming(userMessage: string, options?: RewriterOptions) {
+    async rewriteStreaming({ userMessage, options, tabId }: { userMessage: string, options?: RewriterOptions, tabId?: number | null }) {
       if (!userMessage.trim()) return;
+
+      // Get tabId if not provided
+      const currentTabId = tabId || await getActiveTabId();
 
       const abortController = new AbortController();
       const userMsg = createChatMessage('user', userMessage);
@@ -927,7 +1188,7 @@ function createChatStore() {
         if (provider === 'builtin') {
           const session = await createAISessionWithMonitor(
             'rewriter',
-            rewriterOptions
+            { ...rewriterOptions, tabId: currentTabId }
           );
           stream = session!.rewriteStreaming(userMessage, {
             context: options?.sharedContext,
@@ -935,6 +1196,14 @@ function createChatStore() {
         } else {
           if (!apiKey || !model) throw new Error('Missing provider credentials');
           const attach = await shouldAttachPageContext('rewrite', userMessage);
+          // Fetch document info if needed but not available
+          if (attach && (!pageContext || pageContext.trim().length === 0)) {
+            try {
+              pageContext = await getDocumentInfoHelper(isInSidePanel);
+            } catch (err) {
+              console.warn('Failed to fetch document info for rewrite:', err);
+            }
+          }
           const prompt = buildRewritePrompt({ text: userMessage, tone: rewriterOptions.tone as any, format: rewriterOptions.format as any, length: rewriterOptions.length as any, outputLanguage: options?.outputLanguage, pageContext: attach ? pageContext : undefined });
           const result = await runProviderStream({ provider, model, apiKey }, { messages: [{ role: 'user', content: prompt }] });
           stream = result.stream;
@@ -975,8 +1244,12 @@ function createChatStore() {
         );
       }
     },
-    async promptStreaming(userMessage: string, images?: string[]) {
+    async promptStreaming({ userMessage, images, options, tabId }: { userMessage: string, images?: string[], options?: any, tabId?: number | null }) {
       if (!userMessage.trim()) return;
+
+      // Get tabId if not provided
+      const currentTabId = tabId || await getActiveTabId();
+
       const abortController = new AbortController();
       const userMsg = createChatMessage('user', userMessage, images);
       const assistantMsg = createChatMessage('assistant', '');
@@ -997,7 +1270,7 @@ function createChatStore() {
           if (!session) {
             session = await createAISessionWithMonitor(
               'prompt',
-              { pageContext }
+              { ...options, tabId: currentTabId }
             );
           }
         }
@@ -1029,6 +1302,14 @@ function createChatStore() {
         } else {
           if (!apiKey || !model) throw new Error('Missing provider credentials');
           const attach = await shouldAttachPageContext('prompt', userMessage);
+          // Fetch document info if needed but not available
+          if (attach && (!pageContext || pageContext.trim().length === 0)) {
+            try {
+              pageContext = await getDocumentInfoHelper(isInSidePanel);
+            } catch (err) {
+              console.warn('Failed to fetch document info for prompt:', err);
+            }
+          }
           const sys = attach ? systemPrompt({ pageContext }) : undefined;
           const contentParts: any[] = [textPart(userMessage)];
           if (images && images.length) {
