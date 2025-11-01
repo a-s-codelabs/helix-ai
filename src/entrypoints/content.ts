@@ -613,11 +613,11 @@ ${document.body.textContent || 'No content available'}`,
         }
 
         // Check cache first
-        const cached = await getCachedPageMarkdown({ tabId });
-        if (cached) {
-          console.log('Content: Using cached markdown for tab', tabId);
-          return;
-        }
+        // const cached = await getCachedPageMarkdown({ tabId });
+        // if (cached) {
+        //   console.log('Content: Using cached markdown for tab', tabId);
+        //   return;
+        // }
 
         // Convert and store
         console.log('Content: Converting and storing page markdown for tab', tabId);
