@@ -200,7 +200,6 @@
   .sidepanel-header.has-chat-box {
     background: #131723;
     border-bottom: 1px solid #23253a;
-    /* box-shadow: 0 1px 0 0 #0b0e18; */
   }
   .brand {
     display: inline-flex;
@@ -213,7 +212,6 @@
     border-radius: 10px;
     background: linear-gradient(180deg, #0f1422, #0b1020);
     border: 1px solid #23253a;
-    /* box-shadow: inset 0 1px 0 0 #1b2132;  */
   }
   .brand-icon {
     color: #00baff;
@@ -262,7 +260,7 @@
     align-items: center;
     justify-content: center;
     background-color: #3b82f6;
-    background: #3b82f6;
+    background: transparent;
     border-radius: 50%;
     -webkit-border-radius: 50%;
     -moz-border-radius: 50%;
@@ -303,7 +301,6 @@
     right: 0;
     background: #262832;
     color: #fff;
-    /* box-shadow: 0 8px 24px #262832; */
     border-radius: 12px;
     padding: 0.85em 1.1em 1em 1.1em;
     min-width: 280px;
@@ -358,14 +355,6 @@
     align-items: center;
     gap: 8px;
   }
-  /* .download-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 999px;
-    background: #00baff;
-    box-shadow: 0 0 0 2px rgba(0,186,255,0.2);
-  } */
-
   .download-source {
     font-weight: 300;
     font-size: 0.93rem;
