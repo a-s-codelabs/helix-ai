@@ -8,12 +8,13 @@ export type AskOptions = {
   settings?: Record<string, string | number>;
   intent?: InputIntent | "summarise" | "translate" | "write" | "rewrite";
   tabId?: number | null;
+  audioBlobId?: string;
 };
 // TODO: unify naming
 export function handleAskHelper(opts: AskOptions) {
   // console.log('handleAskHelper', JSON);
   if (opts.intent === 'prompt') {
-    chatStore.promptStreaming({ userMessage: opts.value, images: opts.images, tabId: opts.tabId });
+    chatStore.promptStreaming({ userMessage: opts.value, images: opts.images, audioBlobId: opts.audioBlobId, tabId: opts.tabId });
   } else if (opts.intent === 'summarise' || opts.intent === "summarize") {
     chatStore.summariseStreaming({ userMessage: opts.value, tabId: opts.tabId });
   } else if (opts.intent === 'translator' || opts.intent === "translate") {
@@ -26,7 +27,7 @@ export function handleAskHelper(opts: AskOptions) {
     chatStore.rewriteStreaming({ userMessage: opts.value, options: opts.settings as RewriterOptions, tabId: opts.tabId });
   }
   else {
-    chatStore.promptStreaming({ userMessage: opts.value, images: opts.images, tabId: opts.tabId });
+    chatStore.promptStreaming({ userMessage: opts.value, images: opts.images, audioBlobId: opts.audioBlobId, tabId: opts.tabId });
     console.error('Invalid intent', opts.intent);
   }
 }

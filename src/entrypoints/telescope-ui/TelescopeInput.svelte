@@ -238,12 +238,13 @@
     }
   }
 
-  function handleSendData() {
+  function handleSendData(audioBlobId?: string) {
     onAsk?.({
       value: inputValue,
       images: inputImageAttached,
       settings: settingsValues,
       intent: selectedIntent,
+      audioBlobId,
     });
     resetInput();
   }
@@ -258,8 +259,42 @@
     resetInput();
   }
 
-  function handleVoiceInput() {
-    onVoiceInput?.();
+  async function handleVoiceInput() {
+    // Request mic from active tab (works for both sidepanel and floating)
+    try {
+      const response = await new Promise<{
+        success?: boolean;
+        tabId?: number;
+      }>((resolve) => {
+        if (typeof chrome !== "undefined" && chrome.runtime) {
+          chrome.runtime.sendMessage({ type: "GET_TAB_ID" }, (response) => {
+            resolve(response || {});
+          });
+        } else {
+          resolve({});
+        }
+      });
+
+      if (response?.tabId) {
+        // Send message to background to request audio from content script
+        chrome.runtime.sendMessage({
+          type: "REQUEST_AUDIO",
+          tabId: response.tabId,
+        });
+      } else {
+        console.error("Failed to get tab ID for audio recording");
+        // Fallback to direct handling if in floating mode and no tab ID
+        if (!isInSidePanel) {
+          onVoiceInput?.();
+        }
+      }
+    } catch (error) {
+      console.error("Error requesting audio:", error);
+      // Fallback to direct handling if in floating mode
+      if (!isInSidePanel) {
+        onVoiceInput?.();
+      }
+    }
   }
 
   function handleAttachment() {

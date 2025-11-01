@@ -113,7 +113,6 @@
 <div class="sidepanel-header" class:has-chat-box={hasChatBox}>
   <span class="brand-name">Telescope</span>
 
-
   {#if showDownloadingDropdown}
     <div
       class="dropdown-container"
@@ -124,16 +123,25 @@
     >
       <span class="dropdown-icon">
         <div class="download-icon-circle">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
             <g clip-path="url(#clip0_1279_466)">
-            <path d="M8 12L3 7L4.4 5.55L7 8.15V0H9V8.15L11.6 5.55L13 7L8 12ZM2 16C1.45 16 0.979167 15.8042 0.5875 15.4125C0.195833 15.0208 0 14.55 0 14V11H2V14H14V11H16V14C16 14.55 15.8042 15.0208 15.4125 15.4125C15.0208 15.8042 14.55 16 14 16H2Z" fill="#FBFDFF"/>
+              <path
+                d="M8 12L3 7L4.4 5.55L7 8.15V0H9V8.15L11.6 5.55L13 7L8 12ZM2 16C1.45 16 0.979167 15.8042 0.5875 15.4125C0.195833 15.0208 0 14.55 0 14V11H2V14H14V11H16V14C16 14.55 15.8042 15.0208 15.4125 15.4125C15.0208 15.8042 14.55 16 14 16H2Z"
+                fill="#FBFDFF"
+              />
             </g>
             <defs>
-            <clipPath id="clip0_1279_466">
-            <rect width="16" height="16" fill="white"/>
-            </clipPath>
+              <clipPath id="clip0_1279_466">
+                <rect width="16" height="16" fill="white" />
+              </clipPath>
             </defs>
-            </svg>
+          </svg>
           {#if isDownloading}
             <span class="loading-circle"></span>
           {/if}
@@ -151,9 +159,13 @@
                 <div class="download-info">
                   <div class="download-left">
                     <!-- <span class="download-dot" aria-hidden="true"></span> -->
-                    <span class="download-source">{getSourceDisplayName(download.source)}</span>
+                    <span class="download-source"
+                      >{getSourceDisplayName(download.source)}</span
+                    >
                   </div>
-                  <span class="download-time">{formatTimestamp(download.createdAt)}</span>
+                  <span class="download-time"
+                    >{formatTimestamp(download.createdAt)}</span
+                  >
                 </div>
                 <div class="download-progress">
                   {#if download.loaded < 1}
@@ -163,14 +175,25 @@
                         style="width: {download.loaded * 100}%"
                       ></div>
                     </div>
-                    <span class="chip chip-info">{formatProgress(download.loaded)}</span>
+                    <span class="chip chip-info"
+                      >{formatProgress(download.loaded)}</span
+                    >
                   {:else if download.loaded >= 1}
                     <span class="chip chip-success">
-                      <svg width="12" height="12" viewBox="0 0 7 7" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M2.78411 4.66797L1.12891 3.01276L1.54453 2.59714L2.78411 3.83672L5.45286 1.16797L5.86849 1.58359L2.78411 4.66797ZM1.45703 5.83464V5.2513H5.54036V5.83464H1.45703Z" fill="white"/>
-                        </svg>
-                        <span>Completed</span>
-                      </span>
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 7 7"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          d="M2.78411 4.66797L1.12891 3.01276L1.54453 2.59714L2.78411 3.83672L5.45286 1.16797L5.86849 1.58359L2.78411 4.66797ZM1.45703 5.83464V5.2513H5.54036V5.83464H1.45703Z"
+                          fill="white"
+                        />
+                      </svg>
+                      <span>Completed</span>
+                    </span>
                   {:else}
                     <span class="chip chip-warn">Pending</span>
                   {/if}
@@ -323,7 +346,7 @@
     justify-content: space-between;
     margin-bottom: 0.75em;
     padding-bottom: 0.6em;
-    border-bottom: 0.3px solid #9CA3AF;
+    border-bottom: 0.3px solid #9ca3af;
   }
   .history-title {
     font-weight: 600;
@@ -384,14 +407,23 @@
     content: "";
     position: absolute;
     inset: 0;
-    background-image: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%);
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.06) 50%,
+      transparent 100%
+    );
     background-size: 200% 100%;
     animation: shimmer 1.2s linear infinite;
     pointer-events: none;
   }
   @keyframes shimmer {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
   }
 
   .progress-fill {
@@ -410,9 +442,21 @@
     align-items: center;
     gap: 4px;
   }
-  .chip-info { color: #3b82f6; background: #062635; border-color: #0b3f57; }
-  .chip-success { color: #ffffff; background: #3b82f6; border-color: #3b82f6; }
-  .chip-warn { color: #ffb74d; background: #3a2608; border-color: #5d3a0c; }
+  .chip-info {
+    color: #3b82f6;
+    background: #062635;
+    border-color: #0b3f57;
+  }
+  .chip-success {
+    color: #ffffff;
+    background: #3b82f6;
+    border-color: #3b82f6;
+  }
+  .chip-warn {
+    color: #ffb74d;
+    background: #3a2608;
+    border-color: #5d3a0c;
+  }
 
   .no-downloads {
     text-align: center;

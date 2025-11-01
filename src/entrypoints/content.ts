@@ -4,6 +4,8 @@ import App from './telescope-ui/App.svelte';
 import SelectionPopupContainer from './selection-popup/SelectionPopupContainer.svelte';
 /*@ts-ignore */
 import WriterAssistant from './writer-popup/WriterAssistant.svelte';
+/*@ts-ignore */
+import MicRecorder from './mic-popup/MicRecorder.svelte';
 import { mount, unmount } from 'svelte';
 import { get } from 'svelte/store';
 import { selectionPopupStore } from '../lib/selectionPopupStore';
@@ -27,6 +29,7 @@ export default defineContentScript({
     globalStorage().onBoard();
     let selectionPopupUI: any = null;
     let writerAssistantUI: any = null;
+    let micRecorderUI: any = null;
 
     const createUI = async () => {
       if (ui) return ui;
@@ -141,6 +144,61 @@ export default defineContentScript({
       } catch (error) {
         console.error('Failed to create writer assistant UI:', error);
         throw error;
+      }
+    };
+
+    const createMicRecorderUI = async () => {
+      if (micRecorderUI) return micRecorderUI;
+
+      try {
+        micRecorderUI = await createShadowRootUi(ctx, {
+          position: 'inline',
+          name: 'mic-recorder-ui',
+          anchor: 'body',
+          onMount: (container) => {
+            container.style.position = 'fixed';
+            container.style.top = '0';
+            container.style.left = '0';
+            container.style.width = '0';
+            container.style.height = '0';
+            container.style.zIndex = '2147483647';
+            container.style.pointerEvents = 'none';
+
+            const app = mount(MicRecorder, {
+              target: container,
+              props: {
+                onClose: hideMicRecorder,
+              },
+            });
+
+            container.style.pointerEvents = 'auto';
+
+            return app;
+          },
+          onRemove: (app) => {
+            unmount(app as any);
+            micRecorderUI = null;
+          },
+        });
+
+        return micRecorderUI;
+      } catch (error) {
+        console.error('Failed to create mic recorder UI:', error);
+        throw error;
+      }
+    };
+
+    const showMicRecorder = async () => {
+      if (!micRecorderUI) {
+        await createMicRecorderUI();
+        micRecorderUI.mount();
+      }
+    };
+
+    const hideMicRecorder = () => {
+      if (micRecorderUI) {
+        micRecorderUI.remove();
+        micRecorderUI = null;
       }
     };
 
@@ -512,6 +570,11 @@ export default defineContentScript({
         return true;
       }
 
+      if (message.type === 'REQUEST_AUDIO') {
+        await showMicRecorder();
+        return true;
+      }
+
       if (message.type === 'EXTRACT_PAGE_CONTENT') {
         (async () => {
           try {
@@ -759,6 +822,10 @@ ${document.body.textContent || 'No content available'}`,
 
       if (writerAssistantUI) {
         writerAssistantUI.remove();
+      }
+
+      if (micRecorderUI) {
+        micRecorderUI.remove();
       }
 
       clearTimeout((window as any).__selectionTimeout);

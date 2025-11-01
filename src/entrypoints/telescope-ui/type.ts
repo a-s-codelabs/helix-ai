@@ -27,11 +27,13 @@ export type InputProps = {
     images,
     settings,
     intent,
+    audioBlobId,
   }: {
     value: string;
     images?: string[];
     settings?: Record<string, string | number>;
     intent?: string;
+    audioBlobId?: string;
   }) => void;
   onVoiceInput?: () => void;
   onAttachment?: () => void;
@@ -57,6 +59,7 @@ export type Message = {
   type: 'user' | 'assistant';
   content: string;
   images?: string[];
+  audioUrl?: string;
   timestamp: Date;
 };
 

@@ -114,7 +114,18 @@ export const DB_SCHEMA = {
           actionSource: 'context-image';
           content: string;
         }
+        | {
+          actionSource: 'request-audio';
+        }
+        | {
+          actionSource: 'audio';
+          blobId: string;
+        }
       ),
+  },
+  audioBlobs: {
+    storageKey: 'local:global:audioBlobs' as const,
+    default: {} as Record<string, string>, // blobId -> base64 encoded audio blob
   },
   telescopeSettings: {
     storageKey: 'local:global:telescopeSettings' as const,

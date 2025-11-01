@@ -168,13 +168,15 @@ async function createAISessionWithMonitor(
 function createChatMessage(
   type: 'user' | 'assistant',
   content: string,
-  images?: string[]
+  images?: string[],
+  audioUrl?: string
 ): ChatMessage {
   return {
     id: Date.now() + (type === 'assistant' ? 1 : 0),
     type,
     content,
     images: images || [],
+    audioUrl: audioUrl,
     timestamp: new Date(),
   };
 }
@@ -240,6 +242,7 @@ export type ChatMessage = {
   type: 'user' | 'assistant';
   content: string;
   images?: string[];
+  audioUrl?: string;
   timestamp: Date;
 };
 
@@ -1244,14 +1247,35 @@ ${doc?.body?.textContent || 'No content available'}`;
         );
       }
     },
-    async promptStreaming({ userMessage, images, options, tabId }: { userMessage: string, images?: string[], options?: any, tabId?: number | null }) {
-      if (!userMessage.trim()) return;
+    async promptStreaming({ userMessage, images, audioBlobId, options, tabId }: { userMessage: string, images?: string[], audioBlobId?: string, options?: any, tabId?: number | null }) {
+      if (!userMessage.trim() && !audioBlobId) return;
 
       // Get tabId if not provided
       const currentTabId = tabId || await getActiveTabId();
 
       const abortController = new AbortController();
-      const userMsg = createChatMessage('user', userMessage, images);
+
+      // Get audio URL if audioBlobId is provided
+      let audioUrl: string | undefined = undefined;
+      if (audioBlobId) {
+        try {
+          const storage = globalStorage();
+          const audioBlobs = await storage.get('audioBlobs');
+          if (audioBlobs && typeof audioBlobs === 'object' && audioBlobs[audioBlobId]) {
+            const base64Data = audioBlobs[audioBlobId] as string;
+            // Create a blob URL for playback
+            const response = await fetch(base64Data);
+            const blob = await response.blob();
+            audioUrl = URL.createObjectURL(blob);
+          }
+        } catch (error) {
+          console.error('Error creating audio URL:', error);
+        }
+      }
+
+      // Use audio indicator if no text message
+      const displayMessage = userMessage.trim() ?? "";
+      const userMsg = createChatMessage('user', displayMessage, images, audioUrl);
       const assistantMsg = createChatMessage('assistant', '');
       const assistantMsgId = assistantMsg.id;
 
@@ -1275,6 +1299,7 @@ ${doc?.body?.textContent || 'No content available'}`;
           }
         }
 
+        // Handle images
         if (images && images.length > 0 && session && provider === 'builtin') {
           for await (const image of images) {
             const rawFile = await imageStringToFile(image, 'image');
@@ -1289,10 +1314,35 @@ ${doc?.body?.textContent || 'No content available'}`;
           }
         }
 
+        // Handle audio
+        let audioBlob: Blob | null = null;
+        if (audioBlobId && session && provider === 'builtin') {
+          try {
+            const storage = globalStorage();
+            const audioBlobs = await storage.get('audioBlobs');
+            if (audioBlobs && typeof audioBlobs === 'object' && audioBlobs[audioBlobId]) {
+              const base64Data = audioBlobs[audioBlobId] as string;
+              // Convert base64 to blob
+              const response = await fetch(base64Data);
+              audioBlob = await response.blob();
+
+              await session?.append([
+                {
+                  role: 'user',
+                  content: [{ type: 'audio', value: audioBlob }],
+                },
+              ]);
+            }
+          } catch (error) {
+            console.error('Error loading audio blob:', error);
+          }
+        }
+
         let stream: ReadableStream<string>;
         if (provider === 'builtin') {
           try {
-            stream = session!.promptStreaming(userMessage);
+            const promptContent = userMessage.trim() || (audioBlob ? '' : '');
+            stream = session!.promptStreaming(promptContent);
           } catch (streamCreationError) {
             console.error('Failed to create stream:', streamCreationError);
             throw new Error(
@@ -1311,9 +1361,15 @@ ${doc?.body?.textContent || 'No content available'}`;
             }
           }
           const sys = attach ? systemPrompt({ pageContext }) : undefined;
-          const contentParts: any[] = [textPart(userMessage)];
+          const contentParts: any[] = [];
+          if (userMessage.trim()) {
+            contentParts.push(textPart(userMessage));
+          }
           if (images && images.length) {
             for (const img of images) contentParts.push(imagePartFromDataURL(img));
+          }
+          if (audioBlob) {
+            contentParts.push({ type: 'audio', value: audioBlob });
           }
           const result = await runProviderStream({ provider, model, apiKey }, { system: sys, messages: [{ role: 'user', content: contentParts }] });
           stream = result.stream;
