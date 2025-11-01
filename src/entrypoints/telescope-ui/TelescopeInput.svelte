@@ -544,9 +544,10 @@
                 <SendIcon />
               {/if}
             </button>
-            {#if !isInSidePanel}
+            {#if !isInSidePanel && !isInputExpanded && !hasChatBox}
               <button
                 class="close-button"
+                class:input-expanded={isInputExpanded}
                 onclick={handleClose}
                 title="Close"
                 aria-label="Close"
@@ -727,7 +728,7 @@
                     <SendIcon />
                   {/if}
                 </button>
-                {#if !isInSidePanel}
+                {#if !isInSidePanel && !hasChatBox}
                   <button
                     class="close-button"
                     onclick={handleClose}
@@ -738,29 +739,6 @@
                   </button>
                 {/if}
               </div>
-            {/if}
-
-            {#if inputState === "chat"}
-              <button
-                class="send-button"
-                aria-label={isStreaming ? "Stop streaming" : "Send message"}
-                onclick={isStreaming ? handleStop : handleAsk}
-              >
-                {#if isStreaming}
-                  <StopIcon />
-                {:else}
-                  <SendIcon />
-                {/if}
-              </button>
-            {:else}
-              <button
-                class="close-button"
-                onclick={handleClose}
-                title="Close"
-                aria-label="Close"
-              >
-                <CloseIcon />
-              </button>
             {/if}
           </div>
         </div>
@@ -1190,7 +1168,7 @@
     overscroll-behavior: none;
     padding: 0;
     margin: 0;
-    height: 24px;
+    /* height: 24px; */
     scrollbar-width: thin;
     scrollbar-color: #555 #2a2a2a;
   }
