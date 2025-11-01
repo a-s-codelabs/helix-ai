@@ -13,6 +13,7 @@ export default defineBackground(() => {
   const MESSAGE_TYPE_GET_PAGE_CONTENT = 'GET_PAGE_CONTENT';
   const MESSAGE_TYPE_EXTRACT_PAGE_CONTENT = 'EXTRACT_PAGE_CONTENT';
   const MESSAGE_TYPE_GET_TAB_ID = 'GET_TAB_ID';
+  const MESSAGE_TYPE_REQUEST_AUDIO = 'REQUEST_AUDIO';
 
   /**
    * Get the active tab ID
@@ -173,6 +174,38 @@ export default defineBackground(() => {
         console.error('Background: Error in CLEAR_TELESCOPE_STATE:', error);
         sendResponse({ success: false, error: (error as Error).message });
       }
+
+      return true;
+    }
+
+    if (message.type === MESSAGE_TYPE_REQUEST_AUDIO) {
+      (async () => {
+        const tabId = message.tabId || (await getTabId()).tabId;
+        if (!tabId) {
+          console.error('Background: No tab ID provided for audio request');
+          sendResponse({ success: false, error: 'No tab ID found' });
+          return;
+        }
+
+        chrome.tabs.sendMessage(
+          tabId,
+          { type: MESSAGE_TYPE_REQUEST_AUDIO },
+          (response) => {
+            if (chrome.runtime.lastError) {
+              console.error(
+                'Background: Error communicating with content script for audio:',
+                chrome.runtime.lastError.message
+              );
+              sendResponse({
+                success: false,
+                error: 'Content script not available. Please reload the page.',
+              });
+              return;
+            }
+            sendResponse(response || { success: true });
+          }
+        );
+      })();
 
       return true;
     }

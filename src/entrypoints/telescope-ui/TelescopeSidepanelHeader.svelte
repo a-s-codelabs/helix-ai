@@ -113,7 +113,6 @@
 <div class="sidepanel-header" class:has-chat-box={hasChatBox}>
   <span class="brand-name">Telescope</span>
 
-
   {#if showDownloadingDropdown}
     <div
       class="dropdown-container"
@@ -156,9 +155,13 @@
                 <div class="download-info">
                   <div class="download-left">
                     <span class="download-dot" aria-hidden="true"></span>
-                    <span class="download-source">{getSourceDisplayName(download.source)}</span>
+                    <span class="download-source"
+                      >{getSourceDisplayName(download.source)}</span
+                    >
                   </div>
-                  <span class="download-time">{formatTimestamp(download.createdAt)}</span>
+                  <span class="download-time"
+                    >{formatTimestamp(download.createdAt)}</span
+                  >
                 </div>
                 <div class="download-progress">
                   {#if download.loaded < 1}
@@ -168,7 +171,9 @@
                         style="width: {download.loaded * 100}%"
                       ></div>
                     </div>
-                    <span class="chip chip-info">{formatProgress(download.loaded)}</span>
+                    <span class="chip chip-info"
+                      >{formatProgress(download.loaded)}</span
+                    >
                   {:else if download.loaded >= 1}
                     <span class="chip chip-success">✓ Complete</span>
                   {:else}
@@ -280,7 +285,7 @@
     right: 0;
     background: #0e1322;
     color: #fff;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
     border-radius: 12px;
     padding: 0.85em 1.1em 1em 1.1em;
     min-width: 280px;
@@ -340,7 +345,7 @@
     height: 6px;
     border-radius: 999px;
     background: #00baff;
-    box-shadow: 0 0 0 2px rgba(0,186,255,0.2);
+    box-shadow: 0 0 0 2px rgba(0, 186, 255, 0.2);
   }
 
   .download-source {
@@ -371,14 +376,23 @@
     content: "";
     position: absolute;
     inset: 0;
-    background-image: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%);
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.06) 50%,
+      transparent 100%
+    );
     background-size: 200% 100%;
     animation: shimmer 1.2s linear infinite;
     pointer-events: none;
   }
   @keyframes shimmer {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
   }
 
   .progress-fill {
@@ -394,9 +408,21 @@
     border: 1px solid transparent;
     font-weight: 600;
   }
-  .chip-info { color: #00baff; background: #062635; border-color: #0b3f57; }
-  .chip-success { color: #4caf50; background: #083017; border-color: #1b5e20; }
-  .chip-warn { color: #ffb74d; background: #3a2608; border-color: #5d3a0c; }
+  .chip-info {
+    color: #00baff;
+    background: #062635;
+    border-color: #0b3f57;
+  }
+  .chip-success {
+    color: #4caf50;
+    background: #083017;
+    border-color: #1b5e20;
+  }
+  .chip-warn {
+    color: #ffb74d;
+    background: #3a2608;
+    border-color: #5d3a0c;
+  }
 
   .no-downloads {
     text-align: center;

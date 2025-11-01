@@ -46,11 +46,6 @@
           return;
         }
         if (response?.success && response.tabId) {
-          console.log("App: Got tab ID", {
-            tabId: response.tabId,
-            url: response.url,
-            isInSidePanel,
-          });
           tabId = response.tabId;
           currentUrl = response.url;
         } else {
@@ -65,10 +60,6 @@
                   retryResponse?.success &&
                   retryResponse.tabId
                 ) {
-                  console.log("App: Got tab ID on retry", {
-                    tabId: retryResponse.tabId,
-                    url: retryResponse.url,
-                  });
                   tabId = retryResponse.tabId;
                   currentUrl = retryResponse.url;
                 }
@@ -101,7 +92,7 @@
   });
 
   const updateStateFromStorage = async () => {
-    if (!isInSidePanel) return;
+    // Process action_state in both sidepanel and floating mode
 
     // Ensure we have tabId before processing
     if (!tabId && typeof chrome !== "undefined" && chrome.runtime) {
@@ -136,6 +127,14 @@
         quotedContent = [...quotedContent, storedState.content];
       }
 
+      if (storedState.actionSource === "audio" && storedState.blobId) {
+        // Audio will be handled when sending the message
+        // Store the blobId temporarily - we'll fetch it when needed
+        // For now, we can trigger a prompt with audio
+        const audioBlobId = storedState.blobId;
+        handleAsk({ value: "", images: [], audioBlobId });
+      }
+
       if (storedState.actionSource === "summarise") {
         chatStore.summariseStreaming({
           userMessage: storedState.content,
@@ -155,21 +154,19 @@
   };
 
   $effect(() => {
-    if (isInSidePanel) {
-      globalStorage().watch(
-        globalStorage().ACTION_STATE_EVENT,
-        updateStateFromStorage
-      );
-      return () => {
-        globalStorage().unwatch();
-      };
-    }
+    // Watch for action_state changes in both sidepanel and floating mode
+    globalStorage().watch(
+      globalStorage().ACTION_STATE_EVENT,
+      updateStateFromStorage
+    );
+    return () => {
+      globalStorage().unwatch();
+    };
   });
 
   $effect(() => {
-    if (isInSidePanel) {
-      updateStateFromStorage();
-    }
+    // Initialize state from storage on mount (both modes)
+    updateStateFromStorage();
   });
 
   function handleStateChange({ state }: { state: State }) {
@@ -267,23 +264,14 @@
   });
 
   $effect(() => {
-    console.log("Telescope: Listening to url changes", {
-      a: !isInSidePanel,
-      b: typeof window !== "undefined",
-    });
     // Listen to url changes and react accordingly (for floating mode)
     if (!isInSidePanel && typeof window !== "undefined") {
       const handleUrlChange = () => {
-        console.log("Telescope: Url changed");
         // reload the page context if the url changes
         // this mimics the logic that runs on init
         // You may want to debounce this if navigation is frequent
         (async () => {
           try {
-            console.log("Telescope: Url changed", {
-              tabId,
-              currentUrl,
-            });
             if (!tabId) return;
 
             const cached = await getCachedPageMarkdown({ tabId: tabId });
@@ -291,10 +279,6 @@
               // Use cached
             } else {
               if (currentUrl) {
-                console.log("Telescope: Converting and storing page markdown", {
-                  tabId,
-                  currentUrl,
-                });
                 await convertAndStorePageMarkdown({
                   tabId: tabId,
                   url: currentUrl,
@@ -354,8 +338,14 @@
       {streamingMessageId}
       onStateChange={handleStateChange}
       onInput={handleInput}
-      onAsk={({ value, images, settings, intent }) =>
-        handleAsk({ value, images, settings, intent: intent as any })}
+      onAsk={({ value, images, settings, intent, audioBlobId }) =>
+        handleAsk({
+          value,
+          images,
+          settings,
+          intent: intent as any,
+          audioBlobId,
+        })}
       onSuggestedQuestion={handleSuggestedQuestion}
       onClose={handleClose}
       onStop={handleStop}
