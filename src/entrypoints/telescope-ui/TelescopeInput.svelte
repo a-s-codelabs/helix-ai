@@ -366,7 +366,7 @@
         <div
           class="icon search-icon intent-trigger"
           bind:this={intentTriggerElement}
-          onmouseenter={() => (showIntentMenu = true)}
+          onclick={() => (showIntentMenu = !showIntentMenu)}
           role="button"
           tabindex="0"
           aria-haspopup="menu"
@@ -575,10 +575,11 @@
 
       {#if isInputExpanded}
         <div class="expand-bar">
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
           <div
             class="icon search-icon intent-trigger"
             bind:this={intentTriggerElement}
-            onmouseenter={() => (showIntentMenu = true)}
+            onclick={() => (showIntentMenu = !showIntentMenu)}
             role="button"
             tabindex="0"
             aria-haspopup="menu"
@@ -1076,6 +1077,7 @@
     position: relative;
     padding: 6px;
     border-radius: 50%;
+    user-select: none;
     transition:
       background 0.2s ease,
       color 0.2s ease;
