@@ -134,7 +134,7 @@
       return;
     }
 
-    if (storedState.actionSource === "summarise") {
+    if (storedState.actionSource === "summarize") {
       const heading = "Summarize below content";
       const formattedMessage = formatQuotedContent(
         heading,
@@ -143,7 +143,7 @@
       handleAsk({
         value: formattedMessage,
         images: [],
-        intent: "summarise",
+        intent: "summarize",
       });
       return;
     }
@@ -293,7 +293,7 @@
       value: formattedValue,
       images,
       settings,
-      intent: intent as "prompt" | "summarise" | "translate" | "write" | "rewrite" | "proofread" | undefined,
+      intent: intent as "prompt" | "summarize" | "translate" | "write" | "rewrite" | "proofread" | undefined,
       audioBlobId,
     });
 

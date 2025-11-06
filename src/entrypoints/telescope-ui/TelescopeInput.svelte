@@ -9,7 +9,7 @@
   import StopIcon from "./icons/Stop.svelte";
   import { globalStorage } from "@/lib/globalStorage";
   import AddToChat from "./icons/AddToChat.svelte";
-  import SummariseIcon from "./icons/Summarise.svelte";
+  import SummarizeIcon from "./icons/Summarize.svelte";
   import TranslateIcon from "./icons/Translate.svelte";
   import WriterIcon from "./icons/Writer.svelte";
   import RewriterIcon from "./icons/Rewriter.svelte";
@@ -17,7 +17,7 @@
   import SettingsPopup from "./SettingsPopup.svelte";
   type Intent =
     | "prompt"
-    | "summarise"
+    | "summarize"
     | "translate"
     | "write"
     | "rewrite"
@@ -61,7 +61,7 @@
 
   const intentToPlaceholder: Record<Intent, string> = {
     prompt: "Ask...",
-    summarise: "Summarize this site...",
+    summarize: "Summarize this site...",
     translate: "Translate this content...",
     write: "Write content...",
     rewrite: "Rewrite selected text...",
@@ -70,7 +70,7 @@
 
   const intentToIcon: Record<Intent, typeof SearchAiIcon> = {
     prompt: AddToChat,
-    summarise: SummariseIcon,
+    summarize: SummarizeIcon,
     translate: TranslateIcon,
     write: WriterIcon,
     rewrite: RewriterIcon,
@@ -474,19 +474,19 @@
                 <span>Prompt</span>
               </button>
               <button
-                class="intent-item {selectedIntent === 'summarise'
+                class="intent-item {selectedIntent === 'summarize'
                   ? 'active'
                   : ''}"
                 role="menuitemradio"
-                aria-checked={selectedIntent === "summarise"}
+                aria-checked={selectedIntent === "summarize"}
                 onclick={(e) => {
                   e.stopPropagation();
-                  selectedIntent = "summarise";
+                  selectedIntent = "summarize";
                   showIntentMenu = false;
                 }}
               >
-                <span class="intent-icon-circle"><SummariseIcon /></span>
-                <span>Summarise</span>
+                <span class="intent-icon-circle"><SummarizeIcon /></span>
+                <span>Summarize</span>
               </button>
               <button
                 class="intent-item {selectedIntent === 'translate'
@@ -713,19 +713,19 @@
                   <span>Prompt</span>
                 </button>
                 <button
-                  class="intent-item {selectedIntent === 'summarise'
+                  class="intent-item {selectedIntent === 'summarize'
                     ? 'active'
                     : ''}"
                   role="menuitemradio"
-                  aria-checked={selectedIntent === "summarise"}
+                  aria-checked={selectedIntent === "summarize"}
                   onclick={(e) => {
                     e.stopPropagation();
-                    selectedIntent = "summarise";
+                    selectedIntent = "summarize";
                     showIntentMenu = false;
                   }}
                 >
-                  <span class="intent-icon-circle"><SummariseIcon /></span>
-                  <span>Summarise</span>
+                  <span class="intent-icon-circle"><SummarizeIcon /></span>
+                  <span>Summarize</span>
                 </button>
                 <button
                   class="intent-item {selectedIntent === 'translate'

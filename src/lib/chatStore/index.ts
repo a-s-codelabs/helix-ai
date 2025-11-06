@@ -717,35 +717,66 @@ ${doc?.body?.textContent || 'No content available'}`;
     }
   }
 
-  async function resolveProviderConfig(intent: 'prompt' | 'summarise' | 'translate' | 'write' | 'rewrite'): Promise<{ provider: 'builtin' | Provider; model?: string; apiKey?: string }> {
+  async function resolveProviderConfig(
+    intent: 'prompt' | 'summarize' | 'translate' | 'write' | 'rewrite'
+  ): Promise<{
+    provider: 'builtin' | Provider;
+    model?: string;
+    apiKey?: string;
+  }> {
     const store = globalStorage();
-    const config = (await store.get('config')) || {} as any;
-    const settings = (await store.get('telescopeSettings')) || {} as Record<string, Record<string, string | number>>;
+    const config = (await store.get('config')) || ({} as any);
+    const settings =
+      (await store.get('telescopeSettings')) ||
+      ({} as Record<string, Record<string, string | number>>);
     const intentSettings = settings[intent] || {};
-    const provider = (intentSettings.aiPlatform as any) || config.aiProvider || 'builtin';
-    const model = (intentSettings.aiModel as any) || config.aiModel || undefined;
+    const provider =
+      (intentSettings.aiPlatform as any) || config.aiProvider || 'builtin';
+    const model =
+      (intentSettings.aiModel as any) || config.aiModel || undefined;
     if (provider === 'builtin') return { provider: 'builtin' };
     const apiKey = await loadProviderKey(provider as Provider);
-    return { provider: provider as Provider, model, apiKey: apiKey || undefined };
+    return {
+      provider: provider as Provider,
+      model,
+      apiKey: apiKey || undefined,
+    };
   }
 
-  async function shouldAttachPageContext(intent: 'prompt' | 'summarise' | 'translate' | 'write' | 'rewrite', userMessage?: string): Promise<boolean> {
-    if (intent === 'summarise') return true;
+  async function shouldAttachPageContext(
+    intent: 'prompt' | 'summarize' | 'translate' | 'write' | 'rewrite',
+    userMessage?: string
+  ): Promise<boolean> {
+    if (intent === 'summarize') return true;
     try {
       if (typeof LanguageModel !== 'undefined') {
         const lm = await LanguageModel.create();
         const schema = { type: 'boolean' } as any;
-        const question = `You are determining whether the user's request for intent "${intent}" needs the current web page content. Return JSON boolean true only if the answer requires or benefits from the current page/site content. Otherwise return false.\n\nUser request:\n${(userMessage || '').slice(0, 2000)}`;
-        const result = await (lm as any).prompt(question, { responseConstraint: schema });
-        try { lm.destroy?.(); } catch { }
+        const question = `You are determining whether the user's request for intent "${intent}" needs the current web page content. Return JSON boolean true only if the answer requires or benefits from the current page/site content. Otherwise return false.\n\nUser request:\n${(
+          userMessage || ''
+        ).slice(0, 2000)}`;
+        const result = await (lm as any).prompt(question, {
+          responseConstraint: schema,
+        });
+        try {
+          lm.destroy?.();
+        } catch {}
         try {
           const parsed = JSON.parse(result);
           return !!parsed;
-        } catch { }
+        } catch {}
       }
-    } catch { }
+    } catch {}
     const text = (userMessage || '').toLowerCase();
-    const hints = ['this page', 'this site', 'the page', 'current page', 'on this page', 'summarize the page', 'summarise the page'];
+    const hints = [
+      'this page',
+      'this site',
+      'the page',
+      'current page',
+      'on this page',
+      'summarize the page',
+      'summarize the page',
+    ];
     return hints.some((h) => text.includes(h));
   }
 
@@ -808,11 +839,25 @@ ${doc?.body?.textContent || 'No content available'}`;
       return getDocumentInfoHelper(inSidePanel);
     },
 
-    async summariseStreaming({ userMessage, sharedContext, type = 'tldr', format = 'markdown', length = 'short', tabId }: { userMessage: string, sharedContext?: string, type?: 'keyPoints' | 'tldr' | 'teaser' | 'headline', format?: 'markdown' | 'plain-text', length?: 'short' | 'medium' | 'long', tabId?: number | null }) {
+    async summarizeStreaming({
+      userMessage,
+      sharedContext,
+      type = 'tldr',
+      format = 'markdown',
+      length = 'short',
+      tabId,
+    }: {
+      userMessage: string;
+      sharedContext?: string;
+      type?: 'keyPoints' | 'tldr' | 'teaser' | 'headline';
+      format?: 'markdown' | 'plain-text';
+      length?: 'short' | 'medium' | 'long';
+      tabId?: number | null;
+    }) {
       if (!userMessage.trim()) return;
 
       // Get tabId if not provided
-      const currentTabId = tabId || await getActiveTabId();
+      const currentTabId = tabId || (await getActiveTabId());
 
       const abortController = new AbortController();
       const userMsg = createChatMessage('user', userMessage);
@@ -832,27 +877,36 @@ ${doc?.body?.textContent || 'No content available'}`;
       let summarizer: AISummarizer | null = null;
 
       try {
-        const { provider, model, apiKey } = await resolveProviderConfig('summarise');
+        const { provider, model, apiKey } = await resolveProviderConfig(
+          'summarize'
+        );
         let stream: ReadableStream<string>;
         if (provider === 'builtin') {
-          summarizer = await createAISessionWithMonitor(
-            'summarizer',
-            {
-              sharedContext: userMessage,
-              type: 'tldr',
-              format: 'markdown',
-              tabId: currentTabId,
-              length: 'short',
-            },
-          );
+          summarizer = await createAISessionWithMonitor('summarizer', {
+            sharedContext: userMessage,
+            type: 'tldr',
+            format: 'markdown',
+            tabId: currentTabId,
+            length: 'short',
+          });
           stream = summarizer!.summarizeStreaming(userMessage, {
             signal: abortController.signal,
           });
         } else {
-          if (!apiKey || !model) throw new Error('Missing provider credentials');
-          const prompt = buildSummarizePrompt({ text: userMessage, type: 'tldr', format: 'markdown', length: 'short', pageContext });
+          if (!apiKey || !model)
+            throw new Error('Missing provider credentials');
+          const prompt = buildSummarizePrompt({
+            text: userMessage,
+            type: 'tldr',
+            format: 'markdown',
+            length: 'short',
+            pageContext,
+          });
           const sys = systemPrompt({ pageContext });
-          const result = await runProviderStream({ provider, model, apiKey }, { system: sys, messages: [{ role: 'user', content: prompt }] });
+          const result = await runProviderStream(
+            { provider, model, apiKey },
+            { system: sys, messages: [{ role: 'user', content: prompt }] }
+          );
           stream = result.stream;
         }
 
@@ -896,11 +950,21 @@ ${doc?.body?.textContent || 'No content available'}`;
       }
     },
 
-    async translateStreaming({ userMessage, targetLanguage, sharedContext, tabId }: { userMessage: string, targetLanguage: string, sharedContext?: string, tabId?: number | null }) {
+    async translateStreaming({
+      userMessage,
+      targetLanguage,
+      sharedContext,
+      tabId,
+    }: {
+      userMessage: string;
+      targetLanguage: string;
+      sharedContext?: string;
+      tabId?: number | null;
+    }) {
       if (!userMessage.trim()) return;
 
       // Get tabId if not provided
-      const currentTabId = tabId || await getActiveTabId();
+      const currentTabId = tabId || (await getActiveTabId());
 
       const abortController = new AbortController();
       const userMsg = createChatMessage('user', userMessage);
@@ -922,10 +986,11 @@ ${doc?.body?.textContent || 'No content available'}`;
       let translator: AITranslator | null = null;
 
       try {
-        detector = await createAISessionWithMonitor(
-          'languageDetector',
-          { sourceLanguage: detectedLanguage, targetLanguage, tabId }
-        );
+        detector = await createAISessionWithMonitor('languageDetector', {
+          sourceLanguage: detectedLanguage,
+          targetLanguage,
+          tabId,
+        });
 
         const detectionResults = await detector!.detect(userMessage);
         if (detectionResults && detectionResults.length > 0) {
@@ -950,7 +1015,9 @@ ${doc?.body?.textContent || 'No content available'}`;
           return;
         }
 
-        const { provider, model, apiKey } = await resolveProviderConfig('translate');
+        const { provider, model, apiKey } = await resolveProviderConfig(
+          'translate'
+        );
         let stream: ReadableStream<string>;
         if (provider === 'builtin') {
           if (typeof Translator === 'undefined') {
@@ -965,24 +1032,40 @@ ${doc?.body?.textContent || 'No content available'}`;
               `Translation from ${detectedLanguage} to ${targetLanguage} is not available. Please enable it in Chrome flags.`
             );
           }
-          translator = await createAISessionWithMonitor(
-            'translator',
-            { sourceLanguage: detectedLanguage, targetLanguage, tabId: currentTabId }
-          );
+          translator = await createAISessionWithMonitor('translator', {
+            sourceLanguage: detectedLanguage,
+            targetLanguage,
+            tabId: currentTabId,
+          });
           stream = translator!.translateStreaming(userMessage);
         } else {
-          if (!apiKey || !model) throw new Error('Missing provider credentials');
-          const attach = await shouldAttachPageContext('translate', userMessage);
+          if (!apiKey || !model)
+            throw new Error('Missing provider credentials');
+          const attach = await shouldAttachPageContext(
+            'translate',
+            userMessage
+          );
           // Fetch document info if needed but not available
           if (attach && (!pageContext || pageContext.trim().length === 0)) {
             try {
               pageContext = await getDocumentInfoHelper(isInSidePanel);
             } catch (err) {
-              console.warn('Failed to fetch document info for translation:', err);
+              console.warn(
+                'Failed to fetch document info for translation:',
+                err
+              );
             }
           }
-          const prompt = buildTranslatePrompt({ text: userMessage, sourceLanguage: detectedLanguage, targetLanguage, pageContext: attach ? pageContext : undefined });
-          const result = await runProviderStream({ provider, model, apiKey }, { messages: [{ role: 'user', content: prompt }] });
+          const prompt = buildTranslatePrompt({
+            text: userMessage,
+            sourceLanguage: detectedLanguage,
+            targetLanguage,
+            pageContext: attach ? pageContext : undefined,
+          });
+          const result = await runProviderStream(
+            { provider, model, apiKey },
+            { messages: [{ role: 'user', content: prompt }] }
+          );
           stream = result.stream;
         }
 
@@ -1033,11 +1116,19 @@ ${doc?.body?.textContent || 'No content available'}`;
       }
     },
 
-    async writeStreaming({ userMessage, options, tabId }: { userMessage: string, options?: WriterOptions, tabId?: number | null }) {
+    async writeStreaming({
+      userMessage,
+      options,
+      tabId,
+    }: {
+      userMessage: string;
+      options?: WriterOptions;
+      tabId?: number | null;
+    }) {
       if (!userMessage.trim()) return;
 
       // Get tabId if not provided
-      const currentTabId = tabId || await getActiveTabId();
+      const currentTabId = tabId || (await getActiveTabId());
 
       const abortController = new AbortController();
       const userMsg = createChatMessage('user', userMessage);
@@ -1072,18 +1163,21 @@ ${doc?.body?.textContent || 'No content available'}`;
           }),
         };
 
-        const { provider, model, apiKey } = await resolveProviderConfig('write');
+        const { provider, model, apiKey } = await resolveProviderConfig(
+          'write'
+        );
         let stream: ReadableStream<string>;
         if (provider === 'builtin') {
-          const session = await createAISessionWithMonitor(
-            'writer',
-            { ...writerOptions, tabId: currentTabId }
-          );
+          const session = await createAISessionWithMonitor('writer', {
+            ...writerOptions,
+            tabId: currentTabId,
+          });
           stream = session!.writeStreaming(userMessage, {
             context: options?.sharedContext,
           });
         } else {
-          if (!apiKey || !model) throw new Error('Missing provider credentials');
+          if (!apiKey || !model)
+            throw new Error('Missing provider credentials');
           const attach = await shouldAttachPageContext('write', userMessage);
           // Fetch document info if needed but not available
           if (attach && (!pageContext || pageContext.trim().length === 0)) {
@@ -1093,8 +1187,18 @@ ${doc?.body?.textContent || 'No content available'}`;
               console.warn('Failed to fetch document info for write:', err);
             }
           }
-          const prompt = buildWritePrompt({ text: userMessage, tone: writerOptions.tone as any, format: writerOptions.format as any, length: writerOptions.length as any, outputLanguage: options?.outputLanguage, pageContext: attach ? pageContext : undefined });
-          const result = await runProviderStream({ provider, model, apiKey }, { messages: [{ role: 'user', content: prompt }] });
+          const prompt = buildWritePrompt({
+            text: userMessage,
+            tone: writerOptions.tone as any,
+            format: writerOptions.format as any,
+            length: writerOptions.length as any,
+            outputLanguage: options?.outputLanguage,
+            pageContext: attach ? pageContext : undefined,
+          });
+          const result = await runProviderStream(
+            { provider, model, apiKey },
+            { messages: [{ role: 'user', content: prompt }] }
+          );
           stream = result.stream;
         }
 
@@ -1134,11 +1238,19 @@ ${doc?.body?.textContent || 'No content available'}`;
       }
     },
 
-    async rewriteStreaming({ userMessage, options, tabId }: { userMessage: string, options?: RewriterOptions, tabId?: number | null }) {
+    async rewriteStreaming({
+      userMessage,
+      options,
+      tabId,
+    }: {
+      userMessage: string;
+      options?: RewriterOptions;
+      tabId?: number | null;
+    }) {
       if (!userMessage.trim()) return;
 
       // Get tabId if not provided
-      const currentTabId = tabId || await getActiveTabId();
+      const currentTabId = tabId || (await getActiveTabId());
 
       const abortController = new AbortController();
       const userMsg = createChatMessage('user', userMessage);
@@ -1162,14 +1274,14 @@ ${doc?.body?.textContent || 'No content available'}`;
         const rawLength = options?.length as string | undefined;
 
         const toneMap: Record<string, 'as-is' | 'more-formal' | 'more-casual'> =
-        {
-          'as-is': 'as-is',
-          'more-formal': 'more-formal',
-          'more-casual': 'more-casual',
-          formal: 'more-formal',
-          neutral: 'as-is',
-          casual: 'more-casual',
-        };
+          {
+            'as-is': 'as-is',
+            'more-formal': 'more-formal',
+            'more-casual': 'more-casual',
+            formal: 'more-formal',
+            neutral: 'as-is',
+            casual: 'more-casual',
+          };
         const lengthMap: Record<string, 'as-is' | 'shorter' | 'longer'> = {
           'as-is': 'as-is',
           shorter: 'shorter',
@@ -1210,18 +1322,21 @@ ${doc?.body?.textContent || 'No content available'}`;
           }),
         };
 
-        const { provider, model, apiKey } = await resolveProviderConfig('rewrite');
+        const { provider, model, apiKey } = await resolveProviderConfig(
+          'rewrite'
+        );
         let stream: ReadableStream<string>;
         if (provider === 'builtin') {
-          const session = await createAISessionWithMonitor(
-            'rewriter',
-            { ...rewriterOptions, tabId: currentTabId }
-          );
+          const session = await createAISessionWithMonitor('rewriter', {
+            ...rewriterOptions,
+            tabId: currentTabId,
+          });
           stream = session!.rewriteStreaming(userMessage, {
             context: options?.sharedContext,
           });
         } else {
-          if (!apiKey || !model) throw new Error('Missing provider credentials');
+          if (!apiKey || !model)
+            throw new Error('Missing provider credentials');
           const attach = await shouldAttachPageContext('rewrite', userMessage);
           // Fetch document info if needed but not available
           if (attach && (!pageContext || pageContext.trim().length === 0)) {
@@ -1231,8 +1346,18 @@ ${doc?.body?.textContent || 'No content available'}`;
               console.warn('Failed to fetch document info for rewrite:', err);
             }
           }
-          const prompt = buildRewritePrompt({ text: userMessage, tone: rewriterOptions.tone as any, format: rewriterOptions.format as any, length: rewriterOptions.length as any, outputLanguage: options?.outputLanguage, pageContext: attach ? pageContext : undefined });
-          const result = await runProviderStream({ provider, model, apiKey }, { messages: [{ role: 'user', content: prompt }] });
+          const prompt = buildRewritePrompt({
+            text: userMessage,
+            tone: rewriterOptions.tone as any,
+            format: rewriterOptions.format as any,
+            length: rewriterOptions.length as any,
+            outputLanguage: options?.outputLanguage,
+            pageContext: attach ? pageContext : undefined,
+          });
+          const result = await runProviderStream(
+            { provider, model, apiKey },
+            { messages: [{ role: 'user', content: prompt }] }
+          );
           stream = result.stream;
         }
 
@@ -1271,11 +1396,17 @@ ${doc?.body?.textContent || 'No content available'}`;
         );
       }
     },
-    async proofreadStreaming({ userMessage, tabId }: { userMessage: string, tabId?: number | null }) {
+    async proofreadStreaming({
+      userMessage,
+      tabId,
+    }: {
+      userMessage: string;
+      tabId?: number | null;
+    }) {
       if (!userMessage.trim()) return;
 
       // Get tabId if not provided
-      const currentTabId = tabId || await getActiveTabId();
+      const currentTabId = tabId || (await getActiveTabId());
 
       const abortController = new AbortController();
       const userMsg = createChatMessage('user', userMessage);
@@ -1302,17 +1433,16 @@ ${doc?.body?.textContent || 'No content available'}`;
         // Check availability
         const availability = await Proofreader.availability();
         if (availability === 'unavailable') {
-          throw new Error('Proofreader API is unavailable. Please ensure Chrome 141+ and the Proofreader API flag is enabled.');
+          throw new Error(
+            'Proofreader API is unavailable. Please ensure Chrome 141+ and the Proofreader API flag is enabled.'
+          );
         }
 
         // Create proofreader instance
-        proofreader = await createAISessionWithMonitor(
-          'proofreader',
-          {
-            expectedInputLanguages: ['en'],
-            tabId: currentTabId
-          }
-        );
+        proofreader = await createAISessionWithMonitor('proofreader', {
+          expectedInputLanguages: ['en'],
+          tabId: currentTabId,
+        });
 
         // Perform proofreading
         const result = await proofreader.proofread(userMessage);
@@ -1325,7 +1455,10 @@ ${doc?.body?.textContent || 'No content available'}`;
           const errorsByType: Record<string, typeof result.corrections> = {};
           for (const correction of result.corrections) {
             // Handle both 'correctionType' and 'label' properties
-            const errorType = (correction as any).label || (correction as any).correctionType || 'Other';
+            const errorType =
+              (correction as any).label ||
+              (correction as any).correctionType ||
+              'Other';
             if (!errorsByType[errorType]) {
               errorsByType[errorType] = [];
             }
@@ -1334,14 +1467,21 @@ ${doc?.body?.textContent || 'No content available'}`;
 
           // Build formatted output
           formattedResult += `## 📝 Proofreading Results\n\n`;
-          formattedResult += `**Found ${result.corrections.length} error(s) in ${Object.keys(errorsByType).length} category/categories**\n\n`;
+          formattedResult += `**Found ${
+            result.corrections.length
+          } error(s) in ${
+            Object.keys(errorsByType).length
+          } category/categories**\n\n`;
 
           // Display errors grouped by type
           for (const [errorType, corrections] of Object.entries(errorsByType)) {
             formattedResult += `### ${errorType} (${corrections.length})\n\n`;
 
             for (const correction of corrections) {
-              const original = userMessage.substring(correction.startIndex, correction.endIndex);
+              const original = userMessage.substring(
+                correction.startIndex,
+                correction.endIndex
+              );
               const explanation = correction.explanation || '';
 
               formattedResult += `- **"${original}"** (position ${correction.startIndex}-${correction.endIndex})\n`;
@@ -1355,17 +1495,12 @@ ${doc?.body?.textContent || 'No content available'}`;
           formattedResult = `✅ **No errors found!**\n\nThe text appears to be grammatically correct.`;
         }
 
-        updateMessageContent(
-          update,
-          assistantMsgId,
-          formattedResult,
-          {
-            isLoading: false,
-            isStreaming: false,
-            streamingMessageId: null,
-            abortController: null,
-          }
-        );
+        updateMessageContent(update, assistantMsgId, formattedResult, {
+          isLoading: false,
+          isStreaming: false,
+          streamingMessageId: null,
+          abortController: null,
+        });
       } catch (err) {
         console.error('Proofreading error:', err);
         const errorMessage = getErrorMessage(err);
@@ -1393,11 +1528,23 @@ ${doc?.body?.textContent || 'No content available'}`;
         updateStreamingState(update, assistantMsgId, abortController, false);
       }
     },
-    async promptStreaming({ userMessage, images, audioBlobId, options, tabId }: { userMessage: string, images?: string[], audioBlobId?: string, options?: any, tabId?: number | null }) {
+    async promptStreaming({
+      userMessage,
+      images,
+      audioBlobId,
+      options,
+      tabId,
+    }: {
+      userMessage: string;
+      images?: string[];
+      audioBlobId?: string;
+      options?: any;
+      tabId?: number | null;
+    }) {
       if (!userMessage.trim() && !audioBlobId) return;
 
       // Get tabId if not provided
-      const currentTabId = tabId || await getActiveTabId();
+      const currentTabId = tabId || (await getActiveTabId());
 
       const abortController = new AbortController();
 
@@ -1407,7 +1554,11 @@ ${doc?.body?.textContent || 'No content available'}`;
         try {
           const storage = globalStorage();
           const audioBlobs = await storage.get('audioBlobs');
-          if (audioBlobs && typeof audioBlobs === 'object' && audioBlobs[audioBlobId]) {
+          if (
+            audioBlobs &&
+            typeof audioBlobs === 'object' &&
+            audioBlobs[audioBlobId]
+          ) {
             const base64Data = audioBlobs[audioBlobId] as string;
             // Create a blob URL for playback
             const response = await fetch(base64Data);
@@ -1420,8 +1571,13 @@ ${doc?.body?.textContent || 'No content available'}`;
       }
 
       // Use audio indicator if no text message
-      const displayMessage = userMessage.trim() ?? "";
-      const userMsg = createChatMessage('user', displayMessage, images, audioUrl);
+      const displayMessage = userMessage.trim() ?? '';
+      const userMsg = createChatMessage(
+        'user',
+        displayMessage,
+        images,
+        audioUrl
+      );
       const assistantMsg = createChatMessage('assistant', '');
       const assistantMsgId = assistantMsg.id;
 
@@ -1435,13 +1591,15 @@ ${doc?.body?.textContent || 'No content available'}`;
       updateStreamingState(update, assistantMsgId, abortController, true);
 
       try {
-        const { provider, model, apiKey } = await resolveProviderConfig('prompt');
+        const { provider, model, apiKey } = await resolveProviderConfig(
+          'prompt'
+        );
         if (provider === 'builtin') {
           if (!session) {
-            session = await createAISessionWithMonitor(
-              'prompt',
-              { ...options, tabId: currentTabId }
-            );
+            session = await createAISessionWithMonitor('prompt', {
+              ...options,
+              tabId: currentTabId,
+            });
           }
         }
 
@@ -1466,7 +1624,11 @@ ${doc?.body?.textContent || 'No content available'}`;
           try {
             const storage = globalStorage();
             const audioBlobs = await storage.get('audioBlobs');
-            if (audioBlobs && typeof audioBlobs === 'object' && audioBlobs[audioBlobId]) {
+            if (
+              audioBlobs &&
+              typeof audioBlobs === 'object' &&
+              audioBlobs[audioBlobId]
+            ) {
               const base64Data = audioBlobs[audioBlobId] as string;
               // Convert base64 to blob
               const response = await fetch(base64Data);
@@ -1496,7 +1658,8 @@ ${doc?.body?.textContent || 'No content available'}`;
             );
           }
         } else {
-          if (!apiKey || !model) throw new Error('Missing provider credentials');
+          if (!apiKey || !model)
+            throw new Error('Missing provider credentials');
           const attach = await shouldAttachPageContext('prompt', userMessage);
           // Fetch document info if needed but not available
           if (attach && (!pageContext || pageContext.trim().length === 0)) {
@@ -1512,12 +1675,16 @@ ${doc?.body?.textContent || 'No content available'}`;
             contentParts.push(textPart(userMessage));
           }
           if (images && images.length) {
-            for (const img of images) contentParts.push(imagePartFromDataURL(img));
+            for (const img of images)
+              contentParts.push(imagePartFromDataURL(img));
           }
           if (audioBlob) {
             contentParts.push({ type: 'audio', value: audioBlob });
           }
-          const result = await runProviderStream({ provider, model, apiKey }, { system: sys, messages: [{ role: 'user', content: contentParts }] });
+          const result = await runProviderStream(
+            { provider, model, apiKey },
+            { system: sys, messages: [{ role: 'user', content: contentParts }] }
+          );
           stream = result.stream;
         }
 

@@ -1,4 +1,4 @@
-export type SelectionAction = 'summarise' | 'translate' | 'addToChat';
+export type SelectionAction = 'summarize' | 'translate' | 'addToChat';
 
 export interface SelectionPopupState {
   visible: boolean;
@@ -6,6 +6,6 @@ export interface SelectionPopupState {
   y: number;
   selectedText: string;
   isAtTop?: boolean;
-  source?: 'summarise' | 'translate';
+  source?: 'summarize' | 'translate';
   targetLanguage?: string;
 }

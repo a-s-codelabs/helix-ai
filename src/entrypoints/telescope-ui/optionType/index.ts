@@ -25,7 +25,7 @@ export const option = {
 
   prompt: [...defaultOption],
 
-  summarise: [
+  summarize: [
     ...defaultOption,
     ...summaryType,
     ...lengthOption,

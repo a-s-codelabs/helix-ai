@@ -3,7 +3,7 @@
   import CloseIcon from "./icons/Close.svelte";
   import TrashIcon from "./icons/Trash.svelte";
 
-  type Intent = "prompt" | "summarise" | "translate" | "write" | "rewrite";
+  type Intent = "prompt" | "summarize" | "translate" | "write" | "rewrite";
   type IntentKey = keyof typeof option;
 
   type OptionValue = string | number;
