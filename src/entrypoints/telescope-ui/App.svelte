@@ -201,7 +201,11 @@
     const contentHash = storedState.content
       ? `${storedState.content.slice(0, 100)}${storedState.content.length}`
       : '';
-    const stateId = `${storedState.actionSource}-${contentHash}${storedState.targetLanguage || ''}`;
+    // For audio actions, use blobId to ensure uniqueness
+    const audioId = storedState.actionSource === 'audio' && storedState.blobId
+      ? storedState.blobId
+      : '';
+    const stateId = `${storedState.actionSource}-${contentHash}${storedState.targetLanguage || ''}${audioId}`;
 
     if (processedActionStateIds.has(stateId)) {
       globalStorage().delete("action_state");

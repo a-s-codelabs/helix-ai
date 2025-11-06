@@ -1620,7 +1620,7 @@ ${doc?.body?.textContent || 'No content available'}`;
 
         // Handle audio
         let audioBlob: Blob | null = null;
-        if (audioBlobId && session && provider === 'builtin') {
+        if (audioBlobId) {
           try {
             const storage = globalStorage();
             const audioBlobs = await storage.get('audioBlobs');
@@ -1634,12 +1634,15 @@ ${doc?.body?.textContent || 'No content available'}`;
               const response = await fetch(base64Data);
               audioBlob = await response.blob();
 
-              await session?.append([
-                {
-                  role: 'user',
-                  content: [{ type: 'audio', value: audioBlob }],
-                },
-              ]);
+              // For builtin provider, append audio to session
+              if (session && provider === 'builtin') {
+                await session?.append([
+                  {
+                    role: 'user',
+                    content: [{ type: 'audio', value: audioBlob }],
+                  },
+                ]);
+              }
             }
           } catch (error) {
             console.error('Error loading audio blob:', error);
