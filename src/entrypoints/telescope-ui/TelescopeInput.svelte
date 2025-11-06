@@ -237,19 +237,18 @@
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      const quotedText =
-        quotedContent.length > 0
-          ? quotedContent.join("\n\n---\n\n") + "\n\n"
-          : "";
-      const finalMessage = quotedText + inputValue;
-      handleSendData();
-      resetInput();
+      handleAsk();
     }
   }
 
   function handleSendData(audioBlobId?: string) {
+    const quotedText =
+      quotedContent.length > 0
+        ? quotedContent.join("\n\n---\n\n") + "\n\n"
+        : "";
+    const finalMessage = quotedText + inputValue;
     onAsk?.({
-      value: inputValue,
+      value: finalMessage,
       images: inputImageAttached,
       settings: settingsValues,
       intent: selectedIntent,
@@ -259,13 +258,7 @@
   }
 
   function handleAsk() {
-    const quotedText =
-      quotedContent.length > 0
-        ? quotedContent.join("\n\n---\n\n") + "\n\n"
-        : "";
-    const finalMessage = quotedText + inputValue;
     handleSendData();
-    resetInput();
   }
 
   async function handleVoiceInput() {
