@@ -7,10 +7,12 @@
   import TelescopeSidepanelHeader from "./TelescopeSidepanelHeader.svelte";
   import { handleAskHelper } from "./handleAsk";
   import type { AskOptions } from "./handleAsk";
+  import { getLanguageByCode, getLanguageName } from "@/lib/languageHelper";
   import {
     convertAndStorePageMarkdown,
     getCachedPageMarkdown,
   } from "@/lib/chatStore/markdown-cache-helper";
+  import { detectLanguageFromText } from "@/lib/chatStore";
 
   let currentState: State = $state("ask");
   let inputValue = $state("");
@@ -20,6 +22,7 @@
   let isStreaming = $state(false);
   let streamingMessageId = $state<number | null>(null);
   let quotedContent = $state<string[]>([]);
+  let quotedContentToFormat = $state<Set<string>>(new Set());
 
   let tabId = $state<number | null>(null);
   let { isInSidePanel }: { isInSidePanel: boolean } = $props();
@@ -35,7 +38,6 @@
   });
 
   $effect(() => {
-    // Get tab ID for both sidepanel and floating modes
     if (typeof chrome !== "undefined" && chrome.runtime) {
       chrome.runtime.sendMessage({ type: "GET_TAB_ID" }, (response) => {
         if (chrome.runtime.lastError) {
@@ -50,7 +52,6 @@
           currentUrl = response.url;
         } else {
           console.warn("App: Failed to get tab ID", response);
-          // Retry after a short delay if it failed
           setTimeout(() => {
             chrome.runtime.sendMessage(
               { type: "GET_TAB_ID" },
@@ -91,10 +92,93 @@
     }
   });
 
-  const updateStateFromStorage = async () => {
-    // Process action_state in both sidepanel and floating mode
+  let isProcessingActionState = $state(false);
+  let processedActionStateIds = $state<Set<string>>(new Set());
 
-    // Ensure we have tabId before processing
+  /**
+   * Format content with quoted style and heading
+   * Uses markdown h6 for light gray heading and blockquote for quoted content
+   */
+  const formatQuotedContent = (
+    heading: string,
+    content: string
+  ): string => {
+    const headingText = `###### ${heading}`;
+    const quotedContent = content
+      .split('\n')
+      .map(line => line.trim() ? `> ${line}` : '>')
+      .join('\n');
+    return `${headingText}\n${quotedContent}`;
+  };
+
+  const processActionState = async (storedState: any) => {
+    if (storedState.actionSource === "context-image") {
+      const content = String(storedState.content || "");
+      const isImageUrl =
+        /^data:image\//i.test(content) ||
+        /\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?(#.*)?$/i.test(content);
+      inputImageAttached = [...inputImageAttached, content];
+      return;
+    }
+
+    if (storedState.actionSource === "addToChat") {
+      // Store plain content for display, format when sending
+      quotedContent = [...quotedContent, storedState.content];
+      quotedContentToFormat.add(storedState.content);
+      return;
+    }
+
+    if (storedState.actionSource === "audio" && storedState.blobId) {
+      const audioBlobId = storedState.blobId;
+      handleAsk({ value: "", images: [], audioBlobId });
+      return;
+    }
+
+    if (storedState.actionSource === "summarise") {
+      const heading = "Summarize below content";
+      const formattedMessage = formatQuotedContent(
+        heading,
+        storedState.content
+      );
+      handleAsk({
+        value: formattedMessage,
+        images: [],
+        intent: "summarise",
+      });
+      return;
+    }
+
+    if (
+      storedState.actionSource === "translate" &&
+      storedState.targetLanguage
+    ) {
+      const detectedLangCode = await detectLanguageFromText(storedState.content);
+      const sourceLangName = detectedLangCode
+        ? getLanguageName(detectedLangCode)
+        : '(auto detected)';
+
+      const targetLang = getLanguageByCode(storedState.targetLanguage);
+      const targetLangName = targetLang?.name || storedState.targetLanguage;
+      const heading = `User wants to translate from ${sourceLangName} to ${targetLangName}`;
+      const formattedMessage = formatQuotedContent(
+        heading,
+        storedState.content
+      );
+      handleAsk({
+        value: formattedMessage,
+        images: [],
+        intent: "translate",
+        settings: {
+          outputLanguage: storedState.targetLanguage,
+        },
+      });
+      return;
+    }
+  };
+
+  const updateStateFromStorage = async () => {
+    if (isProcessingActionState) return;
+
     if (!tabId && typeof chrome !== "undefined" && chrome.runtime) {
       const response = await new Promise<{
         success?: boolean;
@@ -112,49 +196,35 @@
     }
 
     const storedState = await globalStorage().get("action_state");
-    if (storedState) {
+    if (!storedState) return;
+
+    const contentHash = storedState.content
+      ? `${storedState.content.slice(0, 100)}${storedState.content.length}`
+      : '';
+    const stateId = `${storedState.actionSource}-${contentHash}${storedState.targetLanguage || ''}`;
+
+    if (processedActionStateIds.has(stateId)) {
       globalStorage().delete("action_state");
+      return;
+    }
 
-      if (storedState.actionSource === "context-image") {
-        const content = String(storedState.content || "");
-        const isImageUrl =
-          /^data:image\//i.test(content) ||
-          /\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?(#.*)?$/i.test(content);
-        inputImageAttached = [...inputImageAttached, content];
+    isProcessingActionState = true;
+    try {
+      globalStorage().delete("action_state");
+      processedActionStateIds.add(stateId);
+
+      if (processedActionStateIds.size > 20) {
+        const idsArray = Array.from(processedActionStateIds);
+        processedActionStateIds = new Set(idsArray.slice(-20));
       }
 
-      if (storedState.actionSource === "addToChat") {
-        quotedContent = [...quotedContent, storedState.content];
-      }
-
-      if (storedState.actionSource === "audio" && storedState.blobId) {
-        // Audio will be handled when sending the message
-        // Store the blobId temporarily - we'll fetch it when needed
-        // For now, we can trigger a prompt with audio
-        const audioBlobId = storedState.blobId;
-        handleAsk({ value: "", images: [], audioBlobId });
-      }
-
-      if (storedState.actionSource === "summarise") {
-        chatStore.summariseStreaming({
-          userMessage: storedState.content,
-          tabId: tabId,
-        });
-      } else if (
-        storedState.actionSource === "translate" &&
-        storedState.targetLanguage
-      ) {
-        chatStore.translateStreaming({
-          userMessage: storedState.content,
-          targetLanguage: storedState.targetLanguage,
-          tabId,
-        });
-      }
+      await processActionState(storedState);
+    } finally {
+      isProcessingActionState = false;
     }
   };
 
   $effect(() => {
-    // Watch for action_state changes in both sidepanel and floating mode
     globalStorage().watch(
       globalStorage().ACTION_STATE_EVENT,
       updateStateFromStorage
@@ -165,7 +235,6 @@
   });
 
   $effect(() => {
-    // Initialize state from storage on mount (both modes)
     updateStateFromStorage();
   });
 
@@ -175,6 +244,61 @@
 
   function handleInput({ value }: { value: string }) {
     inputValue = value;
+  }
+
+  function handleAskFromInput({
+    value,
+    images,
+    settings,
+    intent,
+    audioBlobId,
+  }: {
+    value: string;
+    images?: string[];
+    settings?: Record<string, string | number>;
+    intent?: string;
+    audioBlobId?: string;
+  }) {
+    // Format quotedContent items that need formatting (from addToChat)
+    let formattedValue = value;
+    if (quotedContentToFormat.size > 0) {
+      const separator = "\n\n---\n\n";
+      const parts = value.split(separator);
+
+      // Format each part that needs formatting
+      const formattedParts = parts.map((part) => {
+        // Check if this part matches or starts with content that needs formatting
+        for (const contentToFormat of quotedContentToFormat) {
+          const trimmedPart = part.trim();
+          // Exact match
+          if (trimmedPart === contentToFormat) {
+            const heading = "Added to chat";
+            return formatQuotedContent(heading, contentToFormat);
+          }
+          // Part starts with contentToFormat followed by \n\n (for last part with inputValue)
+          if (part.startsWith(contentToFormat + "\n\n")) {
+            const heading = "Added to chat";
+            const formatted = formatQuotedContent(heading, contentToFormat);
+            const remaining = part.slice(contentToFormat.length);
+            return formatted + remaining;
+          }
+        }
+        return part;
+      });
+
+      formattedValue = formattedParts.join(separator);
+    }
+
+    handleAsk({
+      value: formattedValue,
+      images,
+      settings,
+      intent: intent as "prompt" | "summarise" | "translate" | "write" | "rewrite" | "proofread" | undefined,
+      audioBlobId,
+    });
+
+    // Clear the formatting set after sending
+    quotedContentToFormat.clear();
   }
 
   function handleAsk(opts: AskOptions) {
@@ -264,12 +388,10 @@
   });
 
   $effect(() => {
-    // Listen to url changes and react accordingly (for floating mode)
     if (!isInSidePanel && typeof window !== "undefined") {
       const handleUrlChange = () => {
         // reload the page context if the url changes
         // this mimics the logic that runs on init
-        // You may want to debounce this if navigation is frequent
         (async () => {
           try {
             if (!tabId) return;
@@ -292,12 +414,9 @@
       };
 
       handleUrlChange();
-      // Listen to popstate & hashchange as proxies for url change
       window.addEventListener("popstate", handleUrlChange);
       window.addEventListener("hashchange", handleUrlChange);
 
-      // For single page apps, often pushState is called directly,
-      // so also patch pushState to notify us.
       const originalPushState = window.history.pushState;
       window.history.pushState = function (...args) {
         const result = originalPushState.apply(this, args);
@@ -308,7 +427,6 @@
       return () => {
         window.removeEventListener("popstate", handleUrlChange);
         window.removeEventListener("hashchange", handleUrlChange);
-        // Optionally restore original pushState if needed
         window.history.pushState = originalPushState;
       };
     }
@@ -338,14 +456,7 @@
       {streamingMessageId}
       onStateChange={handleStateChange}
       onInput={handleInput}
-      onAsk={({ value, images, settings, intent, audioBlobId }) =>
-        handleAsk({
-          value,
-          images,
-          settings,
-          intent: intent as any,
-          audioBlobId,
-        })}
+      onAsk={handleAskFromInput}
       onSuggestedQuestion={handleSuggestedQuestion}
       onClose={handleClose}
       onStop={handleStop}

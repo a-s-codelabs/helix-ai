@@ -181,71 +181,84 @@ export function formatBasicMarkdown(text: string): string {
     return `<ul>${listItems}</ul>`;
   });
 
-  return (
-    result
-      .replace(
-        /```(\w+)?\s*\r?\n([\s\S]*?)\r?\n?```/g,
-        (match, language, code) => {
-          let cleanCode = code
-            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
-            .replace(/\*\*(.*?)\*\*/g, '$1')
-            .replace(/(?<!\*)\*(?!\*)([^*]+?)\*(?!\*)/g, '$1')
-            .replace(/^#{1,6}\s+/gm, '')
-            .replace(/^[-*_]{3,}\s*$/gm, '')
-            .replace(/^[\s]*[-*+]\s+/gm, '')
-            .replace(/^[\s]*\d+\.\s+/gm, '');
+  return result
+    .replace(
+      /```(\w+)?\s*\r?\n([\s\S]*?)\r?\n?```/g,
+      (match, language, code) => {
+        let cleanCode = code
+          .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
+          .replace(/\*\*(.*?)\*\*/g, '$1')
+          .replace(/(?<!\*)\*(?!\*)([^*]+?)\*(?!\*)/g, '$1')
+          .replace(/^#{1,6}\s+/gm, '')
+          .replace(/^[-*_]{3,}\s*$/gm, '')
+          .replace(/^[\s]*[-*+]\s+/gm, '')
+          .replace(/^[\s]*\d+\.\s+/gm, '');
 
-          const escapedCode = cleanCode
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-          return `<pre><code>${escapedCode}</code></pre>`;
-        }
-      )
-      .replace(/(?<!`)`(?!``)([^`\n]+)`(?!`)/g, (match, code) => {
-        const escapedCode = code
+        const escapedCode = cleanCode
           .replace(/&/g, '&amp;')
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;')
           .replace(/"/g, '&quot;')
           .replace(/'/g, '&#039;');
-        return `<code>${escapedCode}</code>`;
-      })
-      .replace(/^######\s+(.+)$/gm, '<h6>$1</h6>')
-      .replace(/^#####\s+(.+)$/gm, '<h5>$1</h5>')
-      .replace(/^####\s+(.+)$/gm, '<h4>$1</h4>')
-      .replace(/^###\s+(.+)$/gm, '<h3>$1</h3>')
-      .replace(/^##\s+(.+)$/gm, '<h2>$1</h2>')
-      .replace(/^#\s+(.+)$/gm, '<h1>$1</h1>')
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
-        let normalizedUrl = url.trim().replace(/\/$/, '');
-        if (normalizedUrl.startsWith('www.')) {
-          normalizedUrl = `https://${normalizedUrl}`;
-        } else if (!/^(https?|ftp):\/\//i.test(normalizedUrl)) {
-          normalizedUrl = `https://${normalizedUrl}`;
+        return `<pre><code>${escapedCode}</code></pre>`;
+      }
+    )
+    .replace(/(?<!`)`(?!``)([^`\n]+)`(?!`)/g, (match, code) => {
+      const escapedCode = code
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+      return `<code>${escapedCode}</code>`;
+    })
+    .replace(/^######\s+(.+)$/gm, '<h6>$1</h6>')
+    .replace(/^#####\s+(.+)$/gm, '<h5>$1</h5>')
+    .replace(/^####\s+(.+)$/gm, '<h4>$1</h4>')
+    .replace(/^###\s+(.+)$/gm, '<h3>$1</h3>')
+    .replace(/^##\s+(.+)$/gm, '<h2>$1</h2>')
+    .replace(/^#\s+(.+)$/gm, '<h1>$1</h1>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
+      let normalizedUrl = url.trim().replace(/\/$/, '');
+      if (normalizedUrl.startsWith('www.')) {
+        normalizedUrl = `https://${normalizedUrl}`;
+      } else if (!/^(https?|ftp):\/\//i.test(normalizedUrl)) {
+        normalizedUrl = `https://${normalizedUrl}`;
+      }
+      return `<a href="${normalizedUrl}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+    })
+    .replace(
+      /(^|[^"'=])(https?:\/\/|ftp:\/\/|www\.)([^\s<>"']+)/gi,
+      (match, prefix, protocol, rest) => {
+        if (prefix.match(/[="]/)) {
+          return match;
         }
-        return `<a href="${normalizedUrl}" target="_blank" rel="noopener noreferrer">${text}</a>`;
-      })
-      .replace(
-        /(^|[^"'=])(https?:\/\/|ftp:\/\/|www\.)([^\s<>"']+)/gi,
-        (match, prefix, protocol, rest) => {
-          if (prefix.match(/[="]/)) {
-            return match;
-          }
-          const cleanRest = rest.replace(/\/$/, '');
-          const fullUrl =
-            protocol.toLowerCase() === 'www.'
-              ? `https://www.${cleanRest}`
-              : protocol + cleanRest;
-          return `${prefix}<a href="${fullUrl}" target="_blank" rel="noopener noreferrer">${protocol}${cleanRest}</a>`;
-        }
-      )
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/(?<!\*)\*(?!\*)([^*]+?)\*(?!\*)/g, '<em>$1</em>')
-      .replace(/\n(?![^<]*<\/table>)(?![^<]*<\/code>)(?![^<]*<\/pre>)/g, '<br>')
-  );
+        const cleanRest = rest.replace(/\/$/, '');
+        const fullUrl =
+          protocol.toLowerCase() === 'www.'
+            ? `https://www.${cleanRest}`
+            : protocol + cleanRest;
+        return `${prefix}<a href="${fullUrl}" target="_blank" rel="noopener noreferrer">${protocol}${cleanRest}</a>`;
+      }
+    )
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(?<!\*)\*(?!\*)([^*]+?)\*(?!\*)/g, '<em>$1</em>')
+    .replace(/^(>.*(?:\n>.*)*)/gm, (match) => {
+      const lines = match.split('\n');
+      const blockquoteContent = lines
+        .map((line) => line.replace(/^>\s?/, '').trim())
+        .filter((line) => line.length > 0)
+        .join('<br>');
+      return blockquoteContent
+        ? `<blockquote>${blockquoteContent}</blockquote>`
+        : '';
+    })
+    .replace(
+      /\n(?![^<]*<\/table>)(?![^<]*<\/code>)(?![^<]*<\/pre>)(?![^<]*<\/blockquote>)(?![^<]*<\/h6>)/g,
+      '<br>'
+    )
+    .replace(/<\/h6><br><blockquote>/g, '</h6><blockquote>')
+    .replace(/<\/blockquote><br><br>/g, '</blockquote>');
 }
 
 /**
