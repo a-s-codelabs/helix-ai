@@ -21,6 +21,7 @@ import { getLanguageByCode, getLanguageName } from "@/lib/languageHelper";
   let isStreaming = $state(false);
   let streamingMessageId = $state<number | null>(null);
   let quotedContent = $state<string[]>([]);
+  let quotedContentToFormat = $state<Set<string>>(new Set());
 
   let tabId = $state<number | null>(null);
   let { isInSidePanel }: { isInSidePanel: boolean } = $props();
@@ -148,7 +149,9 @@ import { getLanguageByCode, getLanguageName } from "@/lib/languageHelper";
     }
 
     if (storedState.actionSource === "addToChat") {
+      // Store plain content for display, format when sending
       quotedContent = [...quotedContent, storedState.content];
+      quotedContentToFormat.add(storedState.content);
       return;
     }
 
@@ -283,13 +286,46 @@ import { getLanguageByCode, getLanguageName } from "@/lib/languageHelper";
     intent?: string;
     audioBlobId?: string;
   }) {
+    // Format quotedContent items that need formatting (from addToChat)
+    let formattedValue = value;
+    if (quotedContentToFormat.size > 0) {
+      const separator = "\n\n---\n\n";
+      const parts = value.split(separator);
+
+      // Format each part that needs formatting
+      const formattedParts = parts.map((part) => {
+        // Check if this part matches or starts with content that needs formatting
+        for (const contentToFormat of quotedContentToFormat) {
+          const trimmedPart = part.trim();
+          // Exact match
+          if (trimmedPart === contentToFormat) {
+            const heading = "Added to chat";
+            return formatQuotedContent(heading, contentToFormat);
+          }
+          // Part starts with contentToFormat followed by \n\n (for last part with inputValue)
+          if (part.startsWith(contentToFormat + "\n\n")) {
+            const heading = "Added to chat";
+            const formatted = formatQuotedContent(heading, contentToFormat);
+            const remaining = part.slice(contentToFormat.length);
+            return formatted + remaining;
+          }
+        }
+        return part;
+      });
+
+      formattedValue = formattedParts.join(separator);
+    }
+
     handleAsk({
-      value,
+      value: formattedValue,
       images,
       settings,
       intent: intent as "prompt" | "summarise" | "translate" | "write" | "rewrite" | "proofread" | undefined,
       audioBlobId,
     });
+
+    // Clear the formatting set after sending
+    quotedContentToFormat.clear();
   }
 
   function handleAsk(opts: AskOptions) {
