@@ -5,13 +5,14 @@
   import { globalStorage } from "@/lib/globalStorage";
   import type { Message, State } from "./type";
   import TelescopeSidepanelHeader from "./TelescopeSidepanelHeader.svelte";
-import { handleAskHelper } from "./handleAsk";
-import type { AskOptions } from "./handleAsk";
-import { getLanguageByCode, getLanguageName } from "@/lib/languageHelper";
+  import { handleAskHelper } from "./handleAsk";
+  import type { AskOptions } from "./handleAsk";
+  import { getLanguageByCode, getLanguageName } from "@/lib/languageHelper";
   import {
     convertAndStorePageMarkdown,
     getCachedPageMarkdown,
   } from "@/lib/chatStore/markdown-cache-helper";
+  import { detectLanguageFromText } from "@/lib/chatStore";
 
   let currentState: State = $state("ask");
   let inputValue = $state("");
@@ -108,34 +109,6 @@ import { getLanguageByCode, getLanguageName } from "@/lib/languageHelper";
       .map(line => line.trim() ? `> ${line}` : '>')
       .join('\n');
     return `${headingText}\n${quotedContent}`;
-  };
-
-  /**
-   * Detect language from text content
-   */
-  const detectLanguageFromText = async (text: string): Promise<string | null> => {
-    try {
-      if (typeof window === 'undefined' || typeof window.LanguageDetector === 'undefined') {
-        return null;
-      }
-
-      const availability = await window.LanguageDetector.availability();
-      if (availability === 'unavailable') {
-        return null;
-      }
-
-      const detector = await window.LanguageDetector.create();
-      const results = await detector.detect(text);
-      detector.destroy();
-
-      if (results && results.length > 0) {
-        return results[0].detectedLanguage;
-      }
-      return null;
-    } catch (error) {
-      console.warn('Language detection failed:', error);
-      return null;
-    }
   };
 
   const processActionState = async (storedState: any) => {

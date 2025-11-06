@@ -16,7 +16,7 @@ import { runProviderStream, imagePartFromDataURL, textPart, type Provider } from
 import { loadProviderKey } from "../secureStore";
 import { RewriterOptions, WriterOptions } from "../writerApiHelper";
 import { cleanHTML, htmlToMarkdown, processTextForLLM } from "../utils/converters";
-import { getCachedPageMarkdown, convertAndStorePageMarkdown, storePageMarkdown } from "./markdown-cache-helper";
+import { getCachedPageMarkdown, storePageMarkdown } from "./markdown-cache-helper";
 
 async function processStream<T>(
   stream: ReadableStream<T>,
@@ -399,6 +399,32 @@ export type ChatState = {
   abortController: AbortController | null;
 };
 
+
+export const detectLanguageFromText = async (text: string): Promise<string | null> => {
+  try {
+    if (typeof window === 'undefined' || typeof window.LanguageDetector === 'undefined') {
+      return null;
+    }
+
+    const availability = await window.LanguageDetector.availability();
+    if (availability === 'unavailable') {
+      return null;
+    }
+
+    const detector = await window.LanguageDetector.create();
+    const results = await detector.detect(text);
+    detector.destroy();
+
+    if (results && results.length > 0) {
+      return results[0].detectedLanguage;
+    }
+    return null;
+  } catch (error) {
+    console.warn('Language detection failed:', error);
+    return null;
+  }
+};
+
 async function createAISession({ pageContext, language = 'en', outputLanguage = 'en', temperature = 0.4, topK = 4 }: { pageContext: string, language?: string, outputLanguage?: string, temperature?: number, topK?: number }): Promise<AILanguageModel> {
   console.log('createAISession', pageContext);
   if (typeof LanguageModel !== 'undefined') {
@@ -443,9 +469,7 @@ async function createAISession({ pageContext, language = 'en', outputLanguage = 
   );
 }
 
-/**
- * Check Chrome Built-in AI availability
- */
+
 async function checkAPIStatus(): Promise<{
   available: boolean;
   message: string;
