@@ -244,7 +244,16 @@ export function formatBasicMarkdown(text: string): string {
       )
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/(?<!\*)\*(?!\*)([^*]+?)\*(?!\*)/g, '<em>$1</em>')
-      .replace(/\n(?![^<]*<\/table>)(?![^<]*<\/code>)(?![^<]*<\/pre>)/g, '<br>')
+      .replace(/^(>.*(?:\n>.*)*)/gm, (match) => {
+        const lines = match.split('\n');
+        const blockquoteContent = lines
+          .map(line => line.replace(/^>\s?/, '').trim())
+          .filter(line => line.length > 0)
+          .join('<br>');
+        return blockquoteContent ? `<blockquote>${blockquoteContent}</blockquote>` : '';
+      })
+      .replace(/\n(?![^<]*<\/table>)(?![^<]*<\/code>)(?![^<]*<\/pre>)(?![^<]*<\/blockquote>)(?![^<]*<\/h6>)/g, '<br>')
+      .replace(/<\/h6><br><blockquote>/g, '</h6><blockquote>')
   );
 }
 

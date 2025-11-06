@@ -557,8 +557,15 @@
   }
 
   :global(.message h6) {
-    font-size: 13px;
-    color: #e0e0e0;
+    font-size: 14px;
+    color: #fff;
+  }
+
+  :global(.message h6:has(+ blockquote)) {
+    font-size: 12px;
+    font-weight: 100;
+    color: #fafafa;
+    opacity: 0.7;
   }
 
   :global(.message table) {
@@ -645,6 +652,11 @@
     border-radius: 4px;
     font-style: italic;
     color: #e0e0e0;
+    font-size: 13px;
+  }
+
+  :global(.message h6 + blockquote) {
+    margin-top: 0;
   }
 
   :global(.message blockquote:not(:first-child)) {
@@ -654,12 +666,20 @@
   :global(.message blockquote p) {
     margin: 0;
     display: block;
+    color: gray;
+    font-size: 12px;
+    font-weight: lighter;
   }
 
   :global(.user-message blockquote) {
     background-color: rgba(0, 0, 0, 0.2);
     border-left-color: rgba(255, 255, 255, 0.4);
-    color: #fff;
+    color: #fafafa;
+    font-size: 13px;
+  }
+
+  :global(.user-message h6 + blockquote) {
+    margin-top: 0;
   }
 
   .streaming-cursor {
