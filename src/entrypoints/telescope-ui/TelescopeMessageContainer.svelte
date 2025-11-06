@@ -9,6 +9,8 @@
   import CopyIcon from "./icons/Copy.svelte";
   // @ts-ignore - Svelte component import
   import SpeakerIcon from "./icons/Speaker.svelte";
+  // @ts-ignore - Svelte component import
+  import AudioPlayer from "./AudioPlayer.svelte";
 
   let {
     messages = [],
@@ -36,7 +38,6 @@
       tempDiv.innerHTML = content;
       const plainText = tempDiv.textContent || tempDiv.innerText || "";
 
-      // Show feedback immediately next to the button
       copiedMessageId = messageId;
       setTimeout(() => {
         copiedMessageId = null;
@@ -195,7 +196,7 @@
         {/if}
         {#if message.audioUrl && message.type === "user"}
           <div class="audio-player-container">
-            <audio controls class="audio-player" src={message.audioUrl}></audio>
+            <AudioPlayer audioUrl={message.audioUrl} />
           </div>
         {/if}
         {@html renderMarkdownContent(message.content)}
@@ -716,31 +717,6 @@
 
   .audio-player-container {
     margin-bottom: 8px;
-    padding: 8px 0;
-  }
-
-  .audio-player {
-    width: 100%;
-    min-width: 200px;
-    max-width: 320px;
-    height: 32px;
-    outline: none;
-    background: transparent;
-    border-radius: 6px;
-    color: #e5e7eb;
-  }
-
-  .audio-player::-webkit-media-controls-panel {
-    border-radius: 6px;
-  }
-
-  .audio-player::-webkit-media-controls-panel {
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-  }
-
-  .user-message .audio-player::-webkit-media-controls-panel {
-    background-color: rgba(0, 0, 0, 0.2);
   }
 
   :global(.sidepanel-layout) .message {
