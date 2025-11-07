@@ -434,7 +434,8 @@ async function createAISession({ pageContext, language = 'en', outputLanguage = 
       language,
       outputLanguage,
       output: { language: outputLanguage },
-      expectedInputs: [{ type: 'image' }, { type: 'audio' }],
+      // expectedInputs: [{ type: 'image' }, { type: 'audio' }],
+      expectedInputs: [{ type: 'image' }],
       temperature,
       topK,
       initialPrompts: [
