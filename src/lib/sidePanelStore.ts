@@ -10,8 +10,8 @@ export interface TelescopeState {
   searchIndex: number;
   totalResults: number;
   currentState: 'ask' | 'chat';
-  source: 'append' | 'move' | 'translate' | "addtochat";
-  actionSource: "summarise" | "translate" | "prompt" | "popup";
+  source: 'append' | 'move' | 'translate' | 'addtochat';
+  actionSource: 'summarize' | 'translate' | 'prompt' | 'popup';
   targetLanguage: string | null;
   timestamp: number;
 }

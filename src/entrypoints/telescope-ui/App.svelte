@@ -134,7 +134,7 @@
       return;
     }
 
-    if (storedState.actionSource === "summarise") {
+    if (storedState.actionSource === "summarize") {
       const heading = "Summarize below content";
       const formattedMessage = formatQuotedContent(
         heading,
@@ -143,7 +143,7 @@
       handleAsk({
         value: formattedMessage,
         images: [],
-        intent: "summarise",
+        intent: "summarize",
       });
       return;
     }
@@ -201,7 +201,11 @@
     const contentHash = storedState.content
       ? `${storedState.content.slice(0, 100)}${storedState.content.length}`
       : '';
-    const stateId = `${storedState.actionSource}-${contentHash}${storedState.targetLanguage || ''}`;
+    // For audio actions, use blobId to ensure uniqueness
+    const audioId = storedState.actionSource === 'audio' && storedState.blobId
+      ? storedState.blobId
+      : '';
+    const stateId = `${storedState.actionSource}-${contentHash}${storedState.targetLanguage || ''}${audioId}`;
 
     if (processedActionStateIds.has(stateId)) {
       globalStorage().delete("action_state");
@@ -293,7 +297,7 @@
       value: formattedValue,
       images,
       settings,
-      intent: intent as "prompt" | "summarise" | "translate" | "write" | "rewrite" | "proofread" | undefined,
+      intent: intent as "prompt" | "summarize" | "translate" | "write" | "rewrite" | "proofread" | undefined,
       audioBlobId,
     });
 

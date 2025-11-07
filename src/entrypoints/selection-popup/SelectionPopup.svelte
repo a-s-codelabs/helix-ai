@@ -1,7 +1,7 @@
 <script lang="ts">
   import { scale } from "svelte/transition";
   import type { SelectionAction } from "./types";
-  import Summarise from "../telescope-ui/icons/Summarise.svelte";
+  import Summarize from "../telescope-ui/icons/Summarize.svelte";
   import Translate from "../telescope-ui/icons/Translate.svelte";
   import AddToChat from "../telescope-ui/icons/AddToChat.svelte";
   import Down from "../telescope-ui/icons/Down.svelte";
@@ -19,7 +19,7 @@
 
   const actions: Array<{ id: SelectionAction; icon: any; label: string }> = [
     { id: "addToChat", icon: AddToChat, label: "Add to Chat" },
-    { id: "summarise", icon: Summarise, label: "Summarise" },
+    { id: "summarize", icon: Summarize, label: "Summarize" },
     { id: "translate", icon: Translate, label: "Translate" },
   ];
 
@@ -46,9 +46,9 @@
       });
       onClose?.();
       return;
-    } else if (action === "summarise") {
+    } else if (action === "summarize") {
       globalStorage().set("action_state", {
-        actionSource: "summarise",
+        actionSource: "summarize",
         content: selectedText,
       });
       onClose?.();
