@@ -13,6 +13,7 @@
     getCachedPageMarkdown,
   } from "@/lib/chatStore/markdown-cache-helper";
   import { detectLanguageFromText } from "@/lib/chatStore";
+  import { AVAILABLE_MODELS, multiModelStore } from "@/lib/multiModelStore";
 
   let currentState: State = $state("ask");
   let inputValue = $state("");
@@ -27,6 +28,39 @@
   let tabId = $state<number | null>(null);
   let { isInSidePanel }: { isInSidePanel: boolean } = $props();
   let currentUrl = $state<string | null>(null);
+  let multiModel = $state(false);
+  let enabledModels = $state<string[]>([]);
+
+  // Load saved enabled models on init
+  $effect(() => {
+    (async () => {
+      try {
+        const storage = globalStorage();
+        const saved = await storage.get('enabledModels');
+        if (saved && Array.isArray(saved) && saved.length > 0) {
+          enabledModels = saved;
+          multiModelStore.setEnabledModels(saved);
+        } else {
+          enabledModels = AVAILABLE_MODELS.map((m) => m.id);
+          multiModelStore.setEnabledModels(enabledModels);
+        }
+      } catch (error) {
+        console.error('Failed to load enabled models:', error);
+        enabledModels = AVAILABLE_MODELS.map((m) => m.id);
+        multiModelStore.setEnabledModels(enabledModels);
+      }
+    })();
+  });
+
+  // Sync enabled models with store changes
+  $effect(() => {
+    const unsubscribe = multiModelStore.subscribe((state) => {
+      if (state.enabledModels.length > 0 && state.enabledModels !== enabledModels) {
+        enabledModels = state.enabledModels;
+      }
+    });
+    return unsubscribe;
+  });
 
   $effect(() => {
     const unsubscribe = chatStore.subscribe((state) => {
@@ -306,7 +340,21 @@
   }
 
   function handleAsk(opts: AskOptions) {
-    handleAskHelper({ ...opts, tabId: tabId });
+    // Enable multi-model mode for prompt intents
+    const isPromptIntent = !opts.intent || opts.intent === 'prompt';
+    if (isPromptIntent) {
+      multiModel = true;
+      enabledModels = AVAILABLE_MODELS.map((m) => m.id);
+    } else {
+      multiModel = false;
+    }
+
+    handleAskHelper({
+      ...opts,
+      tabId: tabId,
+      multiModel: isPromptIntent ? true : false,
+      enabledModels: isPromptIntent ? enabledModels : undefined,
+    });
   }
 
   function handleSuggestedQuestion({ question }: { question: string }) {
@@ -458,6 +506,8 @@
       {messages}
       {isStreaming}
       {streamingMessageId}
+      {multiModel}
+      {enabledModels}
       onStateChange={handleStateChange}
       onInput={handleInput}
       onAsk={handleAskFromInput}

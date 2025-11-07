@@ -1,9 +1,11 @@
 <script lang="ts">
   import MessageContainer from "./TelescopeMessageContainer.svelte";
+  import MultiModelResponseContainer from "./MultiModelResponseContainer.svelte";
   import Close from "./icons/Close.svelte";
   import RightSidePanel from "./icons/RightSidePanel.svelte";
   import { sidePanelUtils } from "../../lib/sidePanelStore";
   import type { Message, ChatboxProps } from "./type";
+  import { AVAILABLE_MODELS } from "@/lib/multiModelStore";
 
   let {
     input,
@@ -15,6 +17,8 @@
     streamingMessageId = null,
     onDragStart,
     isInSidePanel = false,
+    multiModel = false,
+    enabledModels = AVAILABLE_MODELS.map((m) => m.id),
   }: ChatboxProps = $props();
 
   async function handleMoveToSidePanel() {
@@ -35,11 +39,11 @@
 </script>
 
 <div
-  class:chat-box={messages.length > 0}
+  class:chat-box={messages.length > 0 || multiModel}
   class:sidepanel-layout={isInSidePanel}
   class="default-chat-box"
 >
-  {#if messages.length > 0}
+  {#if messages.length > 0 || multiModel}
     {#if !isInSidePanel}
       <button
         class="right-panel-icon"
@@ -59,7 +63,11 @@
       </button>
     {/if}
     <div class="messages-container">
-      <MessageContainer {messages} {isStreaming} {streamingMessageId} />
+      {#if multiModel}
+        <MultiModelResponseContainer {enabledModels} />
+      {:else}
+        <MessageContainer {messages} {isStreaming} {streamingMessageId} />
+      {/if}
       {#if suggestedQuestions.length > 0}
         <div class="suggested-questions">
           {#each suggestedQuestions as question}

@@ -52,6 +52,8 @@ export type InputProps = {
   streamingMessageId?: number | null;
   onStop?: () => void;
   onDragStart?: (event: MouseEvent) => void;
+  multiModel?: boolean;
+  enabledModels?: string[];
 };
 
 export type Message = {
@@ -78,4 +80,6 @@ export type ChatboxProps = {
   currentState?: State;
   isInSidePanel?: boolean;
   onDragStart?: (event: MouseEvent) => void;
+  multiModel?: boolean;
+  enabledModels?: string[];
 };

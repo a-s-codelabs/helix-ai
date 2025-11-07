@@ -15,6 +15,9 @@
   import RewriterIcon from "./icons/Rewriter.svelte";
   import ProofreadIcon from "./icons/Proofread.svelte";
   import SettingsPopup from "./SettingsPopup.svelte";
+  import ModelSelectorPopup from "./ModelSelectorPopup.svelte";
+  import ModelSelectorIcon from "./icons/ModelSelector.svelte";
+  import { multiModelStore, AVAILABLE_MODELS } from "@/lib/multiModelStore";
   type Intent =
     | "prompt"
     | "summarize"
@@ -56,6 +59,9 @@
   let showSettingsPopup = $state(false);
   let settingsButtonElement = $state<HTMLButtonElement | null>(null);
   let settingsValues = $state<Record<string, string | number>>({});
+
+  let showModelSelector = $state(false);
+  let modelSelectorButtonElement = $state<HTMLButtonElement | null>(null);
 
   const storage = globalStorage();
 
@@ -113,13 +119,20 @@
       settingsButtonElement?.contains(target) ?? false;
     const clickedInsideSettingsPopup =
       (event.target as HTMLElement)?.closest(".search-icon") !== null;
+    const clickedInsideModelSelector =
+      modelSelectorButtonElement?.contains(target) ?? false;
+    const clickedInsideModelSelectorPopup =
+      (event.target as HTMLElement)?.closest(".model-selector-popup") !== null;
     if (
       !clickedInsideIntent &&
       !clickedInsideBar &&
       !clickedInsideMenu &&
-      !clickedInsideSettingsPopup
+      !clickedInsideSettingsPopup &&
+      !clickedInsideModelSelector &&
+      !clickedInsideModelSelectorPopup
     ) {
       showIntentMenu = false;
+      showModelSelector = false;
     }
   }
 
@@ -131,6 +144,16 @@
 
   function handleSettingsClose() {
     showSettingsPopup = false;
+  }
+
+  function handleModelSelectorClick(event: MouseEvent) {
+    event.stopPropagation();
+    event.preventDefault();
+    showModelSelector = !showModelSelector;
+  }
+
+  function handleModelSelectorClose() {
+    showModelSelector = false;
   }
 
   function handleSettingsChange({
@@ -594,6 +617,26 @@
           {/if}
         </div>
 
+        <div class="model-selector-container" style="position: relative; display: flex; align-items: center;">
+          <button
+            class="icon-button model-selector-button"
+            title="Select AI Models"
+            aria-label="Select AI Models"
+            bind:this={modelSelectorButtonElement}
+            onclick={handleModelSelectorClick}
+            class:active={showModelSelector}
+            style="display: flex !important; align-items: center; justify-content: center; min-width: 24px; min-height: 24px; visibility: visible !important; opacity: 1 !important; width: 24px; height: 24px; color: #9ca3af;"
+          >
+            <ModelSelectorIcon />
+          </button>
+          {#if showModelSelector}
+            <ModelSelectorPopup
+              anchorEl={modelSelectorButtonElement}
+              onClose={handleModelSelectorClose}
+            />
+          {/if}
+        </div>
+
         <div class="separator"></div>
 
         <div class="action-icons">
@@ -822,6 +865,29 @@
               {/if}
             </div>
 
+            <div
+              class="model-selector-container"
+              style="position: relative; margin-right: 8px; display: flex !important; align-items: center; visibility: visible !important;"
+            >
+              <button
+                class="icon-button model-selector-button"
+                title="Select AI Models"
+                aria-label="Select AI Models"
+                bind:this={modelSelectorButtonElement}
+                onclick={handleModelSelectorClick}
+                class:active={showModelSelector}
+                style="display: flex !important; align-items: center; justify-content: center; min-width: 24px; min-height: 24px; visibility: visible !important; opacity: 1 !important; width: 24px; height: 24px;"
+              >
+                <ModelSelectorIcon />
+              </button>
+              {#if showModelSelector}
+                <ModelSelectorPopup
+                  anchorEl={modelSelectorButtonElement}
+                  onClose={handleModelSelectorClose}
+                />
+              {/if}
+            </div>
+
             <div class="separator"></div>
 
             <div class="action-icons">
@@ -997,6 +1063,73 @@
     z-index: 1100;
   }
 
+  .model-selector-container {
+    position: relative;
+    display: flex !important;
+    align-items: center;
+    flex-shrink: 0;
+    width: auto;
+    height: auto;
+    min-width: 24px;
+    min-height: 24px;
+  }
+
+  .model-selector-container .icon-button {
+    position: relative;
+    z-index: 1100;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    min-height: 24px;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: transparent;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  .model-selector-container .icon-button:hover {
+    background: #404040;
+    color: #d1d5db;
+  }
+
+  .model-selector-container .icon-button.active {
+    background: #404040;
+    color: #3b82f6;
+  }
+
+  .model-selector-container .icon-button :global(svg),
+  .model-selector-button :global(svg) {
+    display: block !important;
+    width: 18px !important;
+    height: 18px !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: currentColor !important;
+    flex-shrink: 0;
+  }
+
+  .model-selector-container :global(svg),
+  .model-selector-button :global(svg) {
+    display: block !important;
+    width: 18px !important;
+    height: 18px !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  .model-selector-button {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
   .input-bar-container {
     display: flex;
     align-items: start;
@@ -1025,6 +1158,7 @@
     position: relative;
     width: 100%;
     flex-wrap: nowrap;
+    overflow: visible;
   }
 
   .image-inputs-container {
