@@ -7,9 +7,10 @@ ok with iterative and declarative style
 
 use best practice
 when writing fn - create input and output types
-avoid unnecessary abstraction
 
 comment only when necessary example why this code is needed
 don't create unnecessary docs
 
+avoid unnecessary abstraction
+avoid creating code and files unnecessarily, try to use created code
 do only necessary changes

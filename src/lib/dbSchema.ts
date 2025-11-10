@@ -158,6 +158,10 @@ export const DB_SCHEMA = {
       url: string | null;
     },
   },
+  enabledModels: {
+    storageKey: 'local:global:enabledModels' as const,
+    default: [] as string[],
+  },
 };
 export type DBStorageKey = keyof typeof DB_SCHEMA;
 

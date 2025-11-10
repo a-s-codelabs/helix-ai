@@ -30,6 +30,8 @@
     streamingMessageId = null,
     onStop,
     onDragStart,
+    multiModel = false,
+    enabledModels = [],
   }: InputProps = $props();
 </script>
 
@@ -45,6 +47,8 @@
   {inputImageAttached}
   currentState={inputState}
   {onDragStart}
+  {multiModel}
+  {enabledModels}
 >
   {#snippet input()}
     <TelescopeInput

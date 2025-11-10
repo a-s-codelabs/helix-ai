@@ -14,9 +14,21 @@ import { monitorHelperSync } from "./monitor-helper";
 import { systemPrompt, buildSummarizePrompt, buildTranslatePrompt, buildWritePrompt, buildRewritePrompt } from "./prompt";
 import { runProviderStream, imagePartFromDataURL, textPart, type Provider } from "../ai/providerClient";
 import { loadProviderKey } from "../secureStore";
-import { RewriterOptions, WriterOptions } from "../writerApiHelper";
-import { cleanHTML, htmlToMarkdown, processTextForLLM } from "../utils/converters";
-import { getCachedPageMarkdown, storePageMarkdown } from "./markdown-cache-helper";
+import {
+  multiModelStore,
+  AVAILABLE_MODELS,
+  type ModelConfig,
+} from '../multiModelStore';
+import { RewriterOptions, WriterOptions } from '../writerApiHelper';
+import {
+  cleanHTML,
+  htmlToMarkdown,
+  processTextForLLM,
+} from '../utils/converters';
+import {
+  getCachedPageMarkdown,
+  storePageMarkdown,
+} from './markdown-cache-helper';
 
 async function processStream<T>(
   stream: ReadableStream<T>,
@@ -65,8 +77,15 @@ async function processStream<T>(
 }
 
 async function createAISessionWithMonitor(
-  sessionType: 'summarizer' | 'languageDetector' | 'translator' | 'writer' | 'rewriter' | 'proofreader' | 'prompt',
-  options: any = {},
+  sessionType:
+    | 'summarizer'
+    | 'languageDetector'
+    | 'translator'
+    | 'writer'
+    | 'rewriter'
+    | 'proofreader'
+    | 'prompt',
+  options: any = {}
 ): Promise<any> {
   const monitor = (m: any) => {
     const createdAt = Date.now();
@@ -76,8 +95,8 @@ async function createAISessionWithMonitor(
           sessionType === 'summarizer'
             ? 'summarize'
             : sessionType === 'languageDetector'
-              ? 'language-detector'
-              : 'translator',
+            ? 'language-detector'
+            : 'translator',
         loaded: e.loaded,
         createdAt,
         options: options,
@@ -85,8 +104,16 @@ async function createAISessionWithMonitor(
     });
   };
 
-  async function checkAvailability(sourceType: 'LanguageModel' | 'Summarizer' | 'LanguageDetector' | 'Translator' | 'Writer' | 'Rewriter' | 'Proofreader') {
-
+  async function checkAvailability(
+    sourceType:
+      | 'LanguageModel'
+      | 'Summarizer'
+      | 'LanguageDetector'
+      | 'Translator'
+      | 'Writer'
+      | 'Rewriter'
+      | 'Proofreader'
+  ) {
     try {
       if (typeof window[sourceType as keyof Window] === 'undefined') {
         throw new Error(`${sourceType} API not available`);
@@ -97,8 +124,7 @@ async function createAISessionWithMonitor(
           sourceLanguage: options.sourceLanguage,
           targetLanguage: options.targetLanguage,
         });
-      }
-      else {
+      } else {
         availability = await window[sourceType as keyof Window].availability();
       }
       if (availability === 'unavailable') {
@@ -108,23 +134,25 @@ async function createAISessionWithMonitor(
       console.error(`Error checking availability for ${sourceType}:`, error);
       throw new Error(
         'Chrome Built-in AI not available.\n\n' +
-        'Please ensure:\n' +
-        '1. You are using Chrome 138+ (Dev/Canary/Beta)\n' +
-        '2. Flags are enabled at chrome:flags for Built-in AI\n' +
-        '3. Chrome has been fully restarted\n' +
-        '4. Model is downloaded at chrome://components'
+          'Please ensure:\n' +
+          '1. You are using Chrome 138+ (Dev/Canary/Beta)\n' +
+          '2. Flags are enabled at chrome:flags for Built-in AI\n' +
+          '3. Chrome has been fully restarted\n' +
+          '4. Model is downloaded at chrome://components'
       );
     }
   }
 
-  // Fetch pageContext from cache if tabId is provided
   let pageContext = '';
   if (options.tabId) {
     try {
       const cached = await getCachedPageMarkdown({ tabId: options.tabId });
       if (cached) {
         pageContext = cached;
-        console.log('createAISessionWithMonitor: Using cached pageContext for tab', options.tabId);
+        console.log(
+          'createAISessionWithMonitor: Using cached pageContext for tab',
+          options.tabId
+        );
       }
     } catch (err) {
       console.warn('Error fetching page context from cache:', err);
@@ -299,32 +327,32 @@ declare global {
 
   var LanguageModel:
     | {
-      availability(): Promise<
-        'readily' | 'available' | 'no' | 'downloadable'
-      >;
-      create(
-        options?: AILanguageModelCreateOptions
-      ): Promise<AILanguageModel>;
-    }
+        availability(): Promise<
+          'readily' | 'available' | 'no' | 'downloadable'
+        >;
+        create(
+          options?: AILanguageModelCreateOptions
+        ): Promise<AILanguageModel>;
+      }
     | undefined;
 
   var Summarizer:
     | {
-      availability(): Promise<'readily' | 'available' | 'unavailable'>;
-      create(options?: {
-        sharedContext?: string;
-        type?: 'key-points' | 'tldr' | 'teaser' | 'headline';
-        format?: 'markdown' | 'plain-text';
-        length?: 'short' | 'medium' | 'long';
-        signal?: AbortSignal;
-        monitor?: (monitor: {
-          addEventListener: (
-            type: string,
-            listener: (e: any) => void
-          ) => void;
-        }) => void;
-      }): Promise<AISummarizer>;
-    }
+        availability(): Promise<'readily' | 'available' | 'unavailable'>;
+        create(options?: {
+          sharedContext?: string;
+          type?: 'key-points' | 'tldr' | 'teaser' | 'headline';
+          format?: 'markdown' | 'plain-text';
+          length?: 'short' | 'medium' | 'long';
+          signal?: AbortSignal;
+          monitor?: (monitor: {
+            addEventListener: (
+              type: string,
+              listener: (e: any) => void
+            ) => void;
+          }) => void;
+        }): Promise<AISummarizer>;
+      }
     | undefined;
 
   type AISummarizer = {
@@ -341,17 +369,17 @@ declare global {
 
   var LanguageDetector:
     | {
-      availability(): Promise<'readily' | 'available' | 'unavailable'>;
-      create(options?: {
-        signal?: AbortSignal;
-        monitor?: (monitor: {
-          addEventListener: (
-            type: string,
-            listener: (e: any) => void
-          ) => void;
-        }) => void;
-      }): Promise<AILanguageDetector>;
-    }
+        availability(): Promise<'readily' | 'available' | 'unavailable'>;
+        create(options?: {
+          signal?: AbortSignal;
+          monitor?: (monitor: {
+            addEventListener: (
+              type: string,
+              listener: (e: any) => void
+            ) => void;
+          }) => void;
+        }): Promise<AILanguageDetector>;
+      }
     | undefined;
 
   type AILanguageDetector = {
@@ -363,22 +391,22 @@ declare global {
 
   var Translator:
     | {
-      availability(options: {
-        sourceLanguage: string;
-        targetLanguage: string;
-      }): Promise<'readily' | 'available' | 'unavailable'>;
-      create(options: {
-        sourceLanguage: string;
-        targetLanguage: string;
-        signal?: AbortSignal;
-        monitor?: (monitor: {
-          addEventListener: (
-            type: string,
-            listener: (e: any) => void
-          ) => void;
-        }) => void;
-      }): Promise<AITranslator>;
-    }
+        availability(options: {
+          sourceLanguage: string;
+          targetLanguage: string;
+        }): Promise<'readily' | 'available' | 'unavailable'>;
+        create(options: {
+          sourceLanguage: string;
+          targetLanguage: string;
+          signal?: AbortSignal;
+          monitor?: (monitor: {
+            addEventListener: (
+              type: string,
+              listener: (e: any) => void
+            ) => void;
+          }) => void;
+        }): Promise<AITranslator>;
+      }
     | undefined;
 
   type AITranslator = {
@@ -399,10 +427,14 @@ export type ChatState = {
   abortController: AbortController | null;
 };
 
-
-export const detectLanguageFromText = async (text: string): Promise<string | null> => {
+export const detectLanguageFromText = async (
+  text: string
+): Promise<string | null> => {
   try {
-    if (typeof window === 'undefined' || typeof window.LanguageDetector === 'undefined') {
+    if (
+      typeof window === 'undefined' ||
+      typeof window.LanguageDetector === 'undefined'
+    ) {
       return null;
     }
 
@@ -425,7 +457,19 @@ export const detectLanguageFromText = async (text: string): Promise<string | nul
   }
 };
 
-async function createAISession({ pageContext, language = 'en', outputLanguage = 'en', temperature = 0.4, topK = 4 }: { pageContext: string, language?: string, outputLanguage?: string, temperature?: number, topK?: number }): Promise<AILanguageModel> {
+async function createAISession({
+  pageContext,
+  language = 'en',
+  outputLanguage = 'en',
+  temperature = 0.4,
+  topK = 4,
+}: {
+  pageContext: string;
+  language?: string;
+  outputLanguage?: string;
+  temperature?: number;
+  topK?: number;
+}): Promise<AILanguageModel> {
   console.log('createAISession', pageContext);
   if (typeof LanguageModel !== 'undefined') {
     const config = {
@@ -462,14 +506,13 @@ async function createAISession({ pageContext, language = 'en', outputLanguage = 
 
   throw new Error(
     'Chrome Built-in AI not available.\n\n' +
-    'Please ensure:\n' +
-    '1. You are using Chrome 138+ (Dev/Canary/Beta)\n' +
-    '2. Flags are enabled at chrome:flags for Built-in AI\n' +
-    '3. Chrome has been fully restarted\n' +
-    '4. Model is downloaded at chrome://components'
+      'Please ensure:\n' +
+      '1. You are using Chrome 138+ (Dev/Canary/Beta)\n' +
+      '2. Flags are enabled at chrome:flags for Built-in AI\n' +
+      '3. Chrome has been fully restarted\n' +
+      '4. Model is downloaded at chrome://components'
   );
 }
-
 
 async function checkAPIStatus(): Promise<{
   available: boolean;
@@ -533,7 +576,6 @@ function createChatStore() {
   let pageContext = '';
   let isInSidePanel = false;
 
-  // Helper function to get tab ID
   async function getActiveTabId(): Promise<number | null> {
     try {
       if (typeof chrome !== 'undefined' && chrome.tabs) {
@@ -551,8 +593,10 @@ function createChatStore() {
     }
   }
 
-  // Helper function to get tab ID via background script (works in both sidepanel and floating modes)
-  async function getTabIdFromBackground(): Promise<{ tabId: number | null; url: string | null }> {
+ async function getTabIdFromBackground(): Promise<{
+    tabId: number | null;
+    url: string | null;
+  }> {
     return new Promise((resolve) => {
       if (typeof chrome === 'undefined' || !chrome.runtime) {
         resolve({ tabId: null, url: null });
@@ -577,9 +621,9 @@ function createChatStore() {
     });
   }
 
-  // Helper function to get document info - defined here so it can be used in other methods
-  async function getDocumentInfoHelper(inSidePanel: boolean = false): Promise<string> {
-    // Get tab ID first - use background script for both modes to ensure accuracy
+  async function getDocumentInfoHelper(
+    inSidePanel: boolean = false
+  ): Promise<string> {
     let tabId: number | null = null;
     let currentUrl = '';
 
@@ -587,13 +631,14 @@ function createChatStore() {
     tabId = tabInfo.tabId;
     currentUrl = tabInfo.url || '';
 
-    // Fallback for floating mode if background script fails
     if (!tabId && !inSidePanel) {
       tabId = await getActiveTabId();
-      currentUrl = typeof window !== 'undefined' && window.location ? window.location.href : '';
+      currentUrl =
+        typeof window !== 'undefined' && window.location
+          ? window.location.href
+          : '';
     }
 
-    // Try to get cached markdown first
     if (tabId) {
       const cached = await getCachedPageMarkdown({ tabId });
       if (cached) {
@@ -602,7 +647,6 @@ function createChatStore() {
       }
     }
 
-    // No cache found, extract fresh content
     if (inSidePanel) {
       // Sidepanel mode: request via background script
       return new Promise<string>(async (resolve, reject) => {
@@ -632,10 +676,13 @@ function createChatStore() {
             }
 
             if (response?.success && response.pageContext) {
-              // Store the extracted content in cache
               if (tabId && currentUrl) {
                 try {
-                  await storePageMarkdown({ url: currentUrl, content: response.pageContext, tabId });
+                  await storePageMarkdown({
+                    url: currentUrl,
+                    content: response.pageContext,
+                    tabId,
+                  });
                 } catch (storeErr) {
                   console.warn('Failed to store markdown in cache:', storeErr);
                 }
@@ -652,29 +699,34 @@ function createChatStore() {
     } else {
       // Floating mode: use window.document directly
       try {
-        // Try to get document from window (for shadow DOM in content script)
         const doc = typeof window !== 'undefined' ? window.document : document;
 
         if (!doc) {
           throw new Error('Document not available');
         }
 
-        const html = (
-          doc.querySelector('article') ||
-          doc.querySelector('main') ||
-          doc.querySelector('[role="main"]') ||
-          doc.querySelector('#main') ||
-          doc.documentElement
-        )?.outerHTML || '';
+        const html =
+          (
+            doc.querySelector('article') ||
+            doc.querySelector('main') ||
+            doc.querySelector('[role="main"]') ||
+            doc.querySelector('#main') ||
+            doc.documentElement
+          )?.outerHTML || '';
 
         const cleanedHTML = cleanHTML(html);
         const markdown = htmlToMarkdown(cleanedHTML);
         const processedMarkdown = processTextForLLM(markdown);
 
         const metaDescription =
-          doc.querySelector('meta[name="description"]')
+          doc
+            .querySelector('meta[name="description"]')
             ?.getAttribute?.('content') || '';
-        const url = currentUrl || (typeof window !== 'undefined' && window.location ? window.location.href : 'unknown');
+        const url =
+          currentUrl ||
+          (typeof window !== 'undefined' && window.location
+            ? window.location.href
+            : 'unknown');
         const metadata = `# ${doc.title || 'Web Page'}
 **Title:** ${doc.title}
 **Description:** ${metaDescription}
@@ -691,10 +743,9 @@ function createChatStore() {
         const data =
           finalContent.length > maxLength
             ? finalContent.substring(0, maxLength) +
-            '\n\n... [Content truncated for AI context]'
+              '\n\n... [Content truncated for AI context]'
             : finalContent;
 
-        // Store in cache
         if (tabId && url && url !== 'unknown') {
           try {
             await storePageMarkdown({ url, content: data, tabId });
@@ -799,12 +850,10 @@ ${doc?.body?.textContent || 'No content available'}`;
       if (providedPageContext) {
         pageContext = providedPageContext;
       } else {
-        // Use getDocumentInfo to fetch page content
         try {
           pageContext = await getDocumentInfoHelper(inSidePanel);
         } catch (err) {
           console.error('Failed to get document info during init:', err);
-          // Fallback to old method for floating mode
           if (!inSidePanel) {
             try {
               const tabId = await getActiveTabId();
@@ -857,7 +906,6 @@ ${doc?.body?.textContent || 'No content available'}`;
     }) {
       if (!userMessage.trim()) return;
 
-      // Get tabId if not provided
       const currentTabId = tabId || (await getActiveTabId());
 
       const abortController = new AbortController();
@@ -963,9 +1011,7 @@ ${doc?.body?.textContent || 'No content available'}`;
       tabId?: number | null;
     }) {
       if (!userMessage.trim()) return;
-
-      // Get tabId if not provided
-      const currentTabId = tabId || (await getActiveTabId());
+    const currentTabId = tabId || (await getActiveTabId());
 
       const abortController = new AbortController();
       const userMsg = createChatMessage('user', userMessage);
@@ -1046,7 +1092,6 @@ ${doc?.body?.textContent || 'No content available'}`;
             'translate',
             userMessage
           );
-          // Fetch document info if needed but not available
           if (attach && (!pageContext || pageContext.trim().length === 0)) {
             try {
               pageContext = await getDocumentInfoHelper(isInSidePanel);
@@ -1127,10 +1172,7 @@ ${doc?.body?.textContent || 'No content available'}`;
       tabId?: number | null;
     }) {
       if (!userMessage.trim()) return;
-
-      // Get tabId if not provided
       const currentTabId = tabId || (await getActiveTabId());
-
       const abortController = new AbortController();
       const userMsg = createChatMessage('user', userMessage);
       const assistantMsg = createChatMessage('assistant', '');
@@ -1180,7 +1222,6 @@ ${doc?.body?.textContent || 'No content available'}`;
           if (!apiKey || !model)
             throw new Error('Missing provider credentials');
           const attach = await shouldAttachPageContext('write', userMessage);
-          // Fetch document info if needed but not available
           if (attach && (!pageContext || pageContext.trim().length === 0)) {
             try {
               pageContext = await getDocumentInfoHelper(isInSidePanel);
@@ -1249,8 +1290,6 @@ ${doc?.body?.textContent || 'No content available'}`;
       tabId?: number | null;
     }) {
       if (!userMessage.trim()) return;
-
-      // Get tabId if not provided
       const currentTabId = tabId || (await getActiveTabId());
 
       const abortController = new AbortController();
@@ -1339,7 +1378,6 @@ ${doc?.body?.textContent || 'No content available'}`;
           if (!apiKey || !model)
             throw new Error('Missing provider credentials');
           const attach = await shouldAttachPageContext('rewrite', userMessage);
-          // Fetch document info if needed but not available
           if (attach && (!pageContext || pageContext.trim().length === 0)) {
             try {
               pageContext = await getDocumentInfoHelper(isInSidePanel);
@@ -1406,7 +1444,6 @@ ${doc?.body?.textContent || 'No content available'}`;
     }) {
       if (!userMessage.trim()) return;
 
-      // Get tabId if not provided
       const currentTabId = tabId || (await getActiveTabId());
 
       const abortController = new AbortController();
@@ -1431,7 +1468,6 @@ ${doc?.body?.textContent || 'No content available'}`;
           throw new Error('Proofreader API not available');
         }
 
-        // Check availability
         const availability = await Proofreader.availability();
         if (availability === 'unavailable') {
           throw new Error(
@@ -1439,23 +1475,17 @@ ${doc?.body?.textContent || 'No content available'}`;
           );
         }
 
-        // Create proofreader instance
         proofreader = await createAISessionWithMonitor('proofreader', {
           expectedInputLanguages: ['en'],
           tabId: currentTabId,
         });
 
-        // Perform proofreading
         const result = await proofreader.proofread(userMessage);
-
-        // Format the results
         let formattedResult = '';
 
         if (result.corrections && result.corrections.length > 0) {
-          // Group corrections by error type
           const errorsByType: Record<string, typeof result.corrections> = {};
           for (const correction of result.corrections) {
-            // Handle both 'correctionType' and 'label' properties
             const errorType =
               (correction as any).label ||
               (correction as any).correctionType ||
@@ -1466,7 +1496,6 @@ ${doc?.body?.textContent || 'No content available'}`;
             errorsByType[errorType].push(correction);
           }
 
-          // Build formatted output
           formattedResult += `## 📝 Proofreading Results\n\n`;
           formattedResult += `**Found ${
             result.corrections.length
@@ -1474,7 +1503,6 @@ ${doc?.body?.textContent || 'No content available'}`;
             Object.keys(errorsByType).length
           } category/categories**\n\n`;
 
-          // Display errors grouped by type
           for (const [errorType, corrections] of Object.entries(errorsByType)) {
             formattedResult += `### ${errorType} (${corrections.length})\n\n`;
 
@@ -1543,13 +1571,10 @@ ${doc?.body?.textContent || 'No content available'}`;
       tabId?: number | null;
     }) {
       if (!userMessage.trim() && !audioBlobId) return;
-
-      // Get tabId if not provided
       const currentTabId = tabId || (await getActiveTabId());
 
       const abortController = new AbortController();
 
-      // Get audio URL if audioBlobId is provided
       let audioUrl: string | undefined = undefined;
       if (audioBlobId) {
         try {
@@ -1561,7 +1586,6 @@ ${doc?.body?.textContent || 'No content available'}`;
             audioBlobs[audioBlobId]
           ) {
             const base64Data = audioBlobs[audioBlobId] as string;
-            // Create a blob URL for playback
             const response = await fetch(base64Data);
             const blob = await response.blob();
             audioUrl = URL.createObjectURL(blob);
@@ -1571,7 +1595,6 @@ ${doc?.body?.textContent || 'No content available'}`;
         }
       }
 
-      // Use audio indicator if no text message
       const displayMessage = userMessage.trim() ?? '';
       const userMsg = createChatMessage(
         'user',
@@ -1604,7 +1627,6 @@ ${doc?.body?.textContent || 'No content available'}`;
           }
         }
 
-        // Handle images
         if (images && images.length > 0 && session && provider === 'builtin') {
           for await (const image of images) {
             const rawFile = await imageStringToFile(image, 'image');
@@ -1619,7 +1641,6 @@ ${doc?.body?.textContent || 'No content available'}`;
           }
         }
 
-        // Handle audio
         let audioBlob: Blob | null = null;
         if (audioBlobId) {
           try {
@@ -1631,11 +1652,9 @@ ${doc?.body?.textContent || 'No content available'}`;
               audioBlobs[audioBlobId]
             ) {
               const base64Data = audioBlobs[audioBlobId] as string;
-              // Convert base64 to blob
               const response = await fetch(base64Data);
               audioBlob = await response.blob();
 
-              // For builtin provider, append audio to session
               if (session && provider === 'builtin') {
                 await session?.append([
                   {
@@ -1665,7 +1684,6 @@ ${doc?.body?.textContent || 'No content available'}`;
           if (!apiKey || !model)
             throw new Error('Missing provider credentials');
           const attach = await shouldAttachPageContext('prompt', userMessage);
-          // Fetch document info if needed but not available
           if (attach && (!pageContext || pageContext.trim().length === 0)) {
             try {
               pageContext = await getDocumentInfoHelper(isInSidePanel);
@@ -1724,6 +1742,219 @@ ${doc?.body?.textContent || 'No content available'}`;
         safeDestroySession(session);
         session = null;
       }
+    },
+
+    async multiModelPromptStreaming({
+      userMessage,
+      images,
+      audioBlobId,
+      options,
+      tabId,
+      enabledModels = AVAILABLE_MODELS.map((m) => m.id),
+    }: {
+      userMessage: string;
+      images?: string[];
+      audioBlobId?: string;
+      options?: any;
+      tabId?: number | null;
+      enabledModels?: string[];
+    }) {
+      if (!userMessage.trim() && !audioBlobId) return;
+
+      const currentTabId = tabId || (await getActiveTabId());
+
+      let audioUrl: string | undefined = undefined;
+      if (audioBlobId) {
+        try {
+          const storage = globalStorage();
+          const audioBlobs = await storage.get('audioBlobs');
+          if (
+            audioBlobs &&
+            typeof audioBlobs === 'object' &&
+            audioBlobs[audioBlobId]
+          ) {
+            const base64Data = audioBlobs[audioBlobId] as string;
+            const response = await fetch(base64Data);
+            const blob = await response.blob();
+            audioUrl = URL.createObjectURL(blob);
+          }
+        } catch (error) {
+          console.error('Error creating audio URL:', error);
+        }
+      }
+
+      const displayMessage = userMessage.trim() ?? '';
+      const userMsg = createChatMessage(
+        'user',
+        displayMessage,
+        images,
+        audioUrl
+      );
+
+      multiModelStore.initializeModelResponses(enabledModels);
+
+      for (const modelId of enabledModels) {
+        multiModelStore.addUserMessage(modelId, userMsg);
+      }
+
+      const attach = await shouldAttachPageContext('prompt', userMessage);
+      let currentPageContext = pageContext;
+      if (
+        attach &&
+        (!currentPageContext || currentPageContext.trim().length === 0)
+      ) {
+        try {
+          currentPageContext = await getDocumentInfoHelper(isInSidePanel);
+        } catch (err) {
+          console.warn(
+            'Failed to fetch document info for multi-model prompt:',
+            err
+          );
+        }
+      }
+      const sys = attach
+        ? systemPrompt({ pageContext: currentPageContext })
+        : undefined;
+
+      const contentParts: any[] = [];
+      if (userMessage.trim()) {
+        contentParts.push(textPart(userMessage));
+      }
+      if (images && images.length) {
+        for (const img of images) {
+          contentParts.push(imagePartFromDataURL(img));
+        }
+      }
+
+      let audioBlob: Blob | null = null;
+      if (audioBlobId) {
+        try {
+          const storage = globalStorage();
+          const audioBlobs = await storage.get('audioBlobs');
+          if (
+            audioBlobs &&
+            typeof audioBlobs === 'object' &&
+            audioBlobs[audioBlobId]
+          ) {
+            const base64Data = audioBlobs[audioBlobId] as string;
+            const response = await fetch(base64Data);
+            audioBlob = await response.blob();
+            contentParts.push({ type: 'audio', value: audioBlob });
+          }
+        } catch (error) {
+          console.error('Error loading audio blob:', error);
+        }
+      }
+
+      const modelPromises = enabledModels.map(async (modelId) => {
+        const modelConfig = AVAILABLE_MODELS.find((m) => m.id === modelId);
+        if (!modelConfig) {
+          multiModelStore.setError(modelId, `Model ${modelId} not found`);
+          return;
+        }
+
+        const abortController = new AbortController();
+        const assistantMsg = createChatMessage('assistant', '');
+        const assistantMsgId = assistantMsg.id;
+
+        multiModelStore.addAssistantMessage(modelId, assistantMsg);
+        multiModelStore.updateStreamingState(modelId, true, assistantMsgId);
+        multiModelStore.setLoading(modelId, true);
+
+        try {
+          let stream: ReadableStream<string>;
+
+          if (modelConfig.provider === 'builtin') {
+            const session = await createAISessionWithMonitor('prompt', {
+              ...options,
+              tabId: currentTabId,
+            });
+
+            if (images && images.length > 0) {
+              for await (const image of images) {
+                const rawFile = await imageStringToFile(image, 'image');
+                const file = await ensurePngFile(rawFile, 'image.png');
+                await session?.append([
+                  {
+                    role: 'user',
+                    content: [{ type: 'image', value: file }],
+                  },
+                ]);
+              }
+            }
+
+            if (audioBlob) {
+              await session?.append([
+                {
+                  role: 'user',
+                  content: [{ type: 'audio', value: audioBlob }],
+                },
+              ]);
+            }
+
+            const promptContent = userMessage.trim() || (audioBlob ? '' : '');
+            stream = session.promptStreaming(promptContent);
+          } else {
+            const apiKey = await loadProviderKey(
+              modelConfig.provider as Provider
+            );
+            if (!apiKey) {
+              throw new Error(`API key not found for ${modelConfig.provider}`);
+            }
+
+            const result = await runProviderStream(
+              {
+                provider: modelConfig.provider as Provider,
+                model: modelConfig.model,
+                apiKey,
+              },
+              {
+                system: sys,
+                messages: [{ role: 'user', content: contentParts }],
+              }
+            );
+
+            stream = result.stream;
+          }
+
+          await processStream(
+            stream,
+            abortController,
+            (chunk: string) => {
+              if (
+                chunk &&
+                typeof chunk === 'string' &&
+                !abortController.signal.aborted
+              ) {
+                multiModelStore.appendToStreamingMessage(
+                  modelId,
+                  assistantMsgId,
+                  chunk
+                );
+              }
+            },
+            60000,
+            `multi-model stream for ${modelId}`
+          );
+
+          multiModelStore.updateStreamingState(modelId, false, null);
+          multiModelStore.setLoading(modelId, false);
+        } catch (err) {
+          console.error(`Error streaming for model ${modelId}:`, err);
+          const errorMessage = getErrorMessage(err);
+          multiModelStore.updateMessageContent(
+            modelId,
+            assistantMsgId,
+            createErrorMessage(err).content
+          );
+          multiModelStore.setError(modelId, errorMessage);
+          multiModelStore.updateStreamingState(modelId, false, null);
+          multiModelStore.setLoading(modelId, false);
+        }
+      });
+
+
+      await Promise.allSettled(modelPromises);
     },
 
     stopStreaming() {

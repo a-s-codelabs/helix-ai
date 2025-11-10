@@ -13,6 +13,7 @@
     getCachedPageMarkdown,
   } from "@/lib/chatStore/markdown-cache-helper";
   import { detectLanguageFromText } from "@/lib/chatStore";
+  import { AVAILABLE_MODELS, multiModelStore } from "@/lib/multiModelStore";
 
   let currentState: State = $state("ask");
   let inputValue = $state("");
@@ -27,6 +28,44 @@
   let tabId = $state<number | null>(null);
   let { isInSidePanel }: { isInSidePanel: boolean } = $props();
   let currentUrl = $state<string | null>(null);
+  let multiModel = $state(false);
+  let enabledModels = $state<string[]>([]);
+  let enabledModelsInitialized = $state(false);
+
+  $effect(() => {
+    if (enabledModelsInitialized) return;
+    (async () => {
+      try {
+        const storage = globalStorage();
+        const saved = await storage.get('enabledModels');
+        if (saved && Array.isArray(saved) && saved.length > 0) {
+          enabledModels = saved;
+          multiModelStore.setEnabledModels(saved);
+        } else {
+          enabledModels = AVAILABLE_MODELS.map((m) => m.id);
+          multiModelStore.setEnabledModels(enabledModels);
+        }
+        enabledModelsInitialized = true;
+      } catch (error) {
+        console.error('Failed to load enabled models:', error);
+        enabledModels = AVAILABLE_MODELS.map((m) => m.id);
+        multiModelStore.setEnabledModels(enabledModels);
+        enabledModelsInitialized = true;
+      }
+    })();
+  });
+
+  $effect(() => {
+    const unsubscribe = multiModelStore.subscribe((state) => {
+      const arraysEqual = (a: string[], b: string[]) =>
+        a.length === b.length && a.every((val, idx) => val === b[idx]);
+
+      if (state.enabledModels.length > 0 && !arraysEqual(state.enabledModels, enabledModels)) {
+        enabledModels = state.enabledModels;
+      }
+    });
+    return unsubscribe;
+  });
 
   $effect(() => {
     const unsubscribe = chatStore.subscribe((state) => {
@@ -122,7 +161,6 @@
     }
 
     if (storedState.actionSource === "addToChat") {
-      // Store plain content for display, format when sending
       quotedContent = [...quotedContent, storedState.content];
       quotedContentToFormat.add(storedState.content);
       return;
@@ -201,7 +239,6 @@
     const contentHash = storedState.content
       ? `${storedState.content.slice(0, 100)}${storedState.content.length}`
       : '';
-    // For audio actions, use blobId to ensure uniqueness
     const audioId = storedState.actionSource === 'audio' && storedState.blobId
       ? storedState.blobId
       : '';
@@ -263,23 +300,18 @@
     intent?: string;
     audioBlobId?: string;
   }) {
-    // Format quotedContent items that need formatting (from addToChat)
     let formattedValue = value;
     if (quotedContentToFormat.size > 0) {
       const separator = "\n\n---\n\n";
       const parts = value.split(separator);
 
-      // Format each part that needs formatting
       const formattedParts = parts.map((part) => {
-        // Check if this part matches or starts with content that needs formatting
         for (const contentToFormat of quotedContentToFormat) {
           const trimmedPart = part.trim();
-          // Exact match
           if (trimmedPart === contentToFormat) {
             const heading = "Added to chat";
             return formatQuotedContent(heading, contentToFormat);
           }
-          // Part starts with contentToFormat followed by \n\n (for last part with inputValue)
           if (part.startsWith(contentToFormat + "\n\n")) {
             const heading = "Added to chat";
             const formatted = formatQuotedContent(heading, contentToFormat);
@@ -301,12 +333,24 @@
       audioBlobId,
     });
 
-    // Clear the formatting set after sending
     quotedContentToFormat.clear();
   }
 
   function handleAsk(opts: AskOptions) {
-    handleAskHelper({ ...opts, tabId: tabId });
+    const isPromptIntent = !opts.intent || opts.intent === 'prompt';
+    if (isPromptIntent) {
+      multiModel = true;
+      enabledModels = AVAILABLE_MODELS.map((m) => m.id);
+    } else {
+      multiModel = false;
+    }
+
+    handleAskHelper({
+      ...opts,
+      tabId: tabId,
+      multiModel: isPromptIntent ? true : false,
+      enabledModels: isPromptIntent ? enabledModels : undefined,
+    });
   }
 
   function handleSuggestedQuestion({ question }: { question: string }) {
@@ -394,15 +438,12 @@
   $effect(() => {
     if (!isInSidePanel && typeof window !== "undefined") {
       const handleUrlChange = () => {
-        // reload the page context if the url changes
-        // this mimics the logic that runs on init
         (async () => {
           try {
             if (!tabId) return;
 
             const cached = await getCachedPageMarkdown({ tabId: tabId });
             if (cached) {
-              // Use cached
             } else {
               if (currentUrl) {
                 await convertAndStorePageMarkdown({
@@ -458,6 +499,8 @@
       {messages}
       {isStreaming}
       {streamingMessageId}
+      {multiModel}
+      {enabledModels}
       onStateChange={handleStateChange}
       onInput={handleInput}
       onAsk={handleAskFromInput}

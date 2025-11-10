@@ -44,13 +44,13 @@ const appendGS = async <K extends DBStorageKey>({ key, value, whereKey }: { key:
 
 const onBoardGS = async ({ force = false }: { force?: boolean } = {}) => {
   const keys = Object.keys(DB_SCHEMA);
-  if (await getGS("config") && !force) {
-    return;
-  }
   for (const key of keys) {
     const value = await getGS(key as DBStorageKey);
-    if (!value) {
-      await setGS(key as DBStorageKey, DB_SCHEMA[key as keyof typeof DB_SCHEMA].default);
+    if (value === null || value === undefined || force) {
+      await setGS(
+        key as DBStorageKey,
+        DB_SCHEMA[key as keyof typeof DB_SCHEMA].default
+      );
     }
   }
 }
