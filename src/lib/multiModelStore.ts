@@ -4,11 +4,17 @@ import type { Message } from '../entrypoints/telescope-ui/type';
 export type ModelConfig = {
   id: string;
   name: string;
-  provider: 'openai' | 'gemini';
+  provider: 'openai' | 'gemini' | 'builtin';
   model: string;
 };
 
 export const AVAILABLE_MODELS: ModelConfig[] = [
+  {
+    id: 'builtin',
+    name: 'Chrome Built-in',
+    provider: 'builtin',
+    model: 'builtin',
+  },
   { id: 'gpt-4o', name: 'GPT-4o', provider: 'openai', model: 'gpt-4o' },
   {
     id: 'gpt-4o-mini',

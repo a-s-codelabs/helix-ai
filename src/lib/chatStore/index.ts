@@ -1913,26 +1913,65 @@ ${doc?.body?.textContent || 'No content available'}`;
         multiModelStore.setLoading(modelId, true);
 
         try {
-          // Load API key for the model's provider
-          const apiKey = await loadProviderKey(modelConfig.provider);
-          if (!apiKey) {
-            throw new Error(`API key not found for ${modelConfig.provider}`);
-          }
+          let stream: ReadableStream<string>;
 
-          // Create stream for this model
-          const result = await runProviderStream(
-            {
-              provider: modelConfig.provider,
-              model: modelConfig.model,
-              apiKey,
-            },
-            {
-              system: sys,
-              messages: [{ role: 'user', content: contentParts }],
+          if (modelConfig.provider === 'builtin') {
+            // Use Chrome Built-in AI
+            const session = await createAISessionWithMonitor('prompt', {
+              ...options,
+              tabId: currentTabId,
+            });
+
+            // Handle images for builtin
+            if (images && images.length > 0) {
+              for await (const image of images) {
+                const rawFile = await imageStringToFile(image, 'image');
+                const file = await ensurePngFile(rawFile, 'image.png');
+                await session?.append([
+                  {
+                    role: 'user',
+                    content: [{ type: 'image', value: file }],
+                  },
+                ]);
+              }
             }
-          );
 
-          const stream = result.stream;
+            // Handle audio for builtin
+            if (audioBlob) {
+              await session?.append([
+                {
+                  role: 'user',
+                  content: [{ type: 'audio', value: audioBlob }],
+                },
+              ]);
+            }
+
+            const promptContent = userMessage.trim() || (audioBlob ? '' : '');
+            stream = session.promptStreaming(promptContent);
+          } else {
+            // Load API key for the model's provider
+            const apiKey = await loadProviderKey(
+              modelConfig.provider as Provider
+            );
+            if (!apiKey) {
+              throw new Error(`API key not found for ${modelConfig.provider}`);
+            }
+
+            // Create stream for this model
+            const result = await runProviderStream(
+              {
+                provider: modelConfig.provider as Provider,
+                model: modelConfig.model,
+                apiKey,
+              },
+              {
+                system: sys,
+                messages: [{ role: 'user', content: contentParts }],
+              }
+            );
+
+            stream = result.stream;
+          }
 
           // Process stream
           await processStream(

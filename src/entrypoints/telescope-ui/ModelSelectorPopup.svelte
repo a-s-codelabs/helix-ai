@@ -45,7 +45,7 @@
     return AVAILABLE_MODELS.find((m) => m.id === modelId);
   }
 
-  function getProviderModels(provider: 'openai' | 'gemini'): ModelConfig[] {
+  function getProviderModels(provider: 'openai' | 'gemini' | 'builtin'): ModelConfig[] {
     return AVAILABLE_MODELS.filter((m) => m.provider === provider);
   }
 
@@ -203,6 +203,22 @@
   </div>
 
   <div class="popup-content">
+    <div class="provider-section">
+      <h4 class="provider-title">Built-in Models</h4>
+      <div class="model-list">
+        {#each getProviderModels('builtin') as model}
+          <label class="model-item">
+            <input
+              type="checkbox"
+              checked={enabledModels.includes(model.id)}
+              onchange={() => toggleModel(model.id)}
+            />
+            <span class="model-name">{model.name}</span>
+          </label>
+        {/each}
+      </div>
+    </div>
+
     <div class="provider-section">
       <h4 class="provider-title">OpenAI Models</h4>
       <div class="model-list">
