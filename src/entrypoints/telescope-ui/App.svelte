@@ -30,9 +30,11 @@
   let currentUrl = $state<string | null>(null);
   let multiModel = $state(false);
   let enabledModels = $state<string[]>([]);
+  let enabledModelsInitialized = $state(false);
 
-  // Load saved enabled models on init
+  // Load saved enabled models on init (only once)
   $effect(() => {
+    if (enabledModelsInitialized) return;
     (async () => {
       try {
         const storage = globalStorage();
@@ -44,10 +46,12 @@
           enabledModels = AVAILABLE_MODELS.map((m) => m.id);
           multiModelStore.setEnabledModels(enabledModels);
         }
+        enabledModelsInitialized = true;
       } catch (error) {
         console.error('Failed to load enabled models:', error);
         enabledModels = AVAILABLE_MODELS.map((m) => m.id);
         multiModelStore.setEnabledModels(enabledModels);
+        enabledModelsInitialized = true;
       }
     })();
   });
@@ -55,7 +59,10 @@
   // Sync enabled models with store changes
   $effect(() => {
     const unsubscribe = multiModelStore.subscribe((state) => {
-      if (state.enabledModels.length > 0 && state.enabledModels !== enabledModels) {
+      const arraysEqual = (a: string[], b: string[]) =>
+        a.length === b.length && a.every((val, idx) => val === b[idx]);
+
+      if (state.enabledModels.length > 0 && !arraysEqual(state.enabledModels, enabledModels)) {
         enabledModels = state.enabledModels;
       }
     });

@@ -11,28 +11,12 @@
     onClose?: () => void;
   } = $props();
 
-  let enabledModels = $state<string[]>([]);
-  let popupElement = $state<HTMLDivElement | null>(null);
-
   const storage = globalStorage();
 
-  // Load saved enabled models
-  $effect(() => {
-    (async () => {
-      try {
-        const saved = await storage.get('enabledModels');
-        if (saved && Array.isArray(saved)) {
-          enabledModels = saved;
-        } else {
-          // Default to all models
-          enabledModels = AVAILABLE_MODELS.map((m) => m.id);
-        }
-      } catch (error) {
-        console.error('Failed to load enabled models:', error);
-        enabledModels = AVAILABLE_MODELS.map((m) => m.id);
-      }
-    })();
-  });
+
+  let enabledModels = $state<string[]>(AVAILABLE_MODELS.map((m) => m.id));
+  let popupElement = $state<HTMLDivElement | null>(null);
+
 
   function toggleModel(modelId: string) {
     if (enabledModels.includes(modelId)) {
@@ -65,76 +49,76 @@
     return AVAILABLE_MODELS.filter((m) => m.provider === provider);
   }
 
+  const updatePosition = () => {
+    if (!popupElement || !anchorEl) return;
+    const rect = anchorEl.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+    const padding = 16; // Minimum padding from viewport edges
+
+    // Get actual popup dimensions
+    const popupHeight = popupElement.offsetHeight || 400;
+    const popupWidth = popupElement.offsetWidth || 320;
+
+    const spaceAbove = rect.top;
+    const spaceBelow = viewportHeight - rect.bottom;
+
+    let topPosition: number;
+    let maxHeight: string;
+
+    // Always try to position above first
+    if (spaceAbove >= popupHeight + padding || spaceAbove > spaceBelow) {
+      // Position above the button
+      topPosition = rect.top - popupHeight - 8;
+
+      // Ensure it doesn't go off-screen at the top
+      if (topPosition < padding) {
+        topPosition = padding;
+        // Adjust max-height to fit available space
+        const availableHeight = rect.top - padding - 8;
+        maxHeight = `${Math.max(200, availableHeight)}px`;
+      } else {
+        maxHeight = '80vh';
+      }
+    } else {
+      // Not enough space above, position below
+      topPosition = rect.bottom + 8;
+
+      // Ensure it doesn't go off-screen at the bottom
+      const maxBottom = viewportHeight - padding;
+      const popupBottom = topPosition + popupHeight;
+      if (popupBottom > maxBottom) {
+        // Adjust max-height to fit available space
+        const availableHeight = maxBottom - topPosition;
+        maxHeight = `${Math.max(200, availableHeight)}px`;
+      } else {
+        maxHeight = '80vh';
+      }
+    }
+
+    // Handle horizontal positioning
+    let leftPosition = rect.left;
+    const popupRight = leftPosition + popupWidth;
+
+    // Ensure it doesn't go off-screen on the right
+    if (popupRight > viewportWidth - padding) {
+      leftPosition = viewportWidth - popupWidth - padding;
+    }
+
+    // Ensure it doesn't go off-screen on the left
+    if (leftPosition < padding) {
+      leftPosition = padding;
+    }
+
+    popupElement.style.top = `${topPosition}px`;
+    popupElement.style.left = `${leftPosition}px`;
+    popupElement.style.maxHeight = maxHeight;
+    popupElement.style.bottom = 'auto';
+  };
+
   // Position popup relative to anchor (above the button, ensuring it stays within viewport)
   $effect(() => {
     if (!popupElement || !anchorEl) return;
-
-    const updatePosition = () => {
-      if (!popupElement || !anchorEl) return;
-      const rect = anchorEl.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      const viewportWidth = window.innerWidth;
-      const padding = 16; // Minimum padding from viewport edges
-
-      // Get actual popup dimensions
-      const popupHeight = popupElement.offsetHeight || 400;
-      const popupWidth = popupElement.offsetWidth || 320;
-
-      const spaceAbove = rect.top;
-      const spaceBelow = viewportHeight - rect.bottom;
-
-      let topPosition: number;
-      let maxHeight: string;
-
-      // Always try to position above first
-      if (spaceAbove >= popupHeight + padding || spaceAbove > spaceBelow) {
-        // Position above the button
-        topPosition = rect.top - popupHeight - 8;
-
-        // Ensure it doesn't go off-screen at the top
-        if (topPosition < padding) {
-          topPosition = padding;
-          // Adjust max-height to fit available space
-          const availableHeight = rect.top - padding - 8;
-          maxHeight = `${Math.max(200, availableHeight)}px`;
-        } else {
-          maxHeight = '80vh';
-        }
-      } else {
-        // Not enough space above, position below
-        topPosition = rect.bottom + 8;
-
-        // Ensure it doesn't go off-screen at the bottom
-        const maxBottom = viewportHeight - padding;
-        const popupBottom = topPosition + popupHeight;
-        if (popupBottom > maxBottom) {
-          // Adjust max-height to fit available space
-          const availableHeight = maxBottom - topPosition;
-          maxHeight = `${Math.max(200, availableHeight)}px`;
-        } else {
-          maxHeight = '80vh';
-        }
-      }
-
-      // Handle horizontal positioning
-      let leftPosition = rect.left;
-      const popupRight = leftPosition + popupWidth;
-
-      // Ensure it doesn't go off-screen on the right
-      if (popupRight > viewportWidth - padding) {
-        leftPosition = viewportWidth - popupWidth - padding;
-      }
-
-      // Ensure it doesn't go off-screen on the left
-      if (leftPosition < padding) {
-        leftPosition = padding;
-      }
-
-      popupElement.style.top = `${topPosition}px`;
-      popupElement.style.left = `${leftPosition}px`;
-      popupElement.style.maxHeight = maxHeight;
-      popupElement.style.bottom = 'auto';
-    };
 
     // Wait for popup to render, then position it
     const timeoutId = setTimeout(() => {
@@ -151,6 +135,52 @@
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
     };
+  });
+
+
+  // Initialize from store and load from storage
+  $effect(() => {
+    // Get initial value from store (subscription callback is called immediately with current value)
+    const unsubscribe = multiModelStore.subscribe((state) => {
+      if (state.enabledModels.length > 0) {
+        enabledModels = state.enabledModels;
+      }
+    });
+
+    // Load saved enabled models from storage (asynchronous, will override store value if present)
+    (async () => {
+      try {
+        // Try loading from separate key first
+        let saved = await storage.get('enabledModels');
+
+        // If not found, try loading from config object
+        if (!saved) {
+          const config = await storage.get('config');
+          if (config && typeof config === 'object' && config !== null) {
+            saved = (config as any).enabledModels;
+          }
+        }
+
+        if (saved) {
+          // Handle both array and object formats (objects with numeric keys)
+          let modelsArray: string[] = [];
+          if (Array.isArray(saved)) {
+            modelsArray = saved;
+          } else if (typeof saved === 'object' && saved !== null) {
+            // Convert object with numeric keys to array
+            modelsArray = Object.values(saved).filter((v): v is string => typeof v === 'string');
+          }
+
+          if (modelsArray.length > 0) {
+            enabledModels = modelsArray;
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load enabled models:', error);
+      }
+    })();
+
+    return unsubscribe;
   });
 </script>
 
@@ -207,7 +237,11 @@
   </div>
 
   <div class="popup-footer">
-    <button class="save-button" onclick={handleSave} disabled={enabledModels.length === 0}>
+    <button
+      class="save-button"
+      onclick={handleSave}
+      disabled={enabledModels.length === 0}
+    >
       Save ({enabledModels.length} selected)
     </button>
   </div>
@@ -375,4 +409,3 @@
     background: #6b7280;
   }
 </style>
-

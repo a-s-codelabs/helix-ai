@@ -30,6 +30,10 @@
     <script type="module">
       import App from './telescope-ui/App.svelte';
       import { mount } from 'svelte';
+      import { globalStorage } from '@/lib/globalStorage';
+
+      // Initialize storage before mounting the app
+      await globalStorage().onBoard();
 
       const app = mount(App, {
         target: document.getElementById('app'),
