@@ -32,7 +32,6 @@
   let enabledModels = $state<string[]>([]);
   let enabledModelsInitialized = $state(false);
 
-  // Load saved enabled models on init (only once)
   $effect(() => {
     if (enabledModelsInitialized) return;
     (async () => {
@@ -56,7 +55,6 @@
     })();
   });
 
-  // Sync enabled models with store changes
   $effect(() => {
     const unsubscribe = multiModelStore.subscribe((state) => {
       const arraysEqual = (a: string[], b: string[]) =>
@@ -163,7 +161,6 @@
     }
 
     if (storedState.actionSource === "addToChat") {
-      // Store plain content for display, format when sending
       quotedContent = [...quotedContent, storedState.content];
       quotedContentToFormat.add(storedState.content);
       return;
@@ -242,7 +239,6 @@
     const contentHash = storedState.content
       ? `${storedState.content.slice(0, 100)}${storedState.content.length}`
       : '';
-    // For audio actions, use blobId to ensure uniqueness
     const audioId = storedState.actionSource === 'audio' && storedState.blobId
       ? storedState.blobId
       : '';
@@ -304,23 +300,18 @@
     intent?: string;
     audioBlobId?: string;
   }) {
-    // Format quotedContent items that need formatting (from addToChat)
     let formattedValue = value;
     if (quotedContentToFormat.size > 0) {
       const separator = "\n\n---\n\n";
       const parts = value.split(separator);
 
-      // Format each part that needs formatting
       const formattedParts = parts.map((part) => {
-        // Check if this part matches or starts with content that needs formatting
         for (const contentToFormat of quotedContentToFormat) {
           const trimmedPart = part.trim();
-          // Exact match
           if (trimmedPart === contentToFormat) {
             const heading = "Added to chat";
             return formatQuotedContent(heading, contentToFormat);
           }
-          // Part starts with contentToFormat followed by \n\n (for last part with inputValue)
           if (part.startsWith(contentToFormat + "\n\n")) {
             const heading = "Added to chat";
             const formatted = formatQuotedContent(heading, contentToFormat);
@@ -342,12 +333,10 @@
       audioBlobId,
     });
 
-    // Clear the formatting set after sending
     quotedContentToFormat.clear();
   }
 
   function handleAsk(opts: AskOptions) {
-    // Enable multi-model mode for prompt intents
     const isPromptIntent = !opts.intent || opts.intent === 'prompt';
     if (isPromptIntent) {
       multiModel = true;
@@ -449,15 +438,12 @@
   $effect(() => {
     if (!isInSidePanel && typeof window !== "undefined") {
       const handleUrlChange = () => {
-        // reload the page context if the url changes
-        // this mimics the logic that runs on init
         (async () => {
           try {
             if (!tabId) return;
 
             const cached = await getCachedPageMarkdown({ tabId: tabId });
             if (cached) {
-              // Use cached
             } else {
               if (currentUrl) {
                 await convertAndStorePageMarkdown({

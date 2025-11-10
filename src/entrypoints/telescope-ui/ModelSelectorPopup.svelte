@@ -29,7 +29,6 @@
   async function handleSave() {
     try {
       await storage.set('enabledModels', enabledModels);
-      // Update the store's enabled models
       multiModelStore.setEnabledModels(enabledModels);
       onClose?.();
     } catch (error) {
@@ -54,9 +53,8 @@
     const rect = anchorEl.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
-    const padding = 16; // Minimum padding from viewport edges
+    const padding = 16;
 
-    // Get actual popup dimensions
     const popupHeight = popupElement.offsetHeight || 400;
     const popupWidth = popupElement.offsetWidth || 320;
 
@@ -66,29 +64,22 @@
     let topPosition: number;
     let maxHeight: string;
 
-    // Always try to position above first
+
     if (spaceAbove >= popupHeight + padding || spaceAbove > spaceBelow) {
-      // Position above the button
       topPosition = rect.top - popupHeight - 8;
 
-      // Ensure it doesn't go off-screen at the top
       if (topPosition < padding) {
         topPosition = padding;
-        // Adjust max-height to fit available space
         const availableHeight = rect.top - padding - 8;
         maxHeight = `${Math.max(200, availableHeight)}px`;
       } else {
         maxHeight = '80vh';
       }
     } else {
-      // Not enough space above, position below
       topPosition = rect.bottom + 8;
-
-      // Ensure it doesn't go off-screen at the bottom
       const maxBottom = viewportHeight - padding;
       const popupBottom = topPosition + popupHeight;
       if (popupBottom > maxBottom) {
-        // Adjust max-height to fit available space
         const availableHeight = maxBottom - topPosition;
         maxHeight = `${Math.max(200, availableHeight)}px`;
       } else {
@@ -96,16 +87,13 @@
       }
     }
 
-    // Handle horizontal positioning
     let leftPosition = rect.left;
     const popupRight = leftPosition + popupWidth;
 
-    // Ensure it doesn't go off-screen on the right
     if (popupRight > viewportWidth - padding) {
       leftPosition = viewportWidth - popupWidth - padding;
     }
 
-    // Ensure it doesn't go off-screen on the left
     if (leftPosition < padding) {
       leftPosition = padding;
     }
@@ -116,14 +104,11 @@
     popupElement.style.bottom = 'auto';
   };
 
-  // Position popup relative to anchor (above the button, ensuring it stays within viewport)
   $effect(() => {
     if (!popupElement || !anchorEl) return;
 
-    // Wait for popup to render, then position it
     const timeoutId = setTimeout(() => {
       updatePosition();
-      // Update again after a short delay to ensure accurate height calculation
       setTimeout(updatePosition, 10);
     }, 0);
 
@@ -138,22 +123,16 @@
   });
 
 
-  // Initialize from store and load from storage
   $effect(() => {
-    // Get initial value from store (subscription callback is called immediately with current value)
     const unsubscribe = multiModelStore.subscribe((state) => {
       if (state.enabledModels.length > 0) {
         enabledModels = state.enabledModels;
       }
     });
 
-    // Load saved enabled models from storage (asynchronous, will override store value if present)
     (async () => {
       try {
-        // Try loading from separate key first
         let saved = await storage.get('enabledModels');
-
-        // If not found, try loading from config object
         if (!saved) {
           const config = await storage.get('config');
           if (config && typeof config === 'object' && config !== null) {
@@ -162,12 +141,10 @@
         }
 
         if (saved) {
-          // Handle both array and object formats (objects with numeric keys)
           let modelsArray: string[] = [];
           if (Array.isArray(saved)) {
             modelsArray = saved;
           } else if (typeof saved === 'object' && saved !== null) {
-            // Convert object with numeric keys to array
             modelsArray = Object.values(saved).filter((v): v is string => typeof v === 'string');
           }
 
