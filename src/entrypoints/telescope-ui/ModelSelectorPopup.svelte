@@ -33,6 +33,7 @@
     try {
       await storage.set('enabledModels', enabledModels);
       multiModelStore.setEnabledModels(enabledModels);
+      // multiModelStore.initializeModelResponses(enabledModels);
       onClose?.();
     } catch (error) {
       console.error('Failed to save enabled models:', error);
@@ -81,6 +82,7 @@
         maxHeight = '80vh';
       }
 
+      const maxLeftPosition = 420;
       let leftPosition = rect.left;
       const popupRight = leftPosition + popupWidth;
 
@@ -90,6 +92,10 @@
 
       if (leftPosition < padding) {
         leftPosition = padding;
+      }
+
+      if (leftPosition > maxLeftPosition) {
+        leftPosition = maxLeftPosition;
       }
 
       popupElement!.style.top = `${topPosition}px`;
