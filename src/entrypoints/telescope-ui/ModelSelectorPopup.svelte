@@ -6,9 +6,11 @@
   let {
     anchorEl,
     onClose,
+    isInSidePanel = false,
   }: {
     anchorEl: HTMLElement | null;
     onClose?: () => void;
+    isInSidePanel?: boolean;
   } = $props();
 
   const storage = globalStorage();
@@ -69,17 +71,33 @@
       const popupHeight = popupElement!.offsetHeight || 400;
       const popupWidth = popupElement!.offsetWidth || 320;
 
-      // Always position below the telescope button
-      const topPosition = rect.bottom + 8;
-      const maxBottom = viewportHeight - padding;
-      const popupBottom = topPosition + popupHeight;
-
+      let topPosition: number;
       let maxHeight: string;
-      if (popupBottom > maxBottom) {
-        const availableHeight = maxBottom - topPosition;
-        maxHeight = `${Math.max(200, availableHeight)}px`;
+
+      if (isInSidePanel) {
+        // Position above the telescope button in sidepanel
+        topPosition = rect.top - popupHeight - 8;
+        const maxTop = padding;
+
+        if (topPosition < maxTop) {
+          topPosition = maxTop;
+          const availableHeight = rect.top - maxTop - 8;
+          maxHeight = `${Math.max(200, availableHeight)}px`;
+        } else {
+          maxHeight = '80vh';
+        }
       } else {
-        maxHeight = '80vh';
+        // Always position below the telescope button in floating mode
+        topPosition = rect.bottom + 8;
+        const maxBottom = viewportHeight - padding;
+        const popupBottom = topPosition + popupHeight;
+
+        if (popupBottom > maxBottom) {
+          const availableHeight = maxBottom - topPosition;
+          maxHeight = `${Math.max(200, availableHeight)}px`;
+        } else {
+          maxHeight = '80vh';
+        }
       }
 
       const maxLeftPosition = 420;
