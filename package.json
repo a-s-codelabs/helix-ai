@@ -2,7 +2,7 @@
   "name": "helix-ai",
   "description": "Free AI Sidebar Chatbot in any site to prompt, attach images with Chrome AI.",
   "private": true,
-  "version": "0.0.3",
+  "version": "0.0.4",
   "type": "module",
   "scripts": {
     "dev": "wxt",
