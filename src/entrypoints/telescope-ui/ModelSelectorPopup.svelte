@@ -17,6 +17,9 @@
   let enabledModels = $state<string[]>(AVAILABLE_MODELS.map((m) => m.id));
   let popupElement = $state<HTMLDivElement | null>(null);
 
+  let rafId: number | null = null;
+  let mutationObserver: MutationObserver | null = null;
+  let resizeObserver: ResizeObserver | null = null;
 
   function toggleModel(modelId: string) {
     if (enabledModels.includes(modelId)) {
@@ -50,75 +53,104 @@
 
   const updatePosition = () => {
     if (!popupElement || !anchorEl) return;
-    const rect = anchorEl.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-    const viewportWidth = window.innerWidth;
-    const padding = 16;
 
-    const popupHeight = popupElement.offsetHeight || 400;
-    const popupWidth = popupElement.offsetWidth || 320;
+    // Cancel any pending animation frame
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+    }
 
-    const spaceAbove = rect.top;
-    const spaceBelow = viewportHeight - rect.bottom;
+    rafId = requestAnimationFrame(() => {
+      const rect = anchorEl!.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+      const padding = 16;
 
-    let topPosition: number;
-    let maxHeight: string;
+      const popupHeight = popupElement!.offsetHeight || 400;
+      const popupWidth = popupElement!.offsetWidth || 320;
 
-
-    if (spaceAbove >= popupHeight + padding || spaceAbove > spaceBelow) {
-      topPosition = rect.top - popupHeight - 8;
-
-      if (topPosition < padding) {
-        topPosition = padding;
-        const availableHeight = rect.top - padding - 8;
-        maxHeight = `${Math.max(200, availableHeight)}px`;
-      } else {
-        maxHeight = '80vh';
-      }
-    } else {
-      topPosition = rect.bottom + 8;
+      // Always position below the telescope button
+      const topPosition = rect.bottom + 8;
       const maxBottom = viewportHeight - padding;
       const popupBottom = topPosition + popupHeight;
+
+      let maxHeight: string;
       if (popupBottom > maxBottom) {
         const availableHeight = maxBottom - topPosition;
         maxHeight = `${Math.max(200, availableHeight)}px`;
       } else {
         maxHeight = '80vh';
       }
-    }
 
-    let leftPosition = rect.left;
-    const popupRight = leftPosition + popupWidth;
+      let leftPosition = rect.left;
+      const popupRight = leftPosition + popupWidth;
 
-    if (popupRight > viewportWidth - padding) {
-      leftPosition = viewportWidth - popupWidth - padding;
-    }
+      if (popupRight > viewportWidth - padding) {
+        leftPosition = viewportWidth - popupWidth - padding;
+      }
 
-    if (leftPosition < padding) {
-      leftPosition = padding;
-    }
+      if (leftPosition < padding) {
+        leftPosition = padding;
+      }
 
-    popupElement.style.top = `${topPosition}px`;
-    popupElement.style.left = `${leftPosition}px`;
-    popupElement.style.maxHeight = maxHeight;
-    popupElement.style.bottom = 'auto';
+      popupElement!.style.top = `${topPosition}px`;
+      popupElement!.style.left = `${leftPosition}px`;
+      popupElement!.style.maxHeight = maxHeight;
+      popupElement!.style.bottom = 'auto';
+      rafId = null;
+    });
   };
 
   $effect(() => {
     if (!popupElement || !anchorEl) return;
 
-    const timeoutId = setTimeout(() => {
-      updatePosition();
-      setTimeout(updatePosition, 10);
-    }, 0);
+    // Initial positioning with multiple attempts to ensure correct placement
+    updatePosition();
+    const timeoutId1 = setTimeout(updatePosition, 0);
+    const timeoutId2 = setTimeout(updatePosition, 10);
+    const timeoutId3 = setTimeout(updatePosition, 50);
 
     window.addEventListener('resize', updatePosition);
     window.addEventListener('scroll', updatePosition, true);
 
+    // ResizeObserver to watch the anchor element for size/position changes
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        updatePosition();
+      });
+      resizeObserver.observe(anchorEl);
+    }
+
+    // MutationObserver to watch for DOM changes
+    if (typeof MutationObserver !== 'undefined') {
+      mutationObserver = new MutationObserver(() => {
+        updatePosition();
+      });
+      mutationObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['style', 'class'],
+        childList: true,
+        subtree: true,
+      });
+    }
+
     return () => {
-      clearTimeout(timeoutId);
+      clearTimeout(timeoutId1);
+      clearTimeout(timeoutId2);
+      clearTimeout(timeoutId3);
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
+      if (mutationObserver) {
+        mutationObserver.disconnect();
+        mutationObserver = null;
+      }
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+        resizeObserver = null;
+      }
     };
   });
 
