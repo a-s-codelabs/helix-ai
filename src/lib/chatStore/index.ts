@@ -193,6 +193,39 @@ async function createAISessionWithMonitor(
   }
 }
 
+async function loadAudioBlob(audioBlobId: string): Promise<Blob | null> {
+  try {
+    const storage = globalStorage();
+    const audioBlobs = await storage.get('audioBlobs');
+    if (
+      audioBlobs &&
+      typeof audioBlobs === 'object' &&
+      audioBlobs[audioBlobId]
+    ) {
+      const base64Data = audioBlobs[audioBlobId] as string;
+      const response = await fetch(base64Data);
+      return await response.blob();
+    }
+  } catch (error) {
+    console.error('Error loading audio blob:', error);
+  }
+  return null;
+}
+
+async function createAudioUrl(
+  audioBlobId: string
+): Promise<string | undefined> {
+  try {
+    const blob = await loadAudioBlob(audioBlobId);
+    if (blob) {
+      return URL.createObjectURL(blob);
+    }
+  } catch (error) {
+    console.error('Error creating audio URL:', error);
+  }
+  return undefined;
+}
+
 function createChatMessage(
   type: 'user' | 'assistant',
   content: string,
@@ -479,7 +512,7 @@ async function createAISession({
       outputLanguage,
       output: { language: outputLanguage },
       // expectedInputs: [{ type: 'image' }, { type: 'audio' }],
-      expectedInputs: [{ type: 'image' }],
+      expectedInputs: [{ type: 'image' }, { type: 'audio' }],
       temperature,
       topK,
       initialPrompts: [
@@ -593,7 +626,7 @@ function createChatStore() {
     }
   }
 
- async function getTabIdFromBackground(): Promise<{
+  async function getTabIdFromBackground(): Promise<{
     tabId: number | null;
     url: string | null;
   }> {
@@ -1011,7 +1044,7 @@ ${doc?.body?.textContent || 'No content available'}`;
       tabId?: number | null;
     }) {
       if (!userMessage.trim()) return;
-    const currentTabId = tabId || (await getActiveTabId());
+      const currentTabId = tabId || (await getActiveTabId());
 
       const abortController = new AbortController();
       const userMsg = createChatMessage('user', userMessage);
@@ -1575,25 +1608,9 @@ ${doc?.body?.textContent || 'No content available'}`;
 
       const abortController = new AbortController();
 
-      let audioUrl: string | undefined = undefined;
-      if (audioBlobId) {
-        try {
-          const storage = globalStorage();
-          const audioBlobs = await storage.get('audioBlobs');
-          if (
-            audioBlobs &&
-            typeof audioBlobs === 'object' &&
-            audioBlobs[audioBlobId]
-          ) {
-            const base64Data = audioBlobs[audioBlobId] as string;
-            const response = await fetch(base64Data);
-            const blob = await response.blob();
-            audioUrl = URL.createObjectURL(blob);
-          }
-        } catch (error) {
-          console.error('Error creating audio URL:', error);
-        }
-      }
+      const audioUrl = audioBlobId
+        ? await createAudioUrl(audioBlobId)
+        : undefined;
 
       const displayMessage = userMessage.trim() ?? '';
       const userMsg = createChatMessage(
@@ -1641,32 +1658,15 @@ ${doc?.body?.textContent || 'No content available'}`;
           }
         }
 
-        let audioBlob: Blob | null = null;
-        if (audioBlobId) {
-          try {
-            const storage = globalStorage();
-            const audioBlobs = await storage.get('audioBlobs');
-            if (
-              audioBlobs &&
-              typeof audioBlobs === 'object' &&
-              audioBlobs[audioBlobId]
-            ) {
-              const base64Data = audioBlobs[audioBlobId] as string;
-              const response = await fetch(base64Data);
-              audioBlob = await response.blob();
+        const audioBlob = audioBlobId ? await loadAudioBlob(audioBlobId) : null;
 
-              if (session && provider === 'builtin') {
-                await session?.append([
-                  {
-                    role: 'user',
-                    content: [{ type: 'audio', value: audioBlob }],
-                  },
-                ]);
-              }
-            }
-          } catch (error) {
-            console.error('Error loading audio blob:', error);
-          }
+        if (audioBlob && session && provider === 'builtin') {
+          await session?.append([
+            {
+              role: 'user',
+              content: [{ type: 'audio', value: audioBlob }],
+            },
+          ]);
         }
 
         let stream: ReadableStream<string>;
@@ -1763,25 +1763,9 @@ ${doc?.body?.textContent || 'No content available'}`;
 
       const currentTabId = tabId || (await getActiveTabId());
 
-      let audioUrl: string | undefined = undefined;
-      if (audioBlobId) {
-        try {
-          const storage = globalStorage();
-          const audioBlobs = await storage.get('audioBlobs');
-          if (
-            audioBlobs &&
-            typeof audioBlobs === 'object' &&
-            audioBlobs[audioBlobId]
-          ) {
-            const base64Data = audioBlobs[audioBlobId] as string;
-            const response = await fetch(base64Data);
-            const blob = await response.blob();
-            audioUrl = URL.createObjectURL(blob);
-          }
-        } catch (error) {
-          console.error('Error creating audio URL:', error);
-        }
-      }
+      const audioUrl = audioBlobId
+        ? await createAudioUrl(audioBlobId)
+        : undefined;
 
       const displayMessage = userMessage.trim() ?? '';
       const userMsg = createChatMessage(
@@ -1826,24 +1810,10 @@ ${doc?.body?.textContent || 'No content available'}`;
         }
       }
 
-      let audioBlob: Blob | null = null;
-      if (audioBlobId) {
-        try {
-          const storage = globalStorage();
-          const audioBlobs = await storage.get('audioBlobs');
-          if (
-            audioBlobs &&
-            typeof audioBlobs === 'object' &&
-            audioBlobs[audioBlobId]
-          ) {
-            const base64Data = audioBlobs[audioBlobId] as string;
-            const response = await fetch(base64Data);
-            audioBlob = await response.blob();
-            contentParts.push({ type: 'audio', value: audioBlob });
-          }
-        } catch (error) {
-          console.error('Error loading audio blob:', error);
-        }
+      const audioBlob = audioBlobId ? await loadAudioBlob(audioBlobId) : null;
+
+      if (audioBlob) {
+        contentParts.push({ type: 'audio', value: audioBlob });
       }
 
       const modelPromises = enabledModels.map(async (modelId) => {
@@ -1952,7 +1922,6 @@ ${doc?.body?.textContent || 'No content available'}`;
           multiModelStore.setLoading(modelId, false);
         }
       });
-
 
       await Promise.allSettled(modelPromises);
     },
