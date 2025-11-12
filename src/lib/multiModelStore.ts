@@ -89,7 +89,9 @@ function createMultiModelStore() {
       update((state) => {
         const modelResponses: Record<string, ModelResponseState> = {};
         for (const modelId of modelIds) {
-          modelResponses[modelId] = {
+          // Preserve existing messages if model already has responses
+          const existingState = state.modelResponses[modelId];
+          modelResponses[modelId] = existingState || {
             messages: [],
             isStreaming: false,
             streamingMessageId: null,
@@ -97,10 +99,15 @@ function createMultiModelStore() {
             isLoading: false,
           };
         }
+        // Only update activeModel if it's not already set or if current activeModel is not in enabled models
+        const activeModel =
+          state.activeModel && modelIds.includes(state.activeModel)
+            ? state.activeModel
+            : modelIds[0] || null;
         return {
           ...state,
           modelResponses,
-          activeModel: modelIds[0] || null,
+          activeModel,
         };
       });
     },

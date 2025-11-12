@@ -105,24 +105,39 @@
     }
   });
 
+  let initialized = $state(false);
+
   $effect(() => {
-    if (isVisible) {
+    // Only initialize once, not on every isVisible change
+    if (isVisible && !initialized) {
+      initialized = true;
       if (isInSidePanel) {
         (async () => {
           const pageContext = await sidePanelUtils.getPageContent();
           if (pageContext) {
-            await chatStore.init(pageContext);
+            await chatStore.init(pageContext, true);
           } else {
             console.warn(
               "App: Failed to get page content, initializing without context"
             );
-            await chatStore.init();
+            await chatStore.init('', true);
           }
         })();
       } else {
         chatStore.init();
       }
     }
+  });
+
+  // Cleanup: clear messages when component is destroyed
+  // - In sidepanel: clear when sidepanel is closed
+  // - In floating mode: clear when floating telescope is removed
+  $effect(() => {
+    // Return cleanup function that runs when component is destroyed
+    return () => {
+      // Clear messages when component is destroyed (works for both sidepanel and floating)
+      chatStore.clear();
+    };
   });
 
   let isProcessingActionState = $state(false);
@@ -357,9 +372,10 @@
   }
 
   function handleClose() {
-    chatStore.clear();
-
+    // Only clear messages when NOT in sidepanel
+    // In sidepanel, messages should persist until the sidepanel is actually closed
     if (!isInSidePanel) {
+      chatStore.clear();
       if (window.parent && window.parent !== window) {
         window.parent.postMessage({ action: "closeTelescope" }, "*");
       } else {
