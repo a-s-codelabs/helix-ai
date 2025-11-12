@@ -153,9 +153,9 @@ export const DB_SCHEMA = {
   },
   active_tab_id: {
     storageKey: 'local:global:active_tab_id' as const,
-    default: {} as {
-      tabId: number | null;
-      url: string | null;
+    default: {
+      tabId: null as number | null,
+      url: null as string | null,
     },
   },
   enabledModels: {

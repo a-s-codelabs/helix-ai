@@ -19,23 +19,46 @@ export default defineBackground(() => {
    * Get the active tab ID
    * @returns Promise resolving to the active tab ID or null if not found
    */
-  async function getTabId(): Promise<{ tabId: number | null, url: string | null }> {
+  async function getTabId(): Promise<{
+    tabId: number | null;
+    url: string | null;
+  }> {
+    const storage = globalStorage();
+    const fallbackStored = await storage.get('active_tab_id');
+    const fallback = {
+      tabId:
+        typeof fallbackStored === 'object' &&
+        fallbackStored &&
+        typeof (fallbackStored as any).tabId === 'number'
+          ? ((fallbackStored as any).tabId as number)
+          : null,
+      url:
+        typeof fallbackStored === 'object' &&
+        fallbackStored &&
+        typeof (fallbackStored as any).url === 'string'
+          ? ((fallbackStored as any).url as string)
+          : null,
+    };
+
     try {
       const tabs = await new Promise<chrome.tabs.Tab[]>((resolve) => {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
           resolve(tabs || []);
         });
       });
-      return {
-        tabId: tabs[0]?.id || null,
-        url: tabs[0]?.url || null,
-      };
+      const activeTab = tabs[0];
+      const tabId = activeTab?.id ?? null;
+      const url = activeTab?.url ?? null;
+
+      if (tabId !== null) {
+        await storage.set('active_tab_id', { tabId, url });
+        return { tabId, url };
+      }
+
+      return fallback;
     } catch (error) {
       console.error('Background: Error getting tab ID:', error);
-      return {
-        tabId: null,
-        url: null,
-      };
+      return fallback;
     }
   }
 
@@ -94,9 +117,8 @@ export default defineBackground(() => {
     chrome.commands.onCommand.addListener(async (command: string) => {
       if (command === 'open-floating-telescope') {
         try {
-
           globalStorage().append({
-            key: "config",
+            key: 'config',
             value: {
               assignedTelescopeCommand: true,
             },
@@ -133,7 +155,7 @@ export default defineBackground(() => {
           const { tabId, url } = await getTabId();
           sendResponse({ success: true, tabId, url });
         } catch (error) {
-          console.error("Background: Error in GET_TAB_ID", error);
+          console.error('Background: Error in GET_TAB_ID', error);
           sendResponse({ success: false, error: (error as Error).message });
         }
       })();
@@ -162,7 +184,6 @@ export default defineBackground(() => {
     }
 
     if (message.type === MESSAGE_TYPE_CLEAR_TELESCOPE_STATE) {
-
       try {
         if (chrome.storage) {
           chrome.storage.local.remove(['telescopeState'], () => {
@@ -247,10 +268,19 @@ export default defineBackground(() => {
               // Store in cache if we have the tab ID and URL
               if (tabId && tabUrl) {
                 try {
-                  const { storePageMarkdown } = await import('@/lib/chatStore/markdown-cache-helper');
-                  await storePageMarkdown({ url: tabUrl, content: response.pageContext, tabId });
+                  const { storePageMarkdown } = await import(
+                    '@/lib/chatStore/markdown-cache-helper'
+                  );
+                  await storePageMarkdown({
+                    url: tabUrl,
+                    content: response.pageContext,
+                    tabId,
+                  });
                 } catch (storeErr) {
-                  console.warn('Background: Failed to store markdown in cache:', storeErr);
+                  console.warn(
+                    'Background: Failed to store markdown in cache:',
+                    storeErr
+                  );
                 }
               }
 
@@ -289,6 +319,10 @@ export default defineBackground(() => {
                 enabled: true,
               });
             }
+            await globalStorage().set('active_tab_id', {
+              tabId,
+              url: tab.url ?? null,
+            });
           } catch (error) {
             console.error(
               'Background: Error setting side panel options:',
@@ -298,6 +332,27 @@ export default defineBackground(() => {
         }
       }
     );
+
+    chrome.tabs.onActivated.addListener(async (activeInfo) => {
+      try {
+        const tab = await new Promise<chrome.tabs.Tab | null>((resolve) => {
+          chrome.tabs.get(activeInfo.tabId, (result) => {
+            if (chrome.runtime.lastError) {
+              resolve(null);
+              return;
+            }
+            resolve(result || null);
+          });
+        });
+
+        await globalStorage().set('active_tab_id', {
+          tabId: tab?.id ?? activeInfo.tabId ?? null,
+          url: tab?.url ?? null,
+        });
+      } catch (error) {
+        console.error('Background: Error tracking active tab:', error);
+      }
+    });
   }
 });
 
