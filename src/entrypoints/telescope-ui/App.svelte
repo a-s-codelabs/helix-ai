@@ -334,7 +334,11 @@
     const isPromptIntent = !opts.intent || opts.intent === 'prompt';
     if (isPromptIntent) {
       multiModel = true;
-      enabledModels = AVAILABLE_MODELS.map((m) => m.id);
+      // Use saved enabledModels from storage (already loaded in $effect)
+      // If not yet initialized, use all available models as fallback
+      if (enabledModels.length === 0) {
+        enabledModels = AVAILABLE_MODELS.map((m) => m.id);
+      }
     } else {
       multiModel = false;
     }
