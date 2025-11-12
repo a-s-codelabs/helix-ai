@@ -13,7 +13,7 @@
     getCachedPageMarkdown,
   } from "@/lib/chatStore/markdown-cache-helper";
   import { detectLanguageFromText } from "@/lib/chatStore";
-  import { AVAILABLE_MODELS, multiModelStore } from "@/lib/multiModelStore";
+  import { AVAILABLE_MODELS, multiModelStore, loadEnabledModelsFromStorage } from "@/lib/multiModelStore";
 
   let currentState: State = $state("ask");
   let inputValue = $state("");
@@ -36,15 +36,9 @@
     if (enabledModelsInitialized) return;
     (async () => {
       try {
-        const storage = globalStorage();
-        const saved = await storage.get('enabledModels');
-        if (saved && Array.isArray(saved) && saved.length > 0) {
-          enabledModels = saved;
-          multiModelStore.setEnabledModels(saved);
-        } else {
-          enabledModels = AVAILABLE_MODELS.map((m) => m.id);
-          multiModelStore.setEnabledModels(enabledModels);
-        }
+        const savedModels = await loadEnabledModelsFromStorage();
+        enabledModels = savedModels;
+        multiModelStore.setEnabledModels(savedModels);
         enabledModelsInitialized = true;
       } catch (error) {
         console.error('Failed to load enabled models:', error);
