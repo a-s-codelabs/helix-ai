@@ -2,6 +2,8 @@
 
 A powerful browser extension for AI-powered web interactions with integrated content extraction and formatting capabilities.
 
+For reviewing google chrome builtin challenge 2025, please use this version 0.0.3
+
 ## Features
 
 ### 🔭 Telescope UI
