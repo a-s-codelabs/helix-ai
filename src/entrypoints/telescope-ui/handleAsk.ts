@@ -23,8 +23,13 @@ export type AskOptions = {
 export function handleAskHelper(opts: AskOptions) {
   // console.log('handleAskHelper', JSON);
 
-  // Use multi-model mode if enabled
-  if (opts.multiModel && opts.intent === 'prompt') {
+  const hasMultiModalInput =
+    (opts.images && opts.images.length > 0) || !!opts.audioBlobId;
+  const isPromptIntent = !opts.intent || opts.intent === 'prompt';
+
+  // Use multi-model mode if enabled and it's a prompt intent
+  // Also enable multi-model for multi-modal inputs (images or audio)
+  if (isPromptIntent && (opts.multiModel || hasMultiModalInput)) {
     const enabledModels =
       opts.enabledModels || AVAILABLE_MODELS.map((m) => m.id);
     chatStore.multiModelPromptStreaming({

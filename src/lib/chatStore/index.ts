@@ -193,6 +193,39 @@ async function createAISessionWithMonitor(
   }
 }
 
+async function loadAudioBlob(audioBlobId: string): Promise<Blob | null> {
+  try {
+    const storage = globalStorage();
+    const audioBlobs = await storage.get('audioBlobs');
+    if (
+      audioBlobs &&
+      typeof audioBlobs === 'object' &&
+      audioBlobs[audioBlobId]
+    ) {
+      const base64Data = audioBlobs[audioBlobId] as string;
+      const response = await fetch(base64Data);
+      return await response.blob();
+    }
+  } catch (error) {
+    console.error('Error loading audio blob:', error);
+  }
+  return null;
+}
+
+async function createAudioUrl(
+  audioBlobId: string
+): Promise<string | undefined> {
+  try {
+    const blob = await loadAudioBlob(audioBlobId);
+    if (blob) {
+      return URL.createObjectURL(blob);
+    }
+  } catch (error) {
+    console.error('Error creating audio URL:', error);
+  }
+  return undefined;
+}
+
 function createChatMessage(
   type: 'user' | 'assistant',
   content: string,
@@ -457,6 +490,42 @@ export const detectLanguageFromText = async (
   }
 };
 
+/**
+ * Check if LanguageModel supports specific expectedInputs
+ * @param expectedInputs - Array of input types to check
+ * @returns true if all input types are supported, false otherwise
+ */
+async function checkLanguageModelCapabilities(
+  expectedInputs: { type: string }[]
+): Promise<boolean> {
+  if (typeof LanguageModel === 'undefined') {
+    return false;
+  }
+
+  try {
+    // First check basic availability
+    const basicAvailability = await LanguageModel.availability();
+    if (basicAvailability === 'no') {
+      return false;
+    }
+
+    // Try to check availability with expectedInputs if supported
+    try {
+      const availability = await (LanguageModel as any).availability({
+        expectedInputs,
+      });
+      return availability === 'readily' || availability === 'available';
+    } catch {
+      // If availability doesn't support expectedInputs parameter,
+      // assume capabilities are not available to be safe
+      return false;
+    }
+  } catch (error) {
+    console.warn('Error checking LanguageModel capabilities:', error);
+    return false;
+  }
+}
+
 async function createAISession({
   pageContext,
   language = 'en',
@@ -472,14 +541,11 @@ async function createAISession({
 }): Promise<AILanguageModel> {
   console.log('createAISession', pageContext);
   if (typeof LanguageModel !== 'undefined') {
-    const config = {
-      // TODO: Check which system prompt to use based on the user's language
+    const baseConfig = {
       systemPrompt: systemPrompt({ pageContext }),
       language,
       outputLanguage,
       output: { language: outputLanguage },
-      // expectedInputs: [{ type: 'image' }, { type: 'audio' }],
-      expectedInputs: [{ type: 'image' }],
       temperature,
       topK,
       initialPrompts: [
@@ -501,7 +567,35 @@ async function createAISession({
       },
     };
 
-    return await LanguageModel.create(config);
+    // Check if model supports multimodal inputs before including them
+    const desiredInputs: { type: string }[] = [
+      { type: 'image' },
+      { type: 'audio' },
+    ];
+    const supportsMultimodal = await checkLanguageModelCapabilities(
+      desiredInputs
+    );
+
+    const config: AILanguageModelCreateOptions = supportsMultimodal
+      ? { ...baseConfig, expectedInputs: desiredInputs }
+      : baseConfig;
+
+    try {
+      return await LanguageModel.create(config);
+    } catch (error: any) {
+      // If creation fails with expectedInputs, retry without them
+      if (
+        config.expectedInputs &&
+        error?.message?.includes('capability') &&
+        error?.message?.includes('not available')
+      ) {
+        console.warn(
+          'Model does not support requested capabilities, creating session without expectedInputs'
+        );
+        return await LanguageModel.create(baseConfig);
+      }
+      throw error;
+    }
   }
 
   throw new Error(
@@ -593,7 +687,7 @@ function createChatStore() {
     }
   }
 
- async function getTabIdFromBackground(): Promise<{
+  async function getTabIdFromBackground(): Promise<{
     tabId: number | null;
     url: string | null;
   }> {
@@ -1011,7 +1105,7 @@ ${doc?.body?.textContent || 'No content available'}`;
       tabId?: number | null;
     }) {
       if (!userMessage.trim()) return;
-    const currentTabId = tabId || (await getActiveTabId());
+      const currentTabId = tabId || (await getActiveTabId());
 
       const abortController = new AbortController();
       const userMsg = createChatMessage('user', userMessage);
@@ -1575,25 +1669,9 @@ ${doc?.body?.textContent || 'No content available'}`;
 
       const abortController = new AbortController();
 
-      let audioUrl: string | undefined = undefined;
-      if (audioBlobId) {
-        try {
-          const storage = globalStorage();
-          const audioBlobs = await storage.get('audioBlobs');
-          if (
-            audioBlobs &&
-            typeof audioBlobs === 'object' &&
-            audioBlobs[audioBlobId]
-          ) {
-            const base64Data = audioBlobs[audioBlobId] as string;
-            const response = await fetch(base64Data);
-            const blob = await response.blob();
-            audioUrl = URL.createObjectURL(blob);
-          }
-        } catch (error) {
-          console.error('Error creating audio URL:', error);
-        }
-      }
+      const audioUrl = audioBlobId
+        ? await createAudioUrl(audioBlobId)
+        : undefined;
 
       const displayMessage = userMessage.trim() ?? '';
       const userMsg = createChatMessage(
@@ -1641,32 +1719,15 @@ ${doc?.body?.textContent || 'No content available'}`;
           }
         }
 
-        let audioBlob: Blob | null = null;
-        if (audioBlobId) {
-          try {
-            const storage = globalStorage();
-            const audioBlobs = await storage.get('audioBlobs');
-            if (
-              audioBlobs &&
-              typeof audioBlobs === 'object' &&
-              audioBlobs[audioBlobId]
-            ) {
-              const base64Data = audioBlobs[audioBlobId] as string;
-              const response = await fetch(base64Data);
-              audioBlob = await response.blob();
+        const audioBlob = audioBlobId ? await loadAudioBlob(audioBlobId) : null;
 
-              if (session && provider === 'builtin') {
-                await session?.append([
-                  {
-                    role: 'user',
-                    content: [{ type: 'audio', value: audioBlob }],
-                  },
-                ]);
-              }
-            }
-          } catch (error) {
-            console.error('Error loading audio blob:', error);
-          }
+        if (audioBlob && session && provider === 'builtin') {
+          await session?.append([
+            {
+              role: 'user',
+              content: [{ type: 'audio', value: audioBlob }],
+            },
+          ]);
         }
 
         let stream: ReadableStream<string>;
@@ -1763,25 +1824,9 @@ ${doc?.body?.textContent || 'No content available'}`;
 
       const currentTabId = tabId || (await getActiveTabId());
 
-      let audioUrl: string | undefined = undefined;
-      if (audioBlobId) {
-        try {
-          const storage = globalStorage();
-          const audioBlobs = await storage.get('audioBlobs');
-          if (
-            audioBlobs &&
-            typeof audioBlobs === 'object' &&
-            audioBlobs[audioBlobId]
-          ) {
-            const base64Data = audioBlobs[audioBlobId] as string;
-            const response = await fetch(base64Data);
-            const blob = await response.blob();
-            audioUrl = URL.createObjectURL(blob);
-          }
-        } catch (error) {
-          console.error('Error creating audio URL:', error);
-        }
-      }
+      const audioUrl = audioBlobId
+        ? await createAudioUrl(audioBlobId)
+        : undefined;
 
       const displayMessage = userMessage.trim() ?? '';
       const userMsg = createChatMessage(
@@ -1826,24 +1871,10 @@ ${doc?.body?.textContent || 'No content available'}`;
         }
       }
 
-      let audioBlob: Blob | null = null;
-      if (audioBlobId) {
-        try {
-          const storage = globalStorage();
-          const audioBlobs = await storage.get('audioBlobs');
-          if (
-            audioBlobs &&
-            typeof audioBlobs === 'object' &&
-            audioBlobs[audioBlobId]
-          ) {
-            const base64Data = audioBlobs[audioBlobId] as string;
-            const response = await fetch(base64Data);
-            audioBlob = await response.blob();
-            contentParts.push({ type: 'audio', value: audioBlob });
-          }
-        } catch (error) {
-          console.error('Error loading audio blob:', error);
-        }
+      const audioBlob = audioBlobId ? await loadAudioBlob(audioBlobId) : null;
+
+      if (audioBlob) {
+        contentParts.push({ type: 'audio', value: audioBlob });
       }
 
       const modelPromises = enabledModels.map(async (modelId) => {
@@ -1952,7 +1983,6 @@ ${doc?.body?.textContent || 'No content available'}`;
           multiModelStore.setLoading(modelId, false);
         }
       });
-
 
       await Promise.allSettled(modelPromises);
     },

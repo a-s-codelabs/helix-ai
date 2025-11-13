@@ -1,17 +1,17 @@
 <script lang="ts">
   import TelescopeMessageContainer from "./TelescopeMessageContainer.svelte";
   import ModelSwitcher from "./ModelSwitcher.svelte";
-  import { multiModelStore, AVAILABLE_MODELS } from "@/lib/multiModelStore";
+  import { multiModelStore } from "@/lib/multiModelStore";
   import type { Message } from "./type";
 
-  let { enabledModels = AVAILABLE_MODELS.map((m) => m.id) }: { enabledModels?: string[] } = $props();
-
   let activeModel = $state<string | null>(null);
+  let enabledModels = $state<string[]>([]);
   let modelResponses = $state<Record<string, any>>({});
 
   $effect(() => {
     const unsubscribe = multiModelStore.subscribe((state) => {
       activeModel = state.activeModel;
+      enabledModels = state.enabledModels;
       modelResponses = state.modelResponses;
     });
     return unsubscribe;
@@ -24,7 +24,7 @@
 </script>
 
 <div class="multi-model-container">
-  <ModelSwitcher {enabledModels} />
+  <ModelSwitcher />
   {#if activeModel && currentModelState}
     <div class="model-content">
       <TelescopeMessageContainer

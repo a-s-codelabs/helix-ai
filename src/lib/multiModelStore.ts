@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import type { Message } from '../entrypoints/telescope-ui/type';
+import { globalStorage } from './globalStorage';
 
 export type ModelConfig = {
   id: string;
@@ -88,7 +89,9 @@ function createMultiModelStore() {
       update((state) => {
         const modelResponses: Record<string, ModelResponseState> = {};
         for (const modelId of modelIds) {
-          modelResponses[modelId] = {
+          // Preserve existing messages if model already has responses
+          const existingState = state.modelResponses[modelId];
+          modelResponses[modelId] = existingState || {
             messages: [],
             isStreaming: false,
             streamingMessageId: null,
@@ -96,10 +99,15 @@ function createMultiModelStore() {
             isLoading: false,
           };
         }
+        // Only update activeModel if it's not already set or if current activeModel is not in enabled models
+        const activeModel =
+          state.activeModel && modelIds.includes(state.activeModel)
+            ? state.activeModel
+            : modelIds[0] || null;
         return {
           ...state,
           modelResponses,
-          activeModel: modelIds[0] || null,
+          activeModel,
         };
       });
     },
@@ -284,3 +292,36 @@ function createMultiModelStore() {
 }
 
 export const multiModelStore = createMultiModelStore();
+
+export async function loadEnabledModelsFromStorage(): Promise<string[]> {
+  try {
+    const storage = globalStorage();
+    let saved = await storage.get('enabledModels');
+
+    if (!saved) {
+      const config = await storage.get('config');
+      if (config && typeof config === 'object' && config !== null) {
+        saved = (config as any).enabledModels;
+      }
+    }
+
+    if (saved) {
+      let modelsArray: string[] = [];
+      if (Array.isArray(saved)) {
+        modelsArray = saved;
+      } else if (typeof saved === 'object' && saved !== null) {
+        modelsArray = Object.values(saved).filter(
+          (v): v is string => typeof v === 'string'
+        );
+      }
+
+      if (modelsArray.length > 0) {
+        return modelsArray;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load enabled models from storage:', error);
+  }
+
+  return AVAILABLE_MODELS.map((m) => m.id);
+}

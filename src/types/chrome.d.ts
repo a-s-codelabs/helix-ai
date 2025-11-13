@@ -89,11 +89,20 @@ declare namespace chrome {
       message: any,
       callback?: (response: any) => void
     ): void;
+    function get(
+      tabId: number,
+      callback: (tab: Tab) => void
+    ): void;
     function create(createProperties: { url: string }, callback?: (tab: Tab) => void): void;
 
     var onUpdated: {
       addListener(
         callback: (tabId: number, changeInfo: any, tab: Tab) => void
+      ): void;
+    };
+    var onActivated: {
+      addListener(
+        callback: (activeInfo: { tabId: number; windowId: number }) => void
       ): void;
     };
   }

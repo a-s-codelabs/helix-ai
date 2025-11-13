@@ -13,7 +13,7 @@
     getCachedPageMarkdown,
   } from "@/lib/chatStore/markdown-cache-helper";
   import { detectLanguageFromText } from "@/lib/chatStore";
-  import { AVAILABLE_MODELS, multiModelStore } from "@/lib/multiModelStore";
+  import { AVAILABLE_MODELS, multiModelStore, loadEnabledModelsFromStorage } from "@/lib/multiModelStore";
 
   let currentState: State = $state("ask");
   let inputValue = $state("");
@@ -36,15 +36,9 @@
     if (enabledModelsInitialized) return;
     (async () => {
       try {
-        const storage = globalStorage();
-        const saved = await storage.get('enabledModels');
-        if (saved && Array.isArray(saved) && saved.length > 0) {
-          enabledModels = saved;
-          multiModelStore.setEnabledModels(saved);
-        } else {
-          enabledModels = AVAILABLE_MODELS.map((m) => m.id);
-          multiModelStore.setEnabledModels(enabledModels);
-        }
+        const savedModels = await loadEnabledModelsFromStorage();
+        enabledModels = savedModels;
+        multiModelStore.setEnabledModels(savedModels);
         enabledModelsInitialized = true;
       } catch (error) {
         console.error('Failed to load enabled models:', error);
@@ -111,24 +105,39 @@
     }
   });
 
+  let initialized = $state(false);
+
   $effect(() => {
-    if (isVisible) {
+    // Only initialize once, not on every isVisible change
+    if (isVisible && !initialized) {
+      initialized = true;
       if (isInSidePanel) {
         (async () => {
           const pageContext = await sidePanelUtils.getPageContent();
           if (pageContext) {
-            await chatStore.init(pageContext);
+            await chatStore.init(pageContext, true);
           } else {
             console.warn(
               "App: Failed to get page content, initializing without context"
             );
-            await chatStore.init();
+            await chatStore.init('', true);
           }
         })();
       } else {
         chatStore.init();
       }
     }
+  });
+
+  // Cleanup: clear messages when component is destroyed
+  // - In sidepanel: clear when sidepanel is closed
+  // - In floating mode: clear when floating telescope is removed
+  $effect(() => {
+    // Return cleanup function that runs when component is destroyed
+    return () => {
+      // Clear messages when component is destroyed (works for both sidepanel and floating)
+      chatStore.clear();
+    };
   });
 
   let isProcessingActionState = $state(false);
@@ -340,7 +349,11 @@
     const isPromptIntent = !opts.intent || opts.intent === 'prompt';
     if (isPromptIntent) {
       multiModel = true;
-      enabledModels = AVAILABLE_MODELS.map((m) => m.id);
+      // Use saved enabledModels from storage (already loaded in $effect)
+      // If not yet initialized, use all available models as fallback
+      if (enabledModels.length === 0) {
+        enabledModels = AVAILABLE_MODELS.map((m) => m.id);
+      }
     } else {
       multiModel = false;
     }
@@ -359,9 +372,10 @@
   }
 
   function handleClose() {
-    chatStore.clear();
-
+    // Only clear messages when NOT in sidepanel
+    // In sidepanel, messages should persist until the sidepanel is actually closed
     if (!isInSidePanel) {
+      chatStore.clear();
       if (window.parent && window.parent !== window) {
         window.parent.postMessage({ action: "closeTelescope" }, "*");
       } else {

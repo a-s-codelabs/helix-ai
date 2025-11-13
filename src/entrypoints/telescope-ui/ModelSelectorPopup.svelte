@@ -1,22 +1,26 @@
 <script lang="ts">
-  import { multiModelStore, AVAILABLE_MODELS, type ModelConfig } from '@/lib/multiModelStore';
+  import { multiModelStore, AVAILABLE_MODELS, loadEnabledModelsFromStorage, type ModelConfig } from '@/lib/multiModelStore';
   import { globalStorage } from '@/lib/globalStorage';
   import CloseIcon from './icons/Close.svelte';
 
   let {
     anchorEl,
     onClose,
+    isInSidePanel = false,
   }: {
     anchorEl: HTMLElement | null;
     onClose?: () => void;
+    isInSidePanel?: boolean;
   } = $props();
 
   const storage = globalStorage();
 
-
   let enabledModels = $state<string[]>(AVAILABLE_MODELS.map((m) => m.id));
   let popupElement = $state<HTMLDivElement | null>(null);
 
+  let rafId: number | null = null;
+  let mutationObserver: MutationObserver | null = null;
+  let resizeObserver: ResizeObserver | null = null;
 
   function toggleModel(modelId: string) {
     if (enabledModels.includes(modelId)) {
@@ -30,6 +34,7 @@
     try {
       await storage.set('enabledModels', enabledModels);
       multiModelStore.setEnabledModels(enabledModels);
+      // multiModelStore.initializeModelResponses(enabledModels);
       onClose?.();
     } catch (error) {
       console.error('Failed to save enabled models:', error);
@@ -50,75 +55,125 @@
 
   const updatePosition = () => {
     if (!popupElement || !anchorEl) return;
-    const rect = anchorEl.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-    const viewportWidth = window.innerWidth;
-    const padding = 16;
 
-    const popupHeight = popupElement.offsetHeight || 400;
-    const popupWidth = popupElement.offsetWidth || 320;
+    // Cancel any pending animation frame
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+    }
 
-    const spaceAbove = rect.top;
-    const spaceBelow = viewportHeight - rect.bottom;
+    rafId = requestAnimationFrame(() => {
+      const rect = anchorEl!.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+      const padding = 16;
 
-    let topPosition: number;
-    let maxHeight: string;
+      const popupHeight = popupElement!.offsetHeight || 400;
+      const popupWidth = popupElement!.offsetWidth || 320;
 
+      let topPosition: number;
+      let maxHeight: string;
 
-    if (spaceAbove >= popupHeight + padding || spaceAbove > spaceBelow) {
-      topPosition = rect.top - popupHeight - 8;
+      if (isInSidePanel) {
+        // Position above the telescope button in sidepanel
+        topPosition = rect.top - popupHeight - 8;
+        const maxTop = padding;
 
-      if (topPosition < padding) {
-        topPosition = padding;
-        const availableHeight = rect.top - padding - 8;
-        maxHeight = `${Math.max(200, availableHeight)}px`;
+        if (topPosition < maxTop) {
+          topPosition = maxTop;
+          const availableHeight = rect.top - maxTop - 8;
+          maxHeight = `${Math.max(200, availableHeight)}px`;
+        } else {
+          maxHeight = '80vh';
+        }
       } else {
-        maxHeight = '80vh';
+        // Always position below the telescope button in floating mode
+        topPosition = rect.bottom + 8;
+        const maxBottom = viewportHeight - padding;
+        const popupBottom = topPosition + popupHeight;
+
+        if (popupBottom > maxBottom) {
+          const availableHeight = maxBottom - topPosition;
+          maxHeight = `${Math.max(200, availableHeight)}px`;
+        } else {
+          maxHeight = '80vh';
+        }
       }
-    } else {
-      topPosition = rect.bottom + 8;
-      const maxBottom = viewportHeight - padding;
-      const popupBottom = topPosition + popupHeight;
-      if (popupBottom > maxBottom) {
-        const availableHeight = maxBottom - topPosition;
-        maxHeight = `${Math.max(200, availableHeight)}px`;
-      } else {
-        maxHeight = '80vh';
+
+      const maxLeftPosition = 420;
+      let leftPosition = rect.left;
+      const popupRight = leftPosition + popupWidth;
+
+      if (popupRight > viewportWidth - padding) {
+        leftPosition = viewportWidth - popupWidth - padding;
       }
-    }
 
-    let leftPosition = rect.left;
-    const popupRight = leftPosition + popupWidth;
+      if (leftPosition < padding) {
+        leftPosition = padding;
+      }
 
-    if (popupRight > viewportWidth - padding) {
-      leftPosition = viewportWidth - popupWidth - padding;
-    }
+      if (leftPosition > maxLeftPosition) {
+        leftPosition = maxLeftPosition;
+      }
 
-    if (leftPosition < padding) {
-      leftPosition = padding;
-    }
-
-    popupElement.style.top = `${topPosition}px`;
-    popupElement.style.left = `${leftPosition}px`;
-    popupElement.style.maxHeight = maxHeight;
-    popupElement.style.bottom = 'auto';
+      popupElement!.style.top = `${topPosition}px`;
+      popupElement!.style.left = `${leftPosition}px`;
+      popupElement!.style.maxHeight = maxHeight;
+      popupElement!.style.bottom = 'auto';
+      rafId = null;
+    });
   };
 
   $effect(() => {
     if (!popupElement || !anchorEl) return;
 
-    const timeoutId = setTimeout(() => {
-      updatePosition();
-      setTimeout(updatePosition, 10);
-    }, 0);
+    // Initial positioning with multiple attempts to ensure correct placement
+    updatePosition();
+    const timeoutId1 = setTimeout(updatePosition, 0);
+    const timeoutId2 = setTimeout(updatePosition, 10);
+    const timeoutId3 = setTimeout(updatePosition, 50);
 
     window.addEventListener('resize', updatePosition);
     window.addEventListener('scroll', updatePosition, true);
 
+    // ResizeObserver to watch the anchor element for size/position changes
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        updatePosition();
+      });
+      resizeObserver.observe(anchorEl);
+    }
+
+    // MutationObserver to watch for DOM changes
+    if (typeof MutationObserver !== 'undefined') {
+      mutationObserver = new MutationObserver(() => {
+        updatePosition();
+      });
+      mutationObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['style', 'class'],
+        childList: true,
+        subtree: true,
+      });
+    }
+
     return () => {
-      clearTimeout(timeoutId);
+      clearTimeout(timeoutId1);
+      clearTimeout(timeoutId2);
+      clearTimeout(timeoutId3);
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
+      if (mutationObserver) {
+        mutationObserver.disconnect();
+        mutationObserver = null;
+      }
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+        resizeObserver = null;
+      }
     };
   });
 
@@ -131,30 +186,8 @@
     });
 
     (async () => {
-      try {
-        let saved = await storage.get('enabledModels');
-        if (!saved) {
-          const config = await storage.get('config');
-          if (config && typeof config === 'object' && config !== null) {
-            saved = (config as any).enabledModels;
-          }
-        }
-
-        if (saved) {
-          let modelsArray: string[] = [];
-          if (Array.isArray(saved)) {
-            modelsArray = saved;
-          } else if (typeof saved === 'object' && saved !== null) {
-            modelsArray = Object.values(saved).filter((v): v is string => typeof v === 'string');
-          }
-
-          if (modelsArray.length > 0) {
-            enabledModels = modelsArray;
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load enabled models:', error);
-      }
+      const savedModels = await loadEnabledModelsFromStorage();
+      enabledModels = savedModels;
     })();
 
     return unsubscribe;

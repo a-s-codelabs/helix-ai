@@ -633,6 +633,7 @@
             <ModelSelectorPopup
               anchorEl={modelSelectorButtonElement}
               onClose={handleModelSelectorClose}
+              {isInSidePanel}
             />
           {/if}
         </div>
@@ -884,6 +885,7 @@
                 <ModelSelectorPopup
                   anchorEl={modelSelectorButtonElement}
                   onClose={handleModelSelectorClose}
+                  {isInSidePanel}
                 />
               {/if}
             </div>
