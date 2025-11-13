@@ -199,9 +199,9 @@ let popupEl = $state<HTMLDivElement | null>(null);
       aria-label="Settings"
       bind:this={popupEl}
       tabindex="-1"
-      onclick={(e) => e.stopPropagation()}
-      onmousedown={(e) => e.stopPropagation()}
-      onkeydown={(e) => {
+      onclick={(e: MouseEvent) => e.stopPropagation()}
+      onmousedown={(e: MouseEvent) => e.stopPropagation()}
+      onkeydown={(e: KeyboardEvent) => {
         if (e.key === "Escape") {
           e.stopPropagation();
           onClose?.();
@@ -215,7 +215,7 @@ let popupEl = $state<HTMLDivElement | null>(null);
         <div class="header-buttons">
           <button
             class="trash-button"
-            onclick={(e) => {
+            onclick={(e: MouseEvent) => {
               e.stopPropagation();
               handleReset();
             }}
@@ -226,7 +226,7 @@ let popupEl = $state<HTMLDivElement | null>(null);
           </button>
           <button
             class="close-button"
-            onclick={(e) => {
+            onclick={(e: MouseEvent) => {
               e.stopPropagation();
               onClose?.();
             }}
@@ -250,12 +250,15 @@ let popupEl = $state<HTMLDivElement | null>(null);
                   id={opt.id}
                   class="option-dropdown"
                   value={String(getCurrentValue(opt.id))}
-                  onclick={(e) => e.stopPropagation()}
-                  onmousedown={(e) => e.stopPropagation()}
-                  onchange={(e) => {
+                  onclick={(e: MouseEvent) => e.stopPropagation()}
+                  onmousedown={(e: MouseEvent) => e.stopPropagation()}
+                  onchange={(e: Event) => {
                     if (!opt.id) return;
                     e.stopPropagation();
-                    const target = e.currentTarget;
+                    const target = e.currentTarget as HTMLSelectElement | null;
+                    if (!target) {
+                      return;
+                    }
                     const selectedValue = opt.options?.find(
                       (o) => String(o.value) === target.value
                     )?.value;
@@ -286,12 +289,16 @@ let popupEl = $state<HTMLDivElement | null>(null);
                     max={opt.max ?? 100}
                     step={opt.step ?? 1}
                     value={Number(getCurrentValue(opt.id))}
-                    onclick={(e) => e.stopPropagation()}
-                    onmousedown={(e) => e.stopPropagation()}
-                    oninput={(e) => {
+                    onclick={(e: MouseEvent) => e.stopPropagation()}
+                    onmousedown={(e: MouseEvent) => e.stopPropagation()}
+                    oninput={(e: Event) => {
                       if (!opt.id) return;
                       e.stopPropagation();
-                      handleSliderChange(opt.id, Number(e.currentTarget.value));
+                      const target = e.currentTarget as HTMLInputElement | null;
+                      if (!target) {
+                        return;
+                      }
+                      handleSliderChange(opt.id, Number(target.value));
                     }}
                   />
                 </div>
@@ -308,9 +315,9 @@ let popupEl = $state<HTMLDivElement | null>(null);
       aria-label="Settings"
       bind:this={popupEl}
       tabindex="-1"
-      onclick={(e) => e.stopPropagation()}
-      onmousedown={(e) => e.stopPropagation()}
-      onkeydown={(e) => {
+      onclick={(e: MouseEvent) => e.stopPropagation()}
+      onmousedown={(e: MouseEvent) => e.stopPropagation()}
+      onkeydown={(e: KeyboardEvent) => {
         if (e.key === "Escape") {
           e.stopPropagation();
           onClose?.();
@@ -324,7 +331,7 @@ let popupEl = $state<HTMLDivElement | null>(null);
         <div class="header-buttons">
           <button
             class="trash-button"
-            onclick={(e) => {
+            onclick={(e: MouseEvent) => {
               e.stopPropagation();
               handleReset();
             }}
@@ -335,7 +342,7 @@ let popupEl = $state<HTMLDivElement | null>(null);
           </button>
           <button
             class="close-button"
-            onclick={(e) => {
+            onclick={(e: MouseEvent) => {
               e.stopPropagation();
               onClose?.();
             }}

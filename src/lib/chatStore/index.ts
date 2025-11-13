@@ -36,6 +36,7 @@ import {
 } from '../utils/converters';
 import {
   getCachedPageMarkdown,
+  getCachedPageMarkdownWithUrl,
   storePageMarkdown,
 } from './markdown-cache-helper';
 
@@ -94,7 +95,8 @@ async function createAISessionWithMonitor(
     | 'rewriter'
     | 'proofreader'
     | 'prompt',
-  options: any = {}
+  options: any = {},
+  inSidePanel: boolean = false
 ): Promise<any> {
   const monitor = (m: any) => {
     const createdAt = Date.now();
@@ -152,12 +154,18 @@ async function createAISessionWithMonitor(
     }
   }
 
-  let pageContext = '';
-  if (options.tabId) {
+  // Use pageContext from options if provided, otherwise try to get from cache
+  // For prompt sessions, pageContext should be fetched fresh in promptStreaming
+  // and passed via options to ensure URL verification
+  let pageContext = options.pageContext || '';
+  if (!pageContext && sessionType === 'prompt' && options.tabId) {
     try {
-      const cached = await getCachedPageMarkdown({ tabId: options.tabId });
-      if (cached) {
-        pageContext = cached;
+      // Fallback to cache if pageContext not provided
+      const cachedData = await getCachedPageMarkdownWithUrl({
+        tabId: options.tabId,
+      });
+      if (cachedData) {
+        pageContext = cachedData.content;
         console.log(
           'createAISessionWithMonitor: Using cached pageContext for tab',
           options.tabId
@@ -688,6 +696,7 @@ function createChatStore() {
   });
 
   let session: AILanguageModel | null = null;
+  let sessionTabId: number | null = null; // Track which tabId the session was created for
   let pageContext = '';
   let isInSidePanel = false;
   let lastSuggestedAssistantMessageId: number | null = null;
@@ -987,16 +996,82 @@ function createChatStore() {
     });
   }
 
+  /**
+   * Get the actual current URL for a specific tabId
+   * This ensures we always get the real-time URL, not stale cache
+   */
+  async function getActualTabUrl(
+    tabId: number,
+    inSidePanel: boolean
+  ): Promise<string | null> {
+    if (!inSidePanel && typeof window !== 'undefined' && window.location) {
+      // In floating mode, use window.location.href directly (most reliable)
+      return window.location.href;
+    }
+
+    if (inSidePanel && typeof chrome !== 'undefined' && chrome.tabs) {
+      // In sidepanel mode, get URL from chrome.tabs API for the specific tabId
+      try {
+        const tab = await new Promise<chrome.tabs.Tab>((resolve, reject) => {
+          chrome.tabs.get(tabId, (tab) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+            } else {
+              resolve(tab);
+            }
+          });
+        });
+        return tab?.url || null;
+      } catch (err) {
+        console.warn(
+          'Failed to get URL from chrome.tabs for tabId',
+          tabId,
+          ':',
+          err
+        );
+        return null;
+      }
+    }
+
+    return null;
+  }
+
   async function getDocumentInfoHelper(
-    inSidePanel: boolean = false
+    inSidePanel: boolean = false,
+    providedTabId?: number | null
   ): Promise<string> {
-    let tabId: number | null = null;
+    let tabId: number | null = providedTabId ?? null;
     let currentUrl = '';
 
-    const tabInfo = await getTabIdFromBackground();
-    tabId = tabInfo.tabId;
-    currentUrl = tabInfo.url || '';
+    // Step 1: Get tabId if not provided
+    if (!tabId) {
+      const tabInfo = await getTabIdFromBackground();
+      tabId = tabInfo.tabId;
+      currentUrl = tabInfo.url || '';
+    }
 
+    // Step 2: If we have a tabId, ALWAYS get the actual current URL of that tab
+    // This is critical to ensure we're checking against the real current URL, not stale cache
+    if (tabId) {
+      const actualUrl = await getActualTabUrl(tabId, inSidePanel);
+      if (actualUrl) {
+        currentUrl = actualUrl;
+        console.log(
+          'getDocumentInfoHelper: Got actual URL for tabId',
+          tabId,
+          ':',
+          currentUrl
+        );
+      } else if (!currentUrl) {
+        // Fallback: try to get from background if we couldn't get actual URL
+        const tabInfo = await getTabIdFromBackground();
+        if (tabInfo.tabId === tabId) {
+          currentUrl = tabInfo.url || '';
+        }
+      }
+    }
+
+    // Step 3: Fallback for floating mode if we still don't have tabId or URL
     if (!tabId && !inSidePanel) {
       tabId = await getActiveTabId();
       currentUrl =
@@ -1006,10 +1081,81 @@ function createChatStore() {
     }
 
     if (tabId) {
+      // If we still don't have currentUrl, try one more time to get it
+      if (!currentUrl) {
+        const actualUrl = await getActualTabUrl(tabId, inSidePanel);
+        if (actualUrl) {
+          currentUrl = actualUrl;
+          console.log(
+            'getDocumentInfoHelper: Got actual URL on retry for tabId',
+            tabId,
+            ':',
+            currentUrl
+          );
+        }
+      }
+
       const cached = await getCachedPageMarkdown({ tabId });
       if (cached) {
-        console.log('ChatStore: Using cached markdown for tab', tabId);
-        return cached;
+        // Verify URL matches to avoid using stale cache
+        const cachedData = await getCachedPageMarkdownWithUrl({ tabId });
+
+        if (cachedData && cachedData.url && currentUrl) {
+          // Normalize URLs for comparison (remove trailing slashes, query params, hash)
+          const normalizeUrl = (url: string) => {
+            try {
+              const urlObj = new URL(url);
+              return `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`.replace(
+                /\/$/,
+                ''
+              );
+            } catch {
+              // Fallback if URL parsing fails
+              return url.split('#')[0].split('?')[0].replace(/\/$/, '');
+            }
+          };
+
+          const normalizedCached = normalizeUrl(cachedData.url);
+          const normalizedCurrent = normalizeUrl(currentUrl);
+
+          if (normalizedCached === normalizedCurrent) {
+            console.log(
+              'ChatStore: Using cached markdown for tab',
+              tabId,
+              '- URL matches. Cached URL:',
+              cachedData.url,
+              'Current URL:',
+              currentUrl
+            );
+            return cached;
+          } else {
+            console.warn(
+              'ChatStore: Cached markdown URL mismatch - NOT using cache. TabId:',
+              tabId,
+              'Cached URL:',
+              cachedData.url,
+              'Current URL:',
+              currentUrl,
+              '- Will fetch fresh content'
+            );
+            // Don't use stale cache - continue to fetch fresh content
+          }
+        } else if (cachedData && !currentUrl) {
+          // If we don't have current URL but have cached data, use it with warning
+          console.warn(
+            'ChatStore: Using cached markdown for tab',
+            tabId,
+            'without URL verification (could be stale). Cached URL:',
+            cachedData.url
+          );
+          return cached;
+        } else {
+          console.warn(
+            'ChatStore: Cached markdown exists but missing URL data for tab',
+            tabId,
+            '- Will fetch fresh content'
+          );
+        }
       }
     }
 
@@ -1028,6 +1174,7 @@ function createChatStore() {
         chrome.runtime.sendMessage(
           {
             type: 'GET_PAGE_CONTENT',
+            tabId: tabId || undefined, // Pass the specific tabId if we have it
           },
           async (response) => {
             clearTimeout(timeout);
@@ -1465,7 +1612,10 @@ ${doc?.body?.textContent || 'No content available'}`;
           );
           if (attach && (!pageContext || pageContext.trim().length === 0)) {
             try {
-              pageContext = await getDocumentInfoHelper(isInSidePanel);
+              pageContext = await getDocumentInfoHelper(
+                isInSidePanel,
+                currentTabId
+              );
             } catch (err) {
               console.warn(
                 'Failed to fetch document info for translation:',
@@ -1595,7 +1745,10 @@ ${doc?.body?.textContent || 'No content available'}`;
           const attach = await shouldAttachPageContext('write', userMessage);
           if (attach && (!pageContext || pageContext.trim().length === 0)) {
             try {
-              pageContext = await getDocumentInfoHelper(isInSidePanel);
+              pageContext = await getDocumentInfoHelper(
+                isInSidePanel,
+                currentTabId
+              );
             } catch (err) {
               console.warn('Failed to fetch document info for write:', err);
             }
@@ -1751,7 +1904,10 @@ ${doc?.body?.textContent || 'No content available'}`;
           const attach = await shouldAttachPageContext('rewrite', userMessage);
           if (attach && (!pageContext || pageContext.trim().length === 0)) {
             try {
-              pageContext = await getDocumentInfoHelper(isInSidePanel);
+              pageContext = await getDocumentInfoHelper(
+                isInSidePanel,
+                currentTabId
+              );
             } catch (err) {
               console.warn('Failed to fetch document info for rewrite:', err);
             }
@@ -1976,11 +2132,45 @@ ${doc?.body?.textContent || 'No content available'}`;
           'prompt'
         );
         if (provider === 'builtin') {
-          if (!session) {
-            session = await createAISessionWithMonitor('prompt', {
-              ...options,
-              tabId: currentTabId,
-            });
+          // Get fresh pageContext with URL verification before creating/updating session
+          let freshPageContext = pageContext;
+          if (
+            !freshPageContext ||
+            freshPageContext.trim().length === 0 ||
+            sessionTabId !== currentTabId
+          ) {
+            try {
+              freshPageContext = await getDocumentInfoHelper(
+                isInSidePanel,
+                currentTabId
+              );
+            } catch (err) {
+              console.warn('Failed to fetch document info for prompt:', err);
+            }
+          }
+
+          // Recreate session if it doesn't exist or if tabId changed (to ensure fresh pageContext)
+          if (!session || sessionTabId !== currentTabId) {
+            // Destroy old session if it exists
+            if (session) {
+              try {
+                safeDestroySession(session);
+              } catch (err) {
+                console.warn('Error destroying old session:', err);
+              }
+            }
+            session = await createAISessionWithMonitor(
+              'prompt',
+              {
+                ...options,
+                tabId: currentTabId,
+                pageContext: freshPageContext,
+              },
+              isInSidePanel
+            );
+            sessionTabId = currentTabId;
+            pageContext = freshPageContext; // Update stored pageContext
+            console.log('Created new session for tabId:', currentTabId);
           }
         }
 
@@ -2026,7 +2216,10 @@ ${doc?.body?.textContent || 'No content available'}`;
           const attach = await shouldAttachPageContext('prompt', userMessage);
           if (!pageContext || pageContext.trim().length === 0) {
             try {
-              pageContext = await getDocumentInfoHelper(isInSidePanel);
+              pageContext = await getDocumentInfoHelper(
+                isInSidePanel,
+                currentTabId
+              );
             } catch (err) {
               console.warn('Failed to fetch document info for prompt:', err);
             }
@@ -2093,6 +2286,7 @@ ${doc?.body?.textContent || 'No content available'}`;
 
         safeDestroySession(session);
         session = null;
+        sessionTabId = null;
       }
     },
 
@@ -2139,7 +2333,10 @@ ${doc?.body?.textContent || 'No content available'}`;
       let currentPageContext = pageContext;
       if (!currentPageContext || currentPageContext.trim().length === 0) {
         try {
-          currentPageContext = await getDocumentInfoHelper(isInSidePanel);
+          currentPageContext = await getDocumentInfoHelper(
+            isInSidePanel,
+            currentTabId
+          );
         } catch (err) {
           console.warn(
             'Failed to fetch document info for multi-model prompt:',
@@ -2217,10 +2414,31 @@ ${doc?.body?.textContent || 'No content available'}`;
           }
 
           if (modelConfig.provider === 'builtin') {
-            const session = await createAISessionWithMonitor('prompt', {
-              ...options,
-              tabId: currentTabId,
-            });
+            // Get fresh pageContext with URL verification for builtin provider
+            let modelPageContext = currentPageContext;
+            if (!modelPageContext || modelPageContext.trim().length === 0) {
+              try {
+                modelPageContext = await getDocumentInfoHelper(
+                  isInSidePanel,
+                  currentTabId
+                );
+              } catch (err) {
+                console.warn(
+                  'Failed to fetch document info for multi-model prompt:',
+                  err
+                );
+              }
+            }
+
+            const session = await createAISessionWithMonitor(
+              'prompt',
+              {
+                ...options,
+                tabId: currentTabId,
+                pageContext: modelPageContext,
+              },
+              isInSidePanel
+            );
 
             if (images && images.length > 0) {
               for await (const image of images) {
