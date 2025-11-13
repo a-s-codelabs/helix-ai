@@ -490,6 +490,42 @@ export const detectLanguageFromText = async (
   }
 };
 
+/**
+ * Check if LanguageModel supports specific expectedInputs
+ * @param expectedInputs - Array of input types to check
+ * @returns true if all input types are supported, false otherwise
+ */
+async function checkLanguageModelCapabilities(
+  expectedInputs: { type: string }[]
+): Promise<boolean> {
+  if (typeof LanguageModel === 'undefined') {
+    return false;
+  }
+
+  try {
+    // First check basic availability
+    const basicAvailability = await LanguageModel.availability();
+    if (basicAvailability === 'no') {
+      return false;
+    }
+
+    // Try to check availability with expectedInputs if supported
+    try {
+      const availability = await (LanguageModel as any).availability({
+        expectedInputs,
+      });
+      return availability === 'readily' || availability === 'available';
+    } catch {
+      // If availability doesn't support expectedInputs parameter,
+      // assume capabilities are not available to be safe
+      return false;
+    }
+  } catch (error) {
+    console.warn('Error checking LanguageModel capabilities:', error);
+    return false;
+  }
+}
+
 async function createAISession({
   pageContext,
   language = 'en',
@@ -505,14 +541,11 @@ async function createAISession({
 }): Promise<AILanguageModel> {
   console.log('createAISession', pageContext);
   if (typeof LanguageModel !== 'undefined') {
-    const config = {
-      // TODO: Check which system prompt to use based on the user's language
+    const baseConfig = {
       systemPrompt: systemPrompt({ pageContext }),
       language,
       outputLanguage,
       output: { language: outputLanguage },
-      // expectedInputs: [{ type: 'image' }, { type: 'audio' }],
-      expectedInputs: [{ type: 'image' }, { type: 'audio' }],
       temperature,
       topK,
       initialPrompts: [
@@ -534,7 +567,35 @@ async function createAISession({
       },
     };
 
-    return await LanguageModel.create(config);
+    // Check if model supports multimodal inputs before including them
+    const desiredInputs: { type: string }[] = [
+      { type: 'image' },
+      { type: 'audio' },
+    ];
+    const supportsMultimodal = await checkLanguageModelCapabilities(
+      desiredInputs
+    );
+
+    const config: AILanguageModelCreateOptions = supportsMultimodal
+      ? { ...baseConfig, expectedInputs: desiredInputs }
+      : baseConfig;
+
+    try {
+      return await LanguageModel.create(config);
+    } catch (error: any) {
+      // If creation fails with expectedInputs, retry without them
+      if (
+        config.expectedInputs &&
+        error?.message?.includes('capability') &&
+        error?.message?.includes('not available')
+      ) {
+        console.warn(
+          'Model does not support requested capabilities, creating session without expectedInputs'
+        );
+        return await LanguageModel.create(baseConfig);
+      }
+      throw error;
+    }
   }
 
   throw new Error(
