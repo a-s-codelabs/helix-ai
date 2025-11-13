@@ -40,14 +40,24 @@ export function buildProviderModel(cfg: ProviderConfig) {
 }
 
 export async function runProviderStream(cfg: ProviderConfig, opts: RunOptions): Promise<StreamResult> {
-  const model = buildProviderModel(cfg) as any;
-  const { textStream } = await streamText({
-    model,
-    system: opts.system,
-    messages: opts.messages,
-  });
-  // Adapter to the extension's expected ReadableStream<string>
-  return { stream: textStream as unknown as ReadableStream<string> };
+  try {
+    const model = buildProviderModel(cfg) as any;
+    const { textStream } = await streamText({
+      model,
+      system: opts.system,
+      messages: opts.messages,
+    });
+    // Adapter to the extension's expected ReadableStream<string>
+    return { stream: textStream as unknown as ReadableStream<string> };
+  } catch (error) {
+    console.error(`Error creating stream for ${cfg.provider}/${cfg.model}:`, error);
+    // Check if error is related to unsupported content type (like audio)
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('audio') || errorMessage.includes('unsupported')) {
+      throw new Error(`Audio input is not supported for ${cfg.model}. Please use text input instead.`);
+    }
+    throw error;
+  }
 }
 
 export function imagePartFromDataURL(dataUrl: string): any {
@@ -56,6 +66,20 @@ export function imagePartFromDataURL(dataUrl: string): any {
 
 export function textPart(text: string): any {
   return { type: 'text', text };
+}
+
+export async function audioPartFromBlob(blob: Blob): Promise<any> {
+  // Convert blob to data URL for AI SDK compatibility
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result as string;
+      // Use data URL format similar to images for better compatibility
+      resolve({ type: 'audio', audio: dataUrl });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 

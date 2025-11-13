@@ -19,6 +19,7 @@ import {
   runProviderStream,
   imagePartFromDataURL,
   textPart,
+  audioPartFromBlob,
   type Provider,
 } from '../ai/providerClient';
 import { loadProviderKey } from '../secureStore';
@@ -2022,8 +2023,8 @@ ${doc?.body?.textContent || 'No content available'}`;
         } else {
           if (!apiKey || !model)
             throw new Error('Missing provider credentials');
-        const attach = await shouldAttachPageContext('prompt', userMessage);
-        if (!pageContext || pageContext.trim().length === 0) {
+          const attach = await shouldAttachPageContext('prompt', userMessage);
+          if (!pageContext || pageContext.trim().length === 0) {
             try {
               pageContext = await getDocumentInfoHelper(isInSidePanel);
             } catch (err) {
@@ -2040,7 +2041,8 @@ ${doc?.body?.textContent || 'No content available'}`;
               contentParts.push(imagePartFromDataURL(img));
           }
           if (audioBlob) {
-            contentParts.push({ type: 'audio', value: audioBlob });
+            const audioPart = await audioPartFromBlob(audioBlob);
+            contentParts.push(audioPart);
           }
           const result = await runProviderStream(
             { provider, model, apiKey },
@@ -2133,11 +2135,9 @@ ${doc?.body?.textContent || 'No content available'}`;
         multiModelStore.addUserMessage(modelId, userMsg);
       }
 
-        const attach = await shouldAttachPageContext('prompt', userMessage);
-        let currentPageContext = pageContext;
-        if (
-          (!currentPageContext || currentPageContext.trim().length === 0)
-        ) {
+      const attach = await shouldAttachPageContext('prompt', userMessage);
+      let currentPageContext = pageContext;
+      if (!currentPageContext || currentPageContext.trim().length === 0) {
         try {
           currentPageContext = await getDocumentInfoHelper(isInSidePanel);
         } catch (err) {
@@ -2164,8 +2164,19 @@ ${doc?.body?.textContent || 'No content available'}`;
       const audioBlob = audioBlobId ? await loadAudioBlob(audioBlobId) : null;
 
       if (audioBlob) {
-        contentParts.push({ type: 'audio', value: audioBlob });
+        const audioPart = await audioPartFromBlob(audioBlob);
+        contentParts.push(audioPart);
       }
+
+      // Models that support audio input
+      const audioSupportedModels = [
+        'gpt-4o',
+        'claude-3-5-sonnet-latest',
+        'claude-3-5-haiku-latest',
+        'claude-3-opus-latest',
+        'gemini-2.5-pro',
+        'gemini-2.5-flash',
+      ];
 
       const modelPromises = enabledModels.map(async (modelId) => {
         const modelConfig = AVAILABLE_MODELS.find((m) => m.id === modelId);
@@ -2184,6 +2195,26 @@ ${doc?.body?.textContent || 'No content available'}`;
 
         try {
           let stream: ReadableStream<string>;
+
+          // Build content parts for this specific model
+          const modelContentParts: any[] = [];
+          if (userMessage.trim()) {
+            modelContentParts.push(textPart(userMessage));
+          }
+          if (images && images.length) {
+            for (const img of images) {
+              modelContentParts.push(imagePartFromDataURL(img));
+            }
+          }
+          // Only include audio if model supports it
+          if (audioBlob && audioSupportedModels.includes(modelId)) {
+            const audioPart = await audioPartFromBlob(audioBlob);
+            modelContentParts.push(audioPart);
+          } else if (audioBlob && !audioSupportedModels.includes(modelId)) {
+            console.warn(
+              `Audio input is not supported for ${modelId}, skipping audio`
+            );
+          }
 
           if (modelConfig.provider === 'builtin') {
             const session = await createAISessionWithMonitor('prompt', {
@@ -2231,7 +2262,7 @@ ${doc?.body?.textContent || 'No content available'}`;
               },
               {
                 system: sys,
-                messages: [{ role: 'user', content: contentParts }],
+                messages: [{ role: 'user', content: modelContentParts }],
               }
             );
 
