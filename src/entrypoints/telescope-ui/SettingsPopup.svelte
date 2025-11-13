@@ -7,6 +7,25 @@
   type IntentKey = keyof typeof option;
 
   type OptionValue = string | number;
+  type DropdownOption = {
+    uiType: "dropdown";
+    name: string;
+    id: string;
+    options: readonly { label: string; value: OptionValue }[];
+    defaultValue?: OptionValue;
+  };
+
+  type SliderOption = {
+    uiType: "slider";
+    name: string;
+    id: string;
+    defaultValue?: number;
+    step?: number;
+    min?: number;
+    max?: number;
+  };
+
+  type OptionConfig = DropdownOption | SliderOption;
   type SettingsValues = Record<string, OptionValue>;
 
   let {
@@ -19,11 +38,14 @@
     anchorEl,
   } = $props();
 
-  const currentOptions = $derived(
-    intent && option[intent as IntentKey] ? option[intent as IntentKey] : []
-  );
+  const currentOptions = $derived<OptionConfig[]>(() => {
+    if (!intent) return [];
+    const intentKey = intent as IntentKey;
+    const opts = option[intentKey] ?? [];
+    return opts as unknown as OptionConfig[];
+  });
 
-  let popupEl: HTMLDivElement | null = null;
+let popupEl = $state<HTMLDivElement | null>(null);
 
   $effect(() => {
     if (!intent) return;
@@ -176,8 +198,17 @@
       role="dialog"
       aria-label="Settings"
       bind:this={popupEl}
+      tabindex="-1"
       onclick={(e) => e.stopPropagation()}
       onmousedown={(e) => e.stopPropagation()}
+      onkeydown={(e) => {
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          onClose?.();
+        } else if (e.key === "Enter" || e.key === " ") {
+          e.stopPropagation();
+        }
+      }}
     >
       <div class="settings-header">
         <h3 class="settings-title">Settings</h3>
@@ -276,8 +307,17 @@
       role="dialog"
       aria-label="Settings"
       bind:this={popupEl}
+      tabindex="-1"
       onclick={(e) => e.stopPropagation()}
       onmousedown={(e) => e.stopPropagation()}
+      onkeydown={(e) => {
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          onClose?.();
+        } else if (e.key === "Enter" || e.key === " ") {
+          e.stopPropagation();
+        }
+      }}
     >
       <div class="settings-header">
         <h3 class="settings-title">Settings</h3>

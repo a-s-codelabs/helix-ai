@@ -33,12 +33,17 @@
       import { globalStorage } from '@/lib/globalStorage';
 
       // Initialize storage before mounting the app
-      await globalStorage().onBoard();
-
-      const app = mount(App, {
-        target: document.getElementById('app'),
-        props: { isInSidePanel: true }
-      });
+      globalStorage()
+        .onBoard()
+        .catch((error) => {
+          console.error("Failed to onboard storage:", error);
+        })
+        .finally(() => {
+          mount(App, {
+            target: document.getElementById("app"),
+            props: { isInSidePanel: true },
+          });
+        });
     </script>
   </body>
 </html>

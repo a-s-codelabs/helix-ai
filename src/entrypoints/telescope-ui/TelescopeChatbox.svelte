@@ -168,14 +168,15 @@
 
   .suggested-questions {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
-    padding: 20px 0px;
+    padding: 20px 16px;
     width: 100%;
     max-width: 100%;
     overflow-x: auto;
+    overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
-    scroll-padding-inline-start: 0px;
+    scroll-padding-inline: 16px;
     scrollbar-width: thin;
     scrollbar-color: #555 #2a2a2a;
   }
@@ -210,18 +211,14 @@
     white-space: nowrap;
     flex: 0 0 auto;
     min-width: fit-content;
-    max-width: 100%;
     word-break: break-word;
     box-sizing: border-box;
   }
 
   .sidepanel-layout .suggested-question {
-    white-space: normal;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    hyphens: auto;
-    flex: 1 1 auto;
-    min-width: 0;
+    white-space: nowrap;
+    flex: 0 0 auto;
+    min-width: fit-content;
   }
 
   @media (max-width: 400px) {
@@ -235,8 +232,6 @@
     .suggested-question {
       font-size: 11px;
       padding: 5px 8px;
-      white-space: normal;
-      text-align: center;
     }
   }
 
@@ -289,14 +284,37 @@
   }
 
   .sidepanel-layout .suggested-questions {
-    padding: 20px 0px 0px 0px;
+    padding: 20px 16px 0px 16px;
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
     box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+    scroll-padding-inline: 16px;
+    scrollbar-width: thin;
+    scrollbar-color: #555 #2a2a2a;
+  }
+
+  .sidepanel-layout .suggested-questions::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .sidepanel-layout .suggested-questions::-webkit-scrollbar-track {
+    background: #2a2a2a;
+    border-radius: 2px;
+  }
+
+  .sidepanel-layout .suggested-questions::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 2px;
+  }
+
+  .sidepanel-layout .suggested-questions::-webkit-scrollbar-thumb:hover {
+    background: #666;
   }
 
   @media (max-width: 300px) {
@@ -309,8 +327,9 @@
     }
 
     .sidepanel-layout .suggested-questions {
-      padding: 12px 0px 0px 0px;
+      padding: 12px 12px 0px 12px;
       gap: 4px;
+      scroll-padding-inline: 12px;
     }
   }
 

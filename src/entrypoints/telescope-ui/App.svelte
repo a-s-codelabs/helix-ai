@@ -24,6 +24,7 @@
   let streamingMessageId = $state<number | null>(null);
   let quotedContent = $state<string[]>([]);
   let quotedContentToFormat = $state<Set<string>>(new Set());
+  let suggestedQuestions = $state<string[]>([]);
 
   let tabId = $state<number | null>(null);
   let { isInSidePanel }: { isInSidePanel: boolean } = $props();
@@ -66,6 +67,7 @@
       messages = state.messages;
       isStreaming = state.isStreaming;
       streamingMessageId = state.streamingMessageId;
+      suggestedQuestions = state.suggestedQuestions ?? [];
     });
     return unsubscribe;
   });
@@ -367,8 +369,8 @@
   }
 
   function handleSuggestedQuestion({ question }: { question: string }) {
-    inputValue = question;
     handleAsk({ value: question, images: [] });
+    inputValue = "";
   }
 
   function handleClose() {
@@ -513,6 +515,7 @@
       {messages}
       {isStreaming}
       {streamingMessageId}
+      {suggestedQuestions}
       {multiModel}
       {enabledModels}
       onStateChange={handleStateChange}
