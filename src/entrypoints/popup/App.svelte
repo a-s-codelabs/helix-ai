@@ -19,6 +19,7 @@
 
   let mainElement: HTMLElement;
   let savedKeys = $state({ openai: false, anthropic: false, gemini: false });
+  let isBuiltinAvailable = $state(true);
 
   async function loadSettings() {
     try {
@@ -201,9 +202,35 @@
     chrome.tabs.create({ url: "https://ascodelabs.com" });
   }
 
+  async function checkBuiltinAvailability() {
+    try {
+      if (typeof window === "undefined") {
+        isBuiltinAvailable = false;
+        return;
+      }
+
+      if (typeof (window as any).LanguageModel !== "undefined") {
+        try {
+          const availability = await (window as any).LanguageModel.availability();
+          isBuiltinAvailable =
+            availability === "readily" || availability === "available";
+        } catch (err) {
+          console.error("Global LanguageModel check failed", err);
+          isBuiltinAvailable = false;
+        }
+      } else {
+        isBuiltinAvailable = false;
+      }
+    } catch (err) {
+      console.error("Error checking Chrome AI status:", err);
+      isBuiltinAvailable = false;
+    }
+  }
+
   onMount(() => {
     void loadSettings();
     void getKeyboardShortcut().then((shortcut) => shortcut);
+    void checkBuiltinAvailability();
     document.addEventListener("mousedown", handleClickOutside);
 
     const handleFocus = () => {
@@ -235,21 +262,6 @@
     </div>
   </div>
 
-  <div class="open-telescope-section">
-    <h2>Open telescope</h2>
-    <div class="button-group">
-      <button
-        class="action-button"
-        onclick={openTelescopeFloating}
-        disabled={!floatingTelescopeEnabled}
-      >
-        Open in Floating
-      </button>
-      <button class="action-button" onclick={openTelescopeSidePanel}>
-        Open in Sidepanel
-      </button>
-    </div>
-  </div>
 
   <div class="keybinding-section">
     <h3>AI Platform</h3>
@@ -271,6 +283,12 @@
         </select>
       </div>
     </div>
+
+    {#if !isBuiltinAvailable}
+      <div class="builtin-unavailable-note">
+        Built-in is not available in this chrome version, use open ai or gemini
+      </div>
+    {/if}
 
     {#if aiProvider !== "builtin"}
       <div class="ai-platform-row">
@@ -349,6 +367,22 @@
         {/if}
       </div>
     {/if}
+  </div>
+
+  <div class="open-telescope-section">
+    <h2>Open telescope</h2>
+    <div class="button-group">
+      <button
+        class="action-button"
+        onclick={openTelescopeFloating}
+        disabled={!floatingTelescopeEnabled}
+      >
+        Open in Floating
+      </button>
+      <button class="action-button" onclick={openTelescopeSidePanel}>
+        Open in Sidepanel
+      </button>
+    </div>
   </div>
 
   <div class="keybinding-section">
@@ -549,6 +583,17 @@
     align-items: center;
     gap: 8px;
     width: 100%;
+  }
+
+  .builtin-unavailable-note {
+    color: #ef4444;
+    font-size: 12px;
+    margin-top: -8px;
+    margin-bottom: 16px;
+    padding: 8px 12px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 4px;
   }
 
   .option-input {
