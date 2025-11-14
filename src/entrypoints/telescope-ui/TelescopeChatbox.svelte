@@ -18,7 +18,7 @@
     onDragStart,
     isInSidePanel = false,
     multiModel = false,
-    enabledModels = AVAILABLE_MODELS.map((m) => m.id),
+    enabledModels = AVAILABLE_MODELS.map((m) => m.id) as string[],
   }: ChatboxProps = $props();
 
   async function handleMoveToSidePanel() {

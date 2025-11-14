@@ -65,7 +65,7 @@ let popupEl = $state<HTMLDivElement | null>(null);
 
     options.forEach((opt) => {
       if (opt.id && values[opt.id] === undefined) {
-        if (opt.defaultValue !== undefined) {
+        if ('defaultValue' in opt && opt.defaultValue !== undefined) {
           values[opt.id] = opt.defaultValue;
         } else if (
           opt.uiType === "dropdown" &&
@@ -92,7 +92,7 @@ let popupEl = $state<HTMLDivElement | null>(null);
 
     options.forEach((opt) => {
       if (opt.id) {
-        if (opt.defaultValue !== undefined) {
+        if ('defaultValue' in opt && opt.defaultValue !== undefined) {
           defaults[opt.id] = opt.defaultValue;
         } else if (
           opt.uiType === "dropdown" &&

@@ -247,7 +247,7 @@
     const storedState = await globalStorage().get("action_state");
     if (!storedState) return;
 
-    const contentHash = storedState.content
+    const contentHash = 'content' in storedState && storedState.content
       ? `${storedState.content.slice(0, 100)}${storedState.content.length}`
       : '';
     const audioId = storedState.actionSource === 'audio' && storedState.blobId
