@@ -7,6 +7,25 @@
   type IntentKey = keyof typeof option;
 
   type OptionValue = string | number;
+  type DropdownOption = {
+    uiType: "dropdown";
+    name: string;
+    id: string;
+    options: readonly { label: string; value: OptionValue }[];
+    defaultValue?: OptionValue;
+  };
+
+  type SliderOption = {
+    uiType: "slider";
+    name: string;
+    id: string;
+    defaultValue?: number;
+    step?: number;
+    min?: number;
+    max?: number;
+  };
+
+  type OptionConfig = DropdownOption | SliderOption;
   type SettingsValues = Record<string, OptionValue>;
 
   let {
@@ -19,11 +38,14 @@
     anchorEl,
   } = $props();
 
-  const currentOptions = $derived(
-    intent && option[intent as IntentKey] ? option[intent as IntentKey] : []
-  );
+  const currentOptions = $derived<OptionConfig[]>(() => {
+    if (!intent) return [];
+    const intentKey = intent as IntentKey;
+    const opts = option[intentKey] ?? [];
+    return opts as unknown as OptionConfig[];
+  });
 
-  let popupEl: HTMLDivElement | null = null;
+let popupEl = $state<HTMLDivElement | null>(null);
 
   $effect(() => {
     if (!intent) return;
@@ -43,7 +65,7 @@
 
     options.forEach((opt) => {
       if (opt.id && values[opt.id] === undefined) {
-        if (opt.defaultValue !== undefined) {
+        if ('defaultValue' in opt && opt.defaultValue !== undefined) {
           values[opt.id] = opt.defaultValue;
         } else if (
           opt.uiType === "dropdown" &&
@@ -70,7 +92,7 @@
 
     options.forEach((opt) => {
       if (opt.id) {
-        if (opt.defaultValue !== undefined) {
+        if ('defaultValue' in opt && opt.defaultValue !== undefined) {
           defaults[opt.id] = opt.defaultValue;
         } else if (
           opt.uiType === "dropdown" &&
@@ -176,15 +198,24 @@
       role="dialog"
       aria-label="Settings"
       bind:this={popupEl}
-      onclick={(e) => e.stopPropagation()}
-      onmousedown={(e) => e.stopPropagation()}
+      tabindex="-1"
+      onclick={(e: MouseEvent) => e.stopPropagation()}
+      onmousedown={(e: MouseEvent) => e.stopPropagation()}
+      onkeydown={(e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          onClose?.();
+        } else if (e.key === "Enter" || e.key === " ") {
+          e.stopPropagation();
+        }
+      }}
     >
       <div class="settings-header">
         <h3 class="settings-title">Settings</h3>
         <div class="header-buttons">
           <button
             class="trash-button"
-            onclick={(e) => {
+            onclick={(e: MouseEvent) => {
               e.stopPropagation();
               handleReset();
             }}
@@ -195,7 +226,7 @@
           </button>
           <button
             class="close-button"
-            onclick={(e) => {
+            onclick={(e: MouseEvent) => {
               e.stopPropagation();
               onClose?.();
             }}
@@ -219,12 +250,15 @@
                   id={opt.id}
                   class="option-dropdown"
                   value={String(getCurrentValue(opt.id))}
-                  onclick={(e) => e.stopPropagation()}
-                  onmousedown={(e) => e.stopPropagation()}
-                  onchange={(e) => {
+                  onclick={(e: MouseEvent) => e.stopPropagation()}
+                  onmousedown={(e: MouseEvent) => e.stopPropagation()}
+                  onchange={(e: Event) => {
                     if (!opt.id) return;
                     e.stopPropagation();
-                    const target = e.currentTarget;
+                    const target = e.currentTarget as HTMLSelectElement | null;
+                    if (!target) {
+                      return;
+                    }
                     const selectedValue = opt.options?.find(
                       (o) => String(o.value) === target.value
                     )?.value;
@@ -255,12 +289,16 @@
                     max={opt.max ?? 100}
                     step={opt.step ?? 1}
                     value={Number(getCurrentValue(opt.id))}
-                    onclick={(e) => e.stopPropagation()}
-                    onmousedown={(e) => e.stopPropagation()}
-                    oninput={(e) => {
+                    onclick={(e: MouseEvent) => e.stopPropagation()}
+                    onmousedown={(e: MouseEvent) => e.stopPropagation()}
+                    oninput={(e: Event) => {
                       if (!opt.id) return;
                       e.stopPropagation();
-                      handleSliderChange(opt.id, Number(e.currentTarget.value));
+                      const target = e.currentTarget as HTMLInputElement | null;
+                      if (!target) {
+                        return;
+                      }
+                      handleSliderChange(opt.id, Number(target.value));
                     }}
                   />
                 </div>
@@ -276,15 +314,24 @@
       role="dialog"
       aria-label="Settings"
       bind:this={popupEl}
-      onclick={(e) => e.stopPropagation()}
-      onmousedown={(e) => e.stopPropagation()}
+      tabindex="-1"
+      onclick={(e: MouseEvent) => e.stopPropagation()}
+      onmousedown={(e: MouseEvent) => e.stopPropagation()}
+      onkeydown={(e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          onClose?.();
+        } else if (e.key === "Enter" || e.key === " ") {
+          e.stopPropagation();
+        }
+      }}
     >
       <div class="settings-header">
         <h3 class="settings-title">Settings</h3>
         <div class="header-buttons">
           <button
             class="trash-button"
-            onclick={(e) => {
+            onclick={(e: MouseEvent) => {
               e.stopPropagation();
               handleReset();
             }}
@@ -295,7 +342,7 @@
           </button>
           <button
             class="close-button"
-            onclick={(e) => {
+            onclick={(e: MouseEvent) => {
               e.stopPropagation();
               onClose?.();
             }}

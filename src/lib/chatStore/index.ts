@@ -1,19 +1,28 @@
-import { writable } from "svelte/store";
-import {
-  imageStringToFile,
-  ensurePngFile,
-} from "../utils/file";
-import { globalStorage } from "../globalStorage";
+import { writable, get } from 'svelte/store';
+import { imageStringToFile, ensurePngFile } from '../utils/file';
+import { globalStorage } from '../globalStorage';
 import {
   createErrorMessage,
   getErrorMessage,
   safeDestroySession,
-} from "./helper";
-import { extractPageContent } from "./extract-helper";
-import { monitorHelperSync } from "./monitor-helper";
-import { systemPrompt, buildSummarizePrompt, buildTranslatePrompt, buildWritePrompt, buildRewritePrompt } from "./prompt";
-import { runProviderStream, imagePartFromDataURL, textPart, type Provider } from "../ai/providerClient";
-import { loadProviderKey } from "../secureStore";
+} from './helper';
+import { extractPageContent } from './extract-helper';
+import { monitorHelperSync } from './monitor-helper';
+import {
+  systemPrompt,
+  buildSummarizePrompt,
+  buildTranslatePrompt,
+  buildWritePrompt,
+  buildRewritePrompt,
+} from './prompt';
+import {
+  runProviderStream,
+  imagePartFromDataURL,
+  textPart,
+  audioPartFromBlob,
+  type Provider,
+} from '../ai/providerClient';
+import { loadProviderKey } from '../secureStore';
 import {
   multiModelStore,
   AVAILABLE_MODELS,
@@ -27,6 +36,7 @@ import {
 } from '../utils/converters';
 import {
   getCachedPageMarkdown,
+  getCachedPageMarkdownWithUrl,
   storePageMarkdown,
 } from './markdown-cache-helper';
 
@@ -85,7 +95,8 @@ async function createAISessionWithMonitor(
     | 'rewriter'
     | 'proofreader'
     | 'prompt',
-  options: any = {}
+  options: any = {},
+  inSidePanel: boolean = false
 ): Promise<any> {
   const monitor = (m: any) => {
     const createdAt = Date.now();
@@ -143,12 +154,18 @@ async function createAISessionWithMonitor(
     }
   }
 
-  let pageContext = '';
-  if (options.tabId) {
+  // Use pageContext from options if provided, otherwise try to get from cache
+  // For prompt sessions, pageContext should be fetched fresh in promptStreaming
+  // and passed via options to ensure URL verification
+  let pageContext = options.pageContext || '';
+  if (!pageContext && sessionType === 'prompt' && options.tabId) {
     try {
-      const cached = await getCachedPageMarkdown({ tabId: options.tabId });
-      if (cached) {
-        pageContext = cached;
+      // Fallback to cache if pageContext not provided
+      const cachedData = await getCachedPageMarkdownWithUrl({
+        tabId: options.tabId,
+      });
+      if (cachedData) {
+        pageContext = cachedData.content;
         console.log(
           'createAISessionWithMonitor: Using cached pageContext for tab',
           options.tabId
@@ -449,6 +466,14 @@ declare global {
   };
 }
 
+export type ChatIntent =
+  | 'prompt'
+  | 'summarize'
+  | 'translate'
+  | 'write'
+  | 'rewrite'
+  | 'proofread';
+
 export type ChatState = {
   messages: ChatMessage[];
   isLoading: boolean;
@@ -458,6 +483,8 @@ export type ChatState = {
   isStreaming: boolean;
   streamingMessageId: number | null;
   abortController: AbortController | null;
+  suggestedQuestions: string[];
+  currentIntent: ChatIntent | null;
 };
 
 export const detectLanguageFromText = async (
@@ -664,11 +691,265 @@ function createChatStore() {
     isStreaming: false,
     streamingMessageId: null,
     abortController: null,
+    suggestedQuestions: [],
+    currentIntent: null,
   });
 
   let session: AILanguageModel | null = null;
+  let sessionTabId: number | null = null; // Track which tabId the session was created for
   let pageContext = '';
   let isInSidePanel = false;
+  let lastSuggestedAssistantMessageId: number | null = null;
+
+  function setCurrentIntent(intent: ChatIntent | null) {
+    update((state) => ({
+      ...state,
+      currentIntent: intent,
+      suggestedQuestions: intent === 'prompt' ? state.suggestedQuestions : [],
+    }));
+  }
+
+  function clearSuggestedQuestions() {
+    lastSuggestedAssistantMessageId = null;
+    update((state) => ({
+      ...state,
+      suggestedQuestions: [],
+    }));
+  }
+
+  function normalizeQuestion(question: string): string {
+    return question.replace(/\s+/g, ' ').trim();
+  }
+
+  function ensureQuestionMark(text: string): string {
+    if (!text) return text;
+    const trimmed = text.trim();
+    if (/[?.!]$/.test(trimmed)) {
+      return trimmed.endsWith('?') ? trimmed : `${trimmed}?`;
+    }
+    return `${trimmed}?`;
+  }
+
+  async function collectStreamText(
+    stream: ReadableStream<string>
+  ): Promise<string> {
+    let result = '';
+    for await (const chunk of stream as any) {
+      if (typeof chunk === 'string') {
+        result += chunk;
+      }
+    }
+    return result;
+  }
+
+  function parseSuggestedQuestions(raw: string): string[] {
+    if (!raw) return [];
+    const trimmed = raw.trim();
+    const start = trimmed.indexOf('[');
+    const end = trimmed.lastIndexOf(']');
+    let toParse = trimmed;
+    if (start !== -1 && end !== -1 && end > start) {
+      toParse = trimmed.slice(start, end + 1);
+    }
+    try {
+      const parsed = JSON.parse(toParse);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((item) => (typeof item === 'string' ? item : String(item)))
+          .map((item) => ensureQuestionMark(normalizeQuestion(item)))
+          .filter((item) => item.length > 0);
+      }
+    } catch {
+      // fall through to manual parsing
+    }
+
+    const candidates = trimmed
+      .split(/\n|•|-/)
+      .map((part) => part.replace(/^[\d\.\)\s-]+/, '').trim())
+      .filter((part) => part.length > 0);
+
+    return candidates
+      .map((candidate) => ensureQuestionMark(normalizeQuestion(candidate)))
+      .filter((candidate) => candidate.length > 0);
+  }
+
+  function filterSuggestedQuestions(
+    questions: string[],
+    userMessage: string
+  ): string[] {
+    if (!questions.length) return [];
+    const normalizedUser = normalizeQuestion(userMessage).toLowerCase();
+    const seen = new Set<string>();
+    const filtered: string[] = [];
+
+    for (const question of questions) {
+      const normalized = normalizeQuestion(question);
+      if (!normalized) continue;
+      const lower = normalized.toLowerCase();
+      if (lower === normalizedUser) continue;
+      if (seen.has(lower)) continue;
+      if (normalized.length > 150) continue;
+      seen.add(lower);
+      filtered.push(ensureQuestionMark(normalized));
+      if (filtered.length >= 3) break;
+    }
+
+    return filtered;
+  }
+
+  function extractFallbackTopics(text: string): string[] {
+    if (!text.trim()) return [];
+    const lines = text
+      .split('\n')
+      .map((line) => line.replace(/^[-•*\d.\)\s]+/, '').trim())
+      .filter(Boolean);
+
+    const bulletCandidates = lines.filter(
+      (line) =>
+        line.length >= 4 &&
+        line.length <= 140 &&
+        (/^[-•*]/.test(line) || line.includes(':'))
+    );
+
+    const sentenceCandidates =
+      text
+        .split(/(?<=[.!?])\s+/)
+        .map((sentence) => sentence.trim())
+        .filter(
+          (sentence) =>
+            sentence.length >= 20 &&
+            sentence.length <= 140 &&
+            !sentence.startsWith('http') &&
+            !sentence.match(/^[A-Z0-9\-\s:]+$/)
+        ) || [];
+
+    const topics = [...bulletCandidates, ...sentenceCandidates];
+    const seen = new Set<string>();
+    const results: string[] = [];
+
+    for (const topic of topics) {
+      const normalized = topic.replace(/[:\-–—]+$/g, '').trim();
+      if (!normalized) continue;
+      const lower = normalized.toLowerCase();
+      if (seen.has(lower)) continue;
+      seen.add(lower);
+      results.push(normalized);
+      if (results.length >= 5) break;
+    }
+
+    return results;
+  }
+
+  function buildFallbackQuestions(
+    assistantMessage: string,
+    userMessage: string
+  ): string[] {
+    const topics = extractFallbackTopics(assistantMessage);
+    const normalizedUser = userMessage.toLowerCase();
+    const questions: string[] = [];
+
+    for (const topic of topics) {
+      const normalized = topic.trim();
+      if (!normalized) continue;
+      const lower = normalized.toLowerCase();
+      if (normalizedUser.includes(lower)) continue;
+      if (normalized.length > 80) continue;
+      const question = `Can you explain more about ${normalized}?`;
+      questions.push(question);
+      if (questions.length >= 3) break;
+    }
+
+    if (questions.length < 3) {
+      for (const topic of topics) {
+        if (questions.length >= 3) break;
+        const normalized = topic.trim();
+        if (!normalized) continue;
+        const followUps = [
+          `What should I focus on next regarding ${normalized}?`,
+          `How does ${normalized} relate to the rest of the topic?`,
+          `Could you share an example connected to ${normalized}?`,
+        ];
+        for (const follow of followUps) {
+          if (questions.length >= 3) break;
+          if (!questions.includes(follow)) {
+            questions.push(follow);
+          }
+        }
+      }
+    }
+
+    const genericFallbacks = [
+      'What else should I explore about this?',
+      'Can you suggest a related angle to dig into next?',
+      'What are the key takeaways I should remember?',
+    ];
+
+    for (const generic of genericFallbacks) {
+      if (questions.length >= 3) break;
+      if (!questions.includes(generic)) {
+        questions.push(generic);
+      }
+    }
+
+    return questions.slice(0, 3);
+  }
+
+  async function generateSuggestedQuestions({
+    userMessage,
+    assistantMessage,
+  }: {
+    userMessage: string;
+    assistantMessage: string;
+    tabId?: number | null;
+  }): Promise<string[]> {
+    if (!assistantMessage.trim()) {
+      return [];
+    }
+    return buildFallbackQuestions(assistantMessage, userMessage);
+  }
+
+  async function maybeGenerateSuggestedQuestionsFromContent({
+    userMessage,
+    assistantMessageId,
+    assistantMessageContent,
+    tabId,
+  }: {
+    userMessage: string;
+    assistantMessageId: number;
+    assistantMessageContent: string;
+    tabId?: number | null;
+  }) {
+    if (get({ subscribe }).currentIntent !== 'prompt') {
+      return;
+    }
+    if (assistantMessageId === lastSuggestedAssistantMessageId) {
+      return;
+    }
+    if (!assistantMessageContent.trim()) {
+      return;
+    }
+
+    const questions = await generateSuggestedQuestions({
+      userMessage,
+      assistantMessage: assistantMessageContent,
+      tabId,
+    });
+
+    if (questions.length === 0) {
+      return;
+    }
+
+    if (get({ subscribe }).currentIntent !== 'prompt') {
+      return;
+    }
+
+    lastSuggestedAssistantMessageId = assistantMessageId;
+
+    update((state) => ({
+      ...state,
+      suggestedQuestions: questions,
+    }));
+  }
 
   async function getActiveTabId(): Promise<number | null> {
     try {
@@ -715,16 +996,82 @@ function createChatStore() {
     });
   }
 
+  /**
+   * Get the actual current URL for a specific tabId
+   * This ensures we always get the real-time URL, not stale cache
+   */
+  async function getActualTabUrl(
+    tabId: number,
+    inSidePanel: boolean
+  ): Promise<string | null> {
+    if (!inSidePanel && typeof window !== 'undefined' && window.location) {
+      // In floating mode, use window.location.href directly (most reliable)
+      return window.location.href;
+    }
+
+    if (inSidePanel && typeof chrome !== 'undefined' && chrome.tabs) {
+      // In sidepanel mode, get URL from chrome.tabs API for the specific tabId
+      try {
+        const tab = await new Promise<chrome.tabs.Tab>((resolve, reject) => {
+          chrome.tabs.get(tabId, (tab) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+            } else {
+              resolve(tab);
+            }
+          });
+        });
+        return tab?.url || null;
+      } catch (err) {
+        console.warn(
+          'Failed to get URL from chrome.tabs for tabId',
+          tabId,
+          ':',
+          err
+        );
+        return null;
+      }
+    }
+
+    return null;
+  }
+
   async function getDocumentInfoHelper(
-    inSidePanel: boolean = false
+    inSidePanel: boolean = false,
+    providedTabId?: number | null
   ): Promise<string> {
-    let tabId: number | null = null;
+    let tabId: number | null = providedTabId ?? null;
     let currentUrl = '';
 
-    const tabInfo = await getTabIdFromBackground();
-    tabId = tabInfo.tabId;
-    currentUrl = tabInfo.url || '';
+    // Step 1: Get tabId if not provided
+    if (!tabId) {
+      const tabInfo = await getTabIdFromBackground();
+      tabId = tabInfo.tabId;
+      currentUrl = tabInfo.url || '';
+    }
 
+    // Step 2: If we have a tabId, ALWAYS get the actual current URL of that tab
+    // This is critical to ensure we're checking against the real current URL, not stale cache
+    if (tabId) {
+      const actualUrl = await getActualTabUrl(tabId, inSidePanel);
+      if (actualUrl) {
+        currentUrl = actualUrl;
+        console.log(
+          'getDocumentInfoHelper: Got actual URL for tabId',
+          tabId,
+          ':',
+          currentUrl
+        );
+      } else if (!currentUrl) {
+        // Fallback: try to get from background if we couldn't get actual URL
+        const tabInfo = await getTabIdFromBackground();
+        if (tabInfo.tabId === tabId) {
+          currentUrl = tabInfo.url || '';
+        }
+      }
+    }
+
+    // Step 3: Fallback for floating mode if we still don't have tabId or URL
     if (!tabId && !inSidePanel) {
       tabId = await getActiveTabId();
       currentUrl =
@@ -734,10 +1081,81 @@ function createChatStore() {
     }
 
     if (tabId) {
+      // If we still don't have currentUrl, try one more time to get it
+      if (!currentUrl) {
+        const actualUrl = await getActualTabUrl(tabId, inSidePanel);
+        if (actualUrl) {
+          currentUrl = actualUrl;
+          console.log(
+            'getDocumentInfoHelper: Got actual URL on retry for tabId',
+            tabId,
+            ':',
+            currentUrl
+          );
+        }
+      }
+
       const cached = await getCachedPageMarkdown({ tabId });
       if (cached) {
-        console.log('ChatStore: Using cached markdown for tab', tabId);
-        return cached;
+        // Verify URL matches to avoid using stale cache
+        const cachedData = await getCachedPageMarkdownWithUrl({ tabId });
+
+        if (cachedData && cachedData.url && currentUrl) {
+          // Normalize URLs for comparison (remove trailing slashes, query params, hash)
+          const normalizeUrl = (url: string) => {
+            try {
+              const urlObj = new URL(url);
+              return `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`.replace(
+                /\/$/,
+                ''
+              );
+            } catch {
+              // Fallback if URL parsing fails
+              return url.split('#')[0].split('?')[0].replace(/\/$/, '');
+            }
+          };
+
+          const normalizedCached = normalizeUrl(cachedData.url);
+          const normalizedCurrent = normalizeUrl(currentUrl);
+
+          if (normalizedCached === normalizedCurrent) {
+            console.log(
+              'ChatStore: Using cached markdown for tab',
+              tabId,
+              '- URL matches. Cached URL:',
+              cachedData.url,
+              'Current URL:',
+              currentUrl
+            );
+            return cached;
+          } else {
+            console.warn(
+              'ChatStore: Cached markdown URL mismatch - NOT using cache. TabId:',
+              tabId,
+              'Cached URL:',
+              cachedData.url,
+              'Current URL:',
+              currentUrl,
+              '- Will fetch fresh content'
+            );
+            // Don't use stale cache - continue to fetch fresh content
+          }
+        } else if (cachedData && !currentUrl) {
+          // If we don't have current URL but have cached data, use it with warning
+          console.warn(
+            'ChatStore: Using cached markdown for tab',
+            tabId,
+            'without URL verification (could be stale). Cached URL:',
+            cachedData.url
+          );
+          return cached;
+        } else {
+          console.warn(
+            'ChatStore: Cached markdown exists but missing URL data for tab',
+            tabId,
+            '- Will fetch fresh content'
+          );
+        }
       }
     }
 
@@ -756,6 +1174,7 @@ function createChatStore() {
         chrome.runtime.sendMessage(
           {
             type: 'GET_PAGE_CONTENT',
+            tabId: tabId || undefined, // Pass the specific tabId if we have it
           },
           async (response) => {
             clearTimeout(timeout);
@@ -894,6 +1313,9 @@ ${doc?.body?.textContent || 'No content available'}`;
     userMessage?: string
   ): Promise<boolean> {
     if (intent === 'summarize') return true;
+    if (intent === 'prompt') {
+      return !!pageContext && pageContext.trim().length > 0;
+    }
     try {
       if (typeof LanguageModel !== 'undefined') {
         const lm = await LanguageModel.create();
@@ -999,6 +1421,8 @@ ${doc?.body?.textContent || 'No content available'}`;
       tabId?: number | null;
     }) {
       if (!userMessage.trim()) return;
+      setCurrentIntent('summarize');
+      clearSuggestedQuestions();
 
       const currentTabId = tabId || (await getActiveTabId());
 
@@ -1188,7 +1612,10 @@ ${doc?.body?.textContent || 'No content available'}`;
           );
           if (attach && (!pageContext || pageContext.trim().length === 0)) {
             try {
-              pageContext = await getDocumentInfoHelper(isInSidePanel);
+              pageContext = await getDocumentInfoHelper(
+                isInSidePanel,
+                currentTabId
+              );
             } catch (err) {
               console.warn(
                 'Failed to fetch document info for translation:',
@@ -1318,7 +1745,10 @@ ${doc?.body?.textContent || 'No content available'}`;
           const attach = await shouldAttachPageContext('write', userMessage);
           if (attach && (!pageContext || pageContext.trim().length === 0)) {
             try {
-              pageContext = await getDocumentInfoHelper(isInSidePanel);
+              pageContext = await getDocumentInfoHelper(
+                isInSidePanel,
+                currentTabId
+              );
             } catch (err) {
               console.warn('Failed to fetch document info for write:', err);
             }
@@ -1474,7 +1904,10 @@ ${doc?.body?.textContent || 'No content available'}`;
           const attach = await shouldAttachPageContext('rewrite', userMessage);
           if (attach && (!pageContext || pageContext.trim().length === 0)) {
             try {
-              pageContext = await getDocumentInfoHelper(isInSidePanel);
+              pageContext = await getDocumentInfoHelper(
+                isInSidePanel,
+                currentTabId
+              );
             } catch (err) {
               console.warn('Failed to fetch document info for rewrite:', err);
             }
@@ -1665,6 +2098,8 @@ ${doc?.body?.textContent || 'No content available'}`;
       tabId?: number | null;
     }) {
       if (!userMessage.trim() && !audioBlobId) return;
+      setCurrentIntent('prompt');
+      clearSuggestedQuestions();
       const currentTabId = tabId || (await getActiveTabId());
 
       const abortController = new AbortController();
@@ -1697,11 +2132,45 @@ ${doc?.body?.textContent || 'No content available'}`;
           'prompt'
         );
         if (provider === 'builtin') {
-          if (!session) {
-            session = await createAISessionWithMonitor('prompt', {
-              ...options,
-              tabId: currentTabId,
-            });
+          // Get fresh pageContext with URL verification before creating/updating session
+          let freshPageContext = pageContext;
+          if (
+            !freshPageContext ||
+            freshPageContext.trim().length === 0 ||
+            sessionTabId !== currentTabId
+          ) {
+            try {
+              freshPageContext = await getDocumentInfoHelper(
+                isInSidePanel,
+                currentTabId
+              );
+            } catch (err) {
+              console.warn('Failed to fetch document info for prompt:', err);
+            }
+          }
+
+          // Recreate session if it doesn't exist or if tabId changed (to ensure fresh pageContext)
+          if (!session || sessionTabId !== currentTabId) {
+            // Destroy old session if it exists
+            if (session) {
+              try {
+                safeDestroySession(session);
+              } catch (err) {
+                console.warn('Error destroying old session:', err);
+              }
+            }
+            session = await createAISessionWithMonitor(
+              'prompt',
+              {
+                ...options,
+                tabId: currentTabId,
+                pageContext: freshPageContext,
+              },
+              isInSidePanel
+            );
+            sessionTabId = currentTabId;
+            pageContext = freshPageContext; // Update stored pageContext
+            console.log('Created new session for tabId:', currentTabId);
           }
         }
 
@@ -1745,9 +2214,12 @@ ${doc?.body?.textContent || 'No content available'}`;
           if (!apiKey || !model)
             throw new Error('Missing provider credentials');
           const attach = await shouldAttachPageContext('prompt', userMessage);
-          if (attach && (!pageContext || pageContext.trim().length === 0)) {
+          if (!pageContext || pageContext.trim().length === 0) {
             try {
-              pageContext = await getDocumentInfoHelper(isInSidePanel);
+              pageContext = await getDocumentInfoHelper(
+                isInSidePanel,
+                currentTabId
+              );
             } catch (err) {
               console.warn('Failed to fetch document info for prompt:', err);
             }
@@ -1762,7 +2234,8 @@ ${doc?.body?.textContent || 'No content available'}`;
               contentParts.push(imagePartFromDataURL(img));
           }
           if (audioBlob) {
-            contentParts.push({ type: 'audio', value: audioBlob });
+            const audioPart = await audioPartFromBlob(audioBlob);
+            contentParts.push(audioPart);
           }
           const result = await runProviderStream(
             { provider, model, apiKey },
@@ -1784,6 +2257,17 @@ ${doc?.body?.textContent || 'No content available'}`;
         );
 
         updateStreamingState(update, assistantMsgId, abortController, false);
+        const finalSnapshot = get({ subscribe });
+        const assistantContent =
+          finalSnapshot.messages.find(
+            (message) => message.id === assistantMsgId
+          )?.content ?? '';
+        await maybeGenerateSuggestedQuestionsFromContent({
+          userMessage: displayMessage,
+          assistantMessageId: assistantMsgId,
+          assistantMessageContent: assistantContent,
+          tabId: currentTabId,
+        });
       } catch (err) {
         console.error('Streaming error:', err);
         const errorMessage = getErrorMessage(err);
@@ -1802,6 +2286,7 @@ ${doc?.body?.textContent || 'No content available'}`;
 
         safeDestroySession(session);
         session = null;
+        sessionTabId = null;
       }
     },
 
@@ -1821,6 +2306,8 @@ ${doc?.body?.textContent || 'No content available'}`;
       enabledModels?: string[];
     }) {
       if (!userMessage.trim() && !audioBlobId) return;
+      setCurrentIntent('prompt');
+      clearSuggestedQuestions();
 
       const currentTabId = tabId || (await getActiveTabId());
 
@@ -1844,12 +2331,12 @@ ${doc?.body?.textContent || 'No content available'}`;
 
       const attach = await shouldAttachPageContext('prompt', userMessage);
       let currentPageContext = pageContext;
-      if (
-        attach &&
-        (!currentPageContext || currentPageContext.trim().length === 0)
-      ) {
+      if (!currentPageContext || currentPageContext.trim().length === 0) {
         try {
-          currentPageContext = await getDocumentInfoHelper(isInSidePanel);
+          currentPageContext = await getDocumentInfoHelper(
+            isInSidePanel,
+            currentTabId
+          );
         } catch (err) {
           console.warn(
             'Failed to fetch document info for multi-model prompt:',
@@ -1874,8 +2361,19 @@ ${doc?.body?.textContent || 'No content available'}`;
       const audioBlob = audioBlobId ? await loadAudioBlob(audioBlobId) : null;
 
       if (audioBlob) {
-        contentParts.push({ type: 'audio', value: audioBlob });
+        const audioPart = await audioPartFromBlob(audioBlob);
+        contentParts.push(audioPart);
       }
+
+      // Models that support audio input
+      const audioSupportedModels = [
+        'gpt-4o',
+        'claude-3-5-sonnet-latest',
+        'claude-3-5-haiku-latest',
+        'claude-3-opus-latest',
+        'gemini-2.5-pro',
+        'gemini-2.5-flash',
+      ];
 
       const modelPromises = enabledModels.map(async (modelId) => {
         const modelConfig = AVAILABLE_MODELS.find((m) => m.id === modelId);
@@ -1895,11 +2393,52 @@ ${doc?.body?.textContent || 'No content available'}`;
         try {
           let stream: ReadableStream<string>;
 
+          // Build content parts for this specific model
+          const modelContentParts: any[] = [];
+          if (userMessage.trim()) {
+            modelContentParts.push(textPart(userMessage));
+          }
+          if (images && images.length) {
+            for (const img of images) {
+              modelContentParts.push(imagePartFromDataURL(img));
+            }
+          }
+          // Only include audio if model supports it
+          if (audioBlob && audioSupportedModels.includes(modelId)) {
+            const audioPart = await audioPartFromBlob(audioBlob);
+            modelContentParts.push(audioPart);
+          } else if (audioBlob && !audioSupportedModels.includes(modelId)) {
+            console.warn(
+              `Audio input is not supported for ${modelId}, skipping audio`
+            );
+          }
+
           if (modelConfig.provider === 'builtin') {
-            const session = await createAISessionWithMonitor('prompt', {
-              ...options,
-              tabId: currentTabId,
-            });
+            // Get fresh pageContext with URL verification for builtin provider
+            let modelPageContext = currentPageContext;
+            if (!modelPageContext || modelPageContext.trim().length === 0) {
+              try {
+                modelPageContext = await getDocumentInfoHelper(
+                  isInSidePanel,
+                  currentTabId
+                );
+              } catch (err) {
+                console.warn(
+                  'Failed to fetch document info for multi-model prompt:',
+                  err
+                );
+              }
+            }
+
+            const session = await createAISessionWithMonitor(
+              'prompt',
+              {
+                ...options,
+                tabId: currentTabId,
+                pageContext: modelPageContext,
+              },
+              isInSidePanel
+            );
 
             if (images && images.length > 0) {
               for await (const image of images) {
@@ -1941,7 +2480,7 @@ ${doc?.body?.textContent || 'No content available'}`;
               },
               {
                 system: sys,
-                messages: [{ role: 'user', content: contentParts }],
+                messages: [{ role: 'user', content: modelContentParts }],
               }
             );
 
@@ -1985,6 +2524,53 @@ ${doc?.body?.textContent || 'No content available'}`;
       });
 
       await Promise.allSettled(modelPromises);
+
+      try {
+        const multiState = get(multiModelStore);
+        const modelOrder = (() => {
+          const active = multiState.activeModel;
+          if (active) {
+            return [active, ...enabledModels.filter((id) => id !== active)];
+          }
+          return enabledModels;
+        })();
+
+        let assistantMessageContent = '';
+        let assistantMessageId: number | null = null;
+
+        for (const modelId of modelOrder) {
+          const modelState = multiState.modelResponses[modelId];
+          if (!modelState || modelState.messages.length === 0) continue;
+          for (let i = modelState.messages.length - 1; i >= 0; i -= 1) {
+            const msg = modelState.messages[i];
+            if (msg.type === 'assistant' && msg.content.trim()) {
+              assistantMessageContent = msg.content;
+              assistantMessageId = msg.id;
+              break;
+            }
+          }
+          if (assistantMessageId) {
+            break;
+          }
+        }
+
+        if (
+          assistantMessageId !== null &&
+          assistantMessageContent.trim().length > 0
+        ) {
+          await maybeGenerateSuggestedQuestionsFromContent({
+            userMessage,
+            assistantMessageId,
+            assistantMessageContent,
+            tabId: currentTabId,
+          });
+        }
+      } catch (error) {
+        console.warn(
+          'Failed to derive multi-model suggested questions:',
+          error
+        );
+      }
     },
 
     stopStreaming() {
@@ -2069,7 +2655,7 @@ function getActiveTabId() {
       if (tabs.length > 0 && tabs[0].id) {
         resolve(tabs[0].id);
       } else {
-        reject(new Error("No active tab found"));
+        reject(new Error('No active tab found'));
       }
     });
   });

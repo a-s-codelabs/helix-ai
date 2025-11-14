@@ -110,6 +110,29 @@ export async function getCachedPageMarkdown({ tabId }: { tabId?: number | null }
 }
 
 /**
+ * Get cached markdown with URL info for verification
+ * @param tabId - The tab ID to check
+ * @returns Cached markdown data (content and URL) or null if not found
+ */
+export async function getCachedPageMarkdownWithUrl({ tabId }: { tabId?: number | null }): Promise<{ content: string; url: string; createdAt: number } | null> {
+  try {
+    const store = globalStorage();
+    const allCache = await store.get('pageMarkdown');
+
+    if (allCache && typeof allCache === 'object') {
+      const cache = allCache as Record<string, { content: string; url: string; createdAt: number }>;
+      const cached = cache[tabId?.toString() || ''];
+
+      return cached || null;
+    }
+    return null;
+  } catch (err) {
+    console.error('Error getting cached page markdown with URL:', err);
+    return null;
+  }
+}
+
+/**
  * Store markdown content directly without extracting
  * @param url - The URL to store
  * @param content - The markdown content to store

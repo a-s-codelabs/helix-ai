@@ -17,6 +17,7 @@ export default defineBackground(() => {
 
   /**
    * Get the active tab ID
+   * Always queries for the current active tab to ensure freshness
    * @returns Promise resolving to the active tab ID or null if not found
    */
   async function getTabId(): Promise<{
@@ -41,6 +42,7 @@ export default defineBackground(() => {
     };
 
     try {
+      // Always query for the current active tab (never use stale cache)
       const tabs = await new Promise<chrome.tabs.Tab[]>((resolve) => {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
           resolve(tabs || []);
@@ -51,10 +53,22 @@ export default defineBackground(() => {
       const url = activeTab?.url ?? null;
 
       if (tabId !== null) {
+        // Always update storage with the fresh active tab info
         await storage.set('active_tab_id', { tabId, url });
+        console.log(
+          'Background: getTabId() updated active_tab_id to tabId',
+          tabId,
+          'URL:',
+          url
+        );
         return { tabId, url };
       }
 
+      // Only use fallback if we couldn't get active tab
+      console.warn(
+        'Background: No active tab found, using fallback:',
+        fallback
+      );
       return fallback;
     } catch (error) {
       console.error('Background: Error getting tab ID:', error);
@@ -233,20 +247,56 @@ export default defineBackground(() => {
 
     if (message.type === MESSAGE_TYPE_GET_PAGE_CONTENT) {
       (async () => {
-        const { tabId } = await getTabId();
-        if (!tabId) {
-          console.error('Background: No active tab found');
-          sendResponse({ success: false, error: 'No active tab found' });
-          return;
+        // Use provided tabId if available, otherwise get active tab
+        let tabId: number | null = null;
+        let tabUrl: string | null = null;
+
+        if (message.tabId && typeof message.tabId === 'number') {
+          // Use the specific tabId provided
+          tabId = message.tabId;
+          try {
+            const tab = await new Promise<chrome.tabs.Tab>(
+              (resolve, reject) => {
+                chrome.tabs.get(tabId!, (tab) => {
+                  if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                  } else {
+                    resolve(tab);
+                  }
+                });
+              }
+            );
+            tabUrl = tab?.url || null;
+            console.log(
+              'Background: Using provided tabId',
+              tabId,
+              'with URL',
+              tabUrl
+            );
+          } catch (err) {
+            console.warn(
+              'Background: Failed to get tab info for provided tabId',
+              tabId,
+              ':',
+              err
+            );
+            // Fallback to active tab
+            const tabInfo = await getTabId();
+            tabId = tabInfo.tabId;
+            tabUrl = tabInfo.url;
+          }
+        } else {
+          // Get active tab
+          const tabInfo = await getTabId();
+          tabId = tabInfo.tabId;
+          tabUrl = tabInfo.url;
         }
 
-        const tabs = await new Promise<chrome.tabs.Tab[]>((resolve) => {
-          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            resolve(tabs || []);
-          });
-        });
-        const activeTab = tabs[0];
-        const tabUrl = activeTab?.url || '';
+        if (!tabId) {
+          console.error('Background: No tab found');
+          sendResponse({ success: false, error: 'No tab found' });
+          return;
+        }
 
         chrome.tabs.sendMessage(
           tabId,
@@ -308,9 +358,83 @@ export default defineBackground(() => {
     return false;
   });
 
+  /**
+   * Update active_tab_id in storage
+   * This is called whenever a tab is activated or updated
+   */
+  async function updateActiveTabId(
+    tabId: number,
+    url: string | null = null
+  ): Promise<void> {
+    try {
+      // If URL not provided, get it from the tab
+      if (!url) {
+        try {
+          const tab = await new Promise<chrome.tabs.Tab | null>((resolve) => {
+            chrome.tabs.get(tabId, (result) => {
+              if (chrome.runtime.lastError) {
+                resolve(null);
+                return;
+              }
+              resolve(result || null);
+            });
+          });
+          url = tab?.url || null;
+        } catch (err) {
+          console.warn(
+            'Background: Failed to get tab URL for tabId',
+            tabId,
+            ':',
+            err
+          );
+        }
+      }
+
+      // Check if this tab is actually the active tab before updating
+      try {
+        const activeTabs = await new Promise<chrome.tabs.Tab[]>((resolve) => {
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            resolve(tabs || []);
+          });
+        });
+        const activeTab = activeTabs[0];
+
+        // Only update if this is the active tab
+        if (activeTab?.id === tabId) {
+          await globalStorage().set('active_tab_id', {
+            tabId,
+            url,
+          });
+          console.log(
+            'Background: Updated active_tab_id to tabId',
+            tabId,
+            'URL:',
+            url
+          );
+        }
+      } catch (err) {
+        console.warn('Background: Failed to verify active tab:', err);
+        // Still update if verification fails (better than not updating)
+        await globalStorage().set('active_tab_id', {
+          tabId,
+          url,
+        });
+      }
+    } catch (error) {
+      console.error('Background: Error updating active tab ID:', error);
+    }
+  }
+
   if (typeof chrome !== 'undefined' && chrome.tabs) {
+    // Listen for tab updates (URL changes, page loads, etc.)
     chrome.tabs.onUpdated.addListener(
       async (tabId: number, changeInfo: any, tab: any) => {
+        // Update when URL changes (even if page isn't fully loaded)
+        if (changeInfo.url && tab.url) {
+          await updateActiveTabId(tabId, tab.url);
+        }
+
+        // Also update when page finishes loading
         if (changeInfo.status === 'complete' && tab.url) {
           try {
             if (chrome.sidePanel) {
@@ -319,10 +443,7 @@ export default defineBackground(() => {
                 enabled: true,
               });
             }
-            await globalStorage().set('active_tab_id', {
-              tabId,
-              url: tab.url ?? null,
-            });
+            await updateActiveTabId(tabId, tab.url);
           } catch (error) {
             console.error(
               'Background: Error setting side panel options:',
@@ -333,8 +454,13 @@ export default defineBackground(() => {
       }
     );
 
+    // Listen for tab activation (when user switches tabs)
     chrome.tabs.onActivated.addListener(async (activeInfo) => {
       try {
+        // Immediately update with the tabId, then get URL
+        await updateActiveTabId(activeInfo.tabId);
+
+        // Also try to get the full tab info for better URL
         const tab = await new Promise<chrome.tabs.Tab | null>((resolve) => {
           chrome.tabs.get(activeInfo.tabId, (result) => {
             if (chrome.runtime.lastError) {
@@ -345,10 +471,9 @@ export default defineBackground(() => {
           });
         });
 
-        await globalStorage().set('active_tab_id', {
-          tabId: tab?.id ?? activeInfo.tabId ?? null,
-          url: tab?.url ?? null,
-        });
+        if (tab?.url) {
+          await updateActiveTabId(activeInfo.tabId, tab.url);
+        }
       } catch (error) {
         console.error('Background: Error tracking active tab:', error);
       }
