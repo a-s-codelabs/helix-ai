@@ -14,6 +14,16 @@ export default defineConfig({
       '48': 'icon/48.png',
       '128': 'icon/128.png',
     },
+    browser_specific_settings: {
+      gecko: {
+        id: 'helix-ai@helix.ai',
+        strict_min_version: '115.0',
+      },
+    },
+    sidebar_action: {
+      default_title: 'Helix AI',
+      default_panel: 'sidepanel.html',
+    },
     side_panel: {
       default_path: 'sidepanel.html',
     },

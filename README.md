@@ -104,6 +104,12 @@ src/
 - `pnpm check` - Run Svelte type checking
 - `pnpm storybook` - Start Storybook
 
+## Firefox Support
+
+- Use `pnpm dev:firefox` / `pnpm build:firefox` to launch with the Firefox-specific manifest entries (sidebar action + Gecko ID).
+- Firefox renders Helix inside the native sidebar; the command palette still works, but keyboard shortcuts are managed from `about:addons` → “Manage Extension Shortcuts”.
+- The same context menu entries and floating Telescope UI are available; features that rely on Chrome-only APIs automatically fall back to the Firefox equivalents.
+
 ## Target Browser
 
 - Chrome 142 version

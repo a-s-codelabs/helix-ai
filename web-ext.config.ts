@@ -8,5 +8,5 @@ export default defineWebExtConfig({
   // binaries: {
   //   chrome: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
   // }
-  disabled: true,
+  disabled: false,
 });

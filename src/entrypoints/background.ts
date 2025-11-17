@@ -1,6 +1,10 @@
 import { globalStorage } from '@/lib/globalStorage';
 import { getFeatureConfig } from '@/lib/featureConfig';
 
+const SIDEPANEL_HTML_PATH = 'sidepanel.html';
+const CHROME_SHORTCUTS_URL = 'chrome://extensions/shortcuts';
+const FIREFOX_SHORTCUTS_URL = 'about:addons';
+
 export default defineBackground(() => {
   // Setup context menu for images: Helix AI -> Add to chat
   const PARENT_ID = 'helix_ai_menu';
@@ -114,8 +118,8 @@ export default defineBackground(() => {
       if (info.menuItemId !== ADD_TO_CHAT_ID) return;
       const imageUrl = info.srcUrl || '';
       try {
-        if (tab && tab.windowId !== undefined && chrome.sidePanel) {
-          await chrome.sidePanel.open({ windowId: tab.windowId });
+        if (tab && tab.windowId !== undefined) {
+          await openPanelForWindow(tab.windowId);
         }
         await globalStorage().set('action_state', {
           actionSource: 'context-image',
@@ -177,23 +181,23 @@ export default defineBackground(() => {
     }
 
     if (message.type === MESSAGE_TYPE_OPEN_SHORTCUTS_PAGE) {
-      chrome.tabs.create(
-        { url: 'chrome://extensions/shortcuts' },
-        (tab: chrome.tabs.Tab) => {
-          if (chrome.runtime.lastError) {
-            console.error(
-              'Error opening shortcuts page:',
-              chrome.runtime.lastError.message
-            );
-            sendResponse({
-              success: false,
-              error: chrome.runtime.lastError.message,
-            });
-          } else {
-            sendResponse({ success: true });
-          }
+      const shortcutsUrl = hasSidebarActionSupport()
+        ? FIREFOX_SHORTCUTS_URL
+        : CHROME_SHORTCUTS_URL;
+      chrome.tabs.create({ url: shortcutsUrl }, (tab: chrome.tabs.Tab) => {
+        if (chrome.runtime.lastError) {
+          console.error(
+            'Error opening shortcuts page:',
+            chrome.runtime.lastError.message
+          );
+          sendResponse({
+            success: false,
+            error: chrome.runtime.lastError.message,
+          });
+        } else {
+          sendResponse({ success: true });
         }
-      );
+      });
       return true;
     }
 
@@ -481,12 +485,47 @@ export default defineBackground(() => {
   }
 });
 
+function hasSidebarActionSupport(): boolean {
+  return Boolean((chrome as any)?.sidebarAction?.open);
+}
+
+async function openPanelForWindow(windowId?: number): Promise<boolean> {
+  try {
+    if (chrome.sidePanel) {
+      await chrome.sidePanel.open({ windowId });
+      return true;
+    }
+
+    const sidebarAction = (chrome as any).sidebarAction;
+    if (!sidebarAction) {
+      return false;
+    }
+
+    const panelUrl =
+      chrome.runtime && typeof chrome.runtime.getURL === 'function'
+        ? chrome.runtime.getURL(SIDEPANEL_HTML_PATH)
+        : SIDEPANEL_HTML_PATH;
+
+    if (typeof sidebarAction.setPanel === 'function') {
+      await sidebarAction.setPanel({
+        windowId,
+        panel: panelUrl,
+      });
+    }
+
+    if (typeof sidebarAction.open === 'function') {
+      await sidebarAction.open(
+        typeof windowId === 'number' ? { windowId } : undefined
+      );
+      return true;
+    }
+  } catch (error) {
+    console.error('Error opening Helix side interface:', error);
+  }
+
+  return false;
+}
+
 function openSidePanel(message: any, sender: any) {
-  chrome.sidePanel
-    .open({
-      windowId: sender.tab?.windowId,
-    })
-    .catch((error) => {
-      console.error('Error opening side panel:', error);
-    });
+  void openPanelForWindow(sender.tab?.windowId);
 }
