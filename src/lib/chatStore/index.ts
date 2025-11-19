@@ -20,6 +20,7 @@ import {
   imagePartFromDataURL,
   textPart,
   audioPartFromBlob,
+  getDefaultModels,
   type Provider,
 } from '../ai/providerClient';
 import { loadProviderKey } from '../secureStore';
@@ -39,6 +40,7 @@ import {
   getCachedPageMarkdownWithUrl,
   storePageMarkdown,
 } from './markdown-cache-helper';
+import { isFirefoxBrowser } from '../browserEnv';
 
 async function processStream<T>(
   stream: ReadableStream<T>,
@@ -1295,10 +1297,17 @@ ${doc?.body?.textContent || 'No content available'}`;
       (await store.get('telescopeSettings')) ||
       ({} as Record<string, Record<string, string | number>>);
     const intentSettings = settings[intent] || {};
-    const provider =
-      (intentSettings.aiPlatform as any) || config.aiProvider || 'builtin';
-    const model =
-      (intentSettings.aiModel as any) || config.aiModel || undefined;
+    let provider: 'builtin' | Provider = ((intentSettings.aiPlatform as any) ||
+      config.aiProvider ||
+      'builtin') as 'builtin' | Provider;
+    if (isFirefoxBrowser && provider === 'builtin') {
+      provider = 'openai';
+    }
+    let model = (intentSettings.aiModel as any) || config.aiModel || undefined;
+    if (provider !== 'builtin' && (!model || typeof model !== 'string')) {
+      const defaults = getDefaultModels(provider as Provider);
+      model = defaults[0];
+    }
     if (provider === 'builtin') return { provider: 'builtin' };
     const apiKey = await loadProviderKey(provider as Provider);
     return {
@@ -1551,38 +1560,41 @@ ${doc?.body?.textContent || 'No content available'}`;
       let translator: AITranslator | null = null;
 
       try {
-        detector = await createAISessionWithMonitor('languageDetector', {
-          sourceLanguage: detectedLanguage,
-          targetLanguage,
-          tabId,
-        });
-
-        const detectionResults = await detector!.detect(userMessage);
-        if (detectionResults && detectionResults.length > 0) {
-          detectedLanguage = detectionResults[0].detectedLanguage;
-        }
-
-        detector!.destroy();
-        detector = null;
-
-        if (detectedLanguage === targetLanguage) {
-          updateMessageContent(
-            update,
-            assistantMsgId,
-            `ℹ️ The text is already in ${targetLanguage}. No translation needed.`,
-            {
-              isLoading: false,
-              isStreaming: false,
-              streamingMessageId: null,
-              abortController: null,
-            }
-          );
-          return;
-        }
-
         const { provider, model, apiKey } = await resolveProviderConfig(
           'translate'
         );
+
+        // Only use Chrome's LanguageDetector for builtin provider
+        if (provider === 'builtin') {
+          detector = await createAISessionWithMonitor('languageDetector', {
+            sourceLanguage: detectedLanguage,
+            targetLanguage,
+            tabId,
+          });
+
+          const detectionResults = await detector!.detect(userMessage);
+          if (detectionResults && detectionResults.length > 0) {
+            detectedLanguage = detectionResults[0].detectedLanguage;
+          }
+
+          detector!.destroy();
+          detector = null;
+
+          if (detectedLanguage === targetLanguage) {
+            updateMessageContent(
+              update,
+              assistantMsgId,
+              `ℹ️ The text is already in ${targetLanguage}. No translation needed.`,
+              {
+                isLoading: false,
+                isStreaming: false,
+                streamingMessageId: null,
+                abortController: null,
+              }
+            );
+            return;
+          }
+        }
         let stream: ReadableStream<string>;
         if (provider === 'builtin') {
           if (typeof Translator === 'undefined') {

@@ -1,7 +1,16 @@
 import { globalStorage } from './globalStorage';
 import { loadProviderKey } from './secureStore';
-import { runProviderStream, type Provider } from './ai/providerClient';
-import { buildWritePrompt, buildRewritePrompt, systemPrompt } from './chatStore/prompt';
+import {
+  runProviderStream,
+  getDefaultModels,
+  type Provider,
+} from './ai/providerClient';
+import {
+  buildWritePrompt,
+  buildRewritePrompt,
+  systemPrompt,
+} from './chatStore/prompt';
+import { isFirefoxBrowser } from './browserEnv';
 
 declare const Writer: {
   availability(): Promise<'available' | 'after-download' | 'unavailable'>;
@@ -18,16 +27,40 @@ declare const Proofreader: {
   create(options?: any): Promise<any>;
 };
 
-async function resolveProviderConfig(intent: 'write' | 'rewrite', pageContext?: string): Promise<{ provider: 'builtin' | Provider; model?: string; apiKey?: string; pageContext?: string }> {
+async function resolveProviderConfig(
+  intent: 'write' | 'rewrite',
+  pageContext?: string
+): Promise<{
+  provider: 'builtin' | Provider;
+  model?: string;
+  apiKey?: string;
+  pageContext?: string;
+}> {
   const store = globalStorage();
-  const config = (await store.get('config')) || {} as any;
-  const settings = (await store.get('telescopeSettings')) || {} as Record<string, Record<string, string | number>>;
+  const config = (await store.get('config')) || ({} as any);
+  const settings =
+    (await store.get('telescopeSettings')) ||
+    ({} as Record<string, Record<string, string | number>>);
   const intentSettings = settings[intent] || {};
-  const provider = (intentSettings.aiPlatform as any) || config.aiProvider || 'builtin';
-  const model = (intentSettings.aiModel as any) || config.aiModel || undefined;
+  let provider: 'builtin' | Provider = ((intentSettings.aiPlatform as any) ||
+    config.aiProvider ||
+    'builtin') as 'builtin' | Provider;
+  if (isFirefoxBrowser && provider === 'builtin') {
+    provider = 'openai';
+  }
+  let model = (intentSettings.aiModel as any) || config.aiModel || undefined;
+  if (provider !== 'builtin' && (!model || typeof model !== 'string')) {
+    const defaults = getDefaultModels(provider as Provider);
+    model = defaults[0];
+  }
   if (provider === 'builtin') return { provider: 'builtin', pageContext };
   const apiKey = await loadProviderKey(provider as Provider);
-  return { provider: provider as Provider, model, apiKey: apiKey || undefined, pageContext };
+  return {
+    provider: provider as Provider,
+    model,
+    apiKey: apiKey || undefined,
+    pageContext,
+  };
 }
 
 export type WriterTone = 'formal' | 'neutral' | 'casual';

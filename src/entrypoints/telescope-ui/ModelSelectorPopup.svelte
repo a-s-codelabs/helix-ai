@@ -1,6 +1,7 @@
 <script lang="ts">
   import { multiModelStore, AVAILABLE_MODELS, loadEnabledModelsFromStorage, type ModelConfig } from '@/lib/multiModelStore';
   import { globalStorage } from '@/lib/globalStorage';
+  import { isFirefoxBrowser } from '@/lib/browserEnv';
   import CloseIcon from './icons/Close.svelte';
 
   let {
@@ -213,21 +214,23 @@
   </div>
 
   <div class="popup-content">
-    <div class="provider-section">
-      <h4 class="provider-title">Built-in Models</h4>
-      <div class="model-list">
-        {#each getProviderModels('builtin') as model}
-          <label class="model-item">
-            <input
-              type="checkbox"
-              checked={enabledModels.includes(model.id)}
-              onchange={() => toggleModel(model.id)}
-            />
-            <span class="model-name">{model.name}</span>
-          </label>
-        {/each}
+    {#if !isFirefoxBrowser}
+      <div class="provider-section">
+        <h4 class="provider-title">Built-in Models</h4>
+        <div class="model-list">
+          {#each getProviderModels('builtin') as model}
+            <label class="model-item">
+              <input
+                type="checkbox"
+                checked={enabledModels.includes(model.id)}
+                onchange={() => toggleModel(model.id)}
+              />
+              <span class="model-name">{model.name}</span>
+            </label>
+          {/each}
+        </div>
       </div>
-    </div>
+    {/if}
 
     <div class="provider-section">
       <h4 class="provider-title">OpenAI Models</h4>

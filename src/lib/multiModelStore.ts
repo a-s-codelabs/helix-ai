@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store';
 import type { Message } from '../entrypoints/telescope-ui/type';
 import { globalStorage } from './globalStorage';
+import { isFirefoxBrowser } from './browserEnv';
 
 export type ModelConfig = {
   id: string;
@@ -9,7 +10,7 @@ export type ModelConfig = {
   model: string;
 };
 
-export const AVAILABLE_MODELS: ModelConfig[] = [
+const BASE_MODELS: ModelConfig[] = [
   {
     id: 'builtin',
     name: 'Chrome Built-in',
@@ -43,6 +44,10 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     model: 'gemini-2.5-flash-lite',
   },
 ];
+
+export const AVAILABLE_MODELS: ModelConfig[] = BASE_MODELS.filter(
+  (model) => !(isFirefoxBrowser && model.provider === 'builtin')
+);
 
 export type ModelResponseState = {
   messages: Message[];
@@ -293,6 +298,11 @@ function createMultiModelStore() {
 
 export const multiModelStore = createMultiModelStore();
 
+function sanitizeEnabledModels(models: string[]): string[] {
+  if (!isFirefoxBrowser) return models;
+  return models.filter((id) => id !== 'builtin');
+}
+
 export async function loadEnabledModelsFromStorage(): Promise<string[]> {
   try {
     const storage = globalStorage();
@@ -315,8 +325,9 @@ export async function loadEnabledModelsFromStorage(): Promise<string[]> {
         );
       }
 
-      if (modelsArray.length > 0) {
-        return modelsArray;
+      const filtered = sanitizeEnabledModels(modelsArray);
+      if (filtered.length > 0) {
+        return filtered;
       }
     }
   } catch (error) {
