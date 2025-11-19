@@ -253,7 +253,9 @@
     const audioId = storedState.actionSource === 'audio' && storedState.blobId
       ? storedState.blobId
       : '';
-    const stateId = `${storedState.actionSource}-${contentHash}${storedState.targetLanguage || ''}${audioId}`;
+    // StateId includes targetLanguage only if present (avoid undefined case)
+    const targetLanguage = 'targetLanguage' in storedState ? storedState.targetLanguage || '' : '';
+    const stateId = `${storedState.actionSource}-${contentHash}${targetLanguage}${audioId}`;
 
     if (processedActionStateIds.has(stateId)) {
       globalStorage().delete("action_state");

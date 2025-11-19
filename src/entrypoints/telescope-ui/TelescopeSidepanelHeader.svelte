@@ -117,7 +117,7 @@
     <div
       class="dropdown-container"
       onclick={toggleDropdown}
-      onkeydown={(e) => e.key === "Enter" && toggleDropdown()}
+      onkeydown={(e: { key: string; preventDefault: () => void; stopPropagation: () => void; }) => (e as KeyboardEvent).key === "Enter" && toggleDropdown()}
       role="button"
       tabindex="0"
     >
@@ -241,7 +241,10 @@
     display: inline-flex;
   }
   .brand-name {
-    font-size: 0.95rem;
+    font-size: 15.2px;
+    font-weight: 600;
+    color: #e5e7eb;
+    line-height: 1.2;
   }
   .brand-badge {
     font-size: 10px;

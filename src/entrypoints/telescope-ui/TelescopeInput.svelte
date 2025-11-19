@@ -443,7 +443,7 @@
         <div
           class="icon search-icon intent-trigger"
           bind:this={intentTriggerElement}
-          onclick={(e) => {
+          onclick={(e: { preventDefault: () => void; stopPropagation: () => void; }) => {
             e.preventDefault();
             e.stopPropagation();
             const willOpen = !showIntentMenu;
@@ -461,19 +461,19 @@
           aria-haspopup="menu"
           aria-expanded={showIntentMenu}
           autofocus={true}
-          onkeydown={(e) => {
+          onkeydown={(e: { preventDefault: () => void; stopPropagation: () => void; }) => {
             e.preventDefault();
             e.stopPropagation();
-            if (e.key === "Enter" || e.key === " ") {
+            if ((e as KeyboardEvent).key === "Enter" || (e as KeyboardEvent).key === " ") {
               e.preventDefault();
               showIntentMenu = !showIntentMenu;
             }
           }}
-          onkeyup={(e) => {
+          onkeyup={(e: { preventDefault: () => void; stopPropagation: () => void; }) => {
             e.preventDefault();
             e.stopPropagation();
           }}
-          onkeypress={(e) => {
+          onkeypress={(e: { preventDefault: () => void; stopPropagation: () => void; }) => {
             e.preventDefault();
             e.stopPropagation();
           }}
@@ -487,7 +487,7 @@
                   : ''}"
                 role="menuitemradio"
                 aria-checked={selectedIntent === "prompt"}
-                onclick={(e) => {
+                onclick={(e: { stopPropagation: () => void; }) => {
                   e.stopPropagation();
                   selectedIntent = "prompt";
                   showIntentMenu = false;
@@ -502,7 +502,7 @@
                   : ''}"
                 role="menuitemradio"
                 aria-checked={selectedIntent === "summarize"}
-                onclick={(e) => {
+                onclick={(e: { stopPropagation: () => void; }) => {
                   e.stopPropagation();
                   selectedIntent = "summarize";
                   showIntentMenu = false;
@@ -517,7 +517,7 @@
                   : ''}"
                 role="menuitemradio"
                 aria-checked={selectedIntent === "translate"}
-                onclick={(e) => {
+                onclick={(e: { stopPropagation: () => void; }) => {
                   e.stopPropagation();
                   selectedIntent = "translate";
                   showIntentMenu = false;
@@ -530,7 +530,7 @@
                 class="intent-item {selectedIntent === 'write' ? 'active' : ''}"
                 role="menuitemradio"
                 aria-checked={selectedIntent === "write"}
-                onclick={(e) => {
+                onclick={(e: { stopPropagation: () => void; }) => {
                   e.stopPropagation();
                   selectedIntent = "write";
                   showIntentMenu = false;
@@ -547,7 +547,7 @@
                   : ''}"
                 role="menuitemradio"
                 aria-checked={selectedIntent === "rewrite"}
-                onclick={(e) => {
+                onclick={(e: { stopPropagation: () => void; }) => {
                   e.stopPropagation();
                   selectedIntent = "rewrite";
                   showIntentMenu = false;
@@ -564,7 +564,7 @@
                   : ''}"
                 role="menuitemradio"
                 aria-checked={selectedIntent === "proofread"}
-                onclick={(e) => {
+                onclick={(e: { stopPropagation: () => void; }) => {
                   e.stopPropagation();
                   selectedIntent = "proofread";
                   showIntentMenu = false;
@@ -719,7 +719,7 @@
               tabindex="0"
               aria-haspopup="menu"
               aria-expanded={showIntentMenu}
-              onclick={(e) => {
+              onclick={(e: { preventDefault: () => void; stopPropagation: () => void; }) => {
                 e.preventDefault();
                 e.stopPropagation();
                 const willOpen = !showIntentMenu;
@@ -747,7 +747,7 @@
                     : ''}"
                   role="menuitemradio"
                   aria-checked={selectedIntent === "prompt"}
-                  onclick={(e) => {
+                  onclick={(e: { stopPropagation: () => void; }) => {
                     e.stopPropagation();
                     selectedIntent = "prompt";
                     showIntentMenu = false;
@@ -762,7 +762,7 @@
                     : ''}"
                   role="menuitemradio"
                   aria-checked={selectedIntent === "summarize"}
-                  onclick={(e) => {
+                  onclick={(e: { stopPropagation: () => void; }) => {
                     e.stopPropagation();
                     selectedIntent = "summarize";
                     showIntentMenu = false;
@@ -777,7 +777,7 @@
                     : ''}"
                   role="menuitemradio"
                   aria-checked={selectedIntent === "translate"}
-                  onclick={(e) => {
+                  onclick={(e: { stopPropagation: () => void; }) => {
                     e.stopPropagation();
                     selectedIntent = "translate";
                     showIntentMenu = false;
@@ -792,7 +792,7 @@
                     : ''}"
                   role="menuitemradio"
                   aria-checked={selectedIntent === "write"}
-                  onclick={(e) => {
+                  onclick={(e: { stopPropagation: () => void; }) => {
                     e.stopPropagation();
                     selectedIntent = "write";
                     showIntentMenu = false;
@@ -809,7 +809,7 @@
                     : ''}"
                   role="menuitemradio"
                   aria-checked={selectedIntent === "rewrite"}
-                  onclick={(e) => {
+                  onclick={(e: { stopPropagation: () => void; }) => {
                     e.stopPropagation();
                     selectedIntent = "rewrite";
                     showIntentMenu = false;
@@ -826,7 +826,7 @@
                     : ''}"
                   role="menuitemradio"
                   aria-checked={selectedIntent === "proofread"}
-                  onclick={(e) => {
+                  onclick={(e: { stopPropagation: () => void; }) => {
                     e.stopPropagation();
                     selectedIntent = "proofread";
                     showIntentMenu = false;
@@ -1249,6 +1249,7 @@
     text-overflow: ellipsis;
     display: -webkit-box;
     -webkit-line-clamp: 3;
+    line-clamp: 3;
     -webkit-box-orient: vertical;
     word-wrap: break-word;
   }
@@ -1343,16 +1344,20 @@
     padding: 6px;
     border-radius: 50%;
     user-select: none;
-    min-width: 24px;
-    min-height: 24px;
-    max-width: 24px;
-    max-height: 24px;
+    min-width: 32px;
+    min-height: 32px;
+    max-width: 32px;
+    max-height: 32px;
     display: flex;
     align-items: center;
     justify-content: center !important;
     transition:
       background 0.2s ease,
       color 0.2s ease;
+  }
+  .intent-trigger :global(svg) {
+    width: 20px;
+    height: 20px;
   }
   .intent-trigger:hover {
     background: #404040;
