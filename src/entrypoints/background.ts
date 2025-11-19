@@ -80,11 +80,53 @@ export default defineBackground(() => {
     }
   }
 
+  type ContextMenusApi = {
+    removeAll: (...args: any[]) => any;
+    create: (...args: any[]) => any;
+    onClicked?: { addListener: (...args: any[]) => void };
+  };
+
+  function getContextMenusApi(): ContextMenusApi | null {
+    const globalAny = globalThis as any;
+    return (
+      globalAny?.chrome?.contextMenus ??
+      globalAny?.browser?.contextMenus ??
+      globalAny?.browser?.menus ??
+      null
+    );
+  }
+
+  async function removeAllContextMenus(ctx: ContextMenusApi): Promise<void> {
+    const removeAll = ctx.removeAll;
+    if (!removeAll) return;
+    try {
+      if (removeAll.length > 0) {
+        await new Promise<void>((resolve, reject) => {
+          try {
+            removeAll.call(ctx, () => resolve());
+          } catch (error) {
+            reject(error);
+          }
+        });
+        return;
+      }
+      const maybePromise = removeAll.call(ctx);
+      if (
+        maybePromise &&
+        typeof (maybePromise as Promise<void>).catch === 'function'
+      ) {
+        await (maybePromise as Promise<void>).catch(() => void 0);
+      }
+    } catch (error) {
+      console.warn('Failed to clear existing context menus', error);
+    }
+  }
+
   async function createContextMenus() {
     try {
-      const ctx = (chrome as any).contextMenus;
+      const ctx = getContextMenusApi();
       if (!ctx) return;
-      await ctx.removeAll().catch(() => void 0);
+      await removeAllContextMenus(ctx);
       ctx.create({
         id: PARENT_ID,
         title: 'Helix AI',
@@ -112,7 +154,7 @@ export default defineBackground(() => {
     });
   }
 
-  const ctx = (chrome as any).contextMenus;
+  const ctx = getContextMenusApi();
   if (ctx && ctx.onClicked) {
     ctx.onClicked.addListener(async (info: any, tab: any) => {
       if (info.menuItemId !== ADD_TO_CHAT_ID) return;
