@@ -4,6 +4,7 @@ import {
   htmlToMarkdown,
   processTextForLLM,
 } from '../utils/converters';
+import { storePageMarkdown } from './markdown-cache-helper';
 
 export async function extractPageContent({
   tabId,
@@ -26,11 +27,11 @@ export async function extractPageContent({
       document
         .querySelector('meta[name="description"]')
         ?.getAttribute?.('content') || '';
+    const currentUrl = window.location.href;
     const metadata = `# ${document.title || 'Web Page'}
 **Title:** ${document.title}
 **Description:** ${metaDescription}
-**URL:** ${window.location.href}
-**URL:** ${window.location.href}
+**URL:** ${currentUrl}
 **Date:** ${new Date().toISOString()}
 
 ---
@@ -45,7 +46,14 @@ export async function extractPageContent({
         ? finalContent.substring(0, maxLength) +
         '\n\n... [Content truncated for AI context]'
         : finalContent;
-    globalStorage().append({ key: 'pageMarkdown', value: { [`tab_id_${tabId}`]: data } });
+
+    // Store using the same format as markdown-cache-helper for consistency
+    try {
+      await storePageMarkdown({ url: currentUrl, content: data, tabId });
+    } catch (storeErr) {
+      console.warn('Failed to store page markdown in extract-helper:', storeErr);
+    }
+
     return data;
   } catch (err) {
     console.error('Error extracting page content:', err);

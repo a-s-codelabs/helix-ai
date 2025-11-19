@@ -2156,9 +2156,52 @@ ${doc?.body?.textContent || 'No content available'}`;
                 isInSidePanel,
                 currentTabId
               );
+              // If still empty after fetch, try to get from cache as fallback
+              if (
+                (!freshPageContext || freshPageContext.trim().length === 0) &&
+                currentTabId
+              ) {
+                const cachedData = await getCachedPageMarkdownWithUrl({
+                  tabId: currentTabId,
+                });
+                if (cachedData?.content) {
+                  freshPageContext = cachedData.content;
+                  console.log(
+                    'Using cached pageContext for tabId:',
+                    currentTabId
+                  );
+                }
+              }
             } catch (err) {
               console.warn('Failed to fetch document info for prompt:', err);
+              // Try cache as fallback if fetch failed
+              if (currentTabId) {
+                try {
+                  const cachedData = await getCachedPageMarkdownWithUrl({
+                    tabId: currentTabId,
+                  });
+                  if (cachedData?.content) {
+                    freshPageContext = cachedData.content;
+                    console.log(
+                      'Using cached pageContext as fallback for tabId:',
+                      currentTabId
+                    );
+                  }
+                } catch (cacheErr) {
+                  console.warn(
+                    'Failed to get pageContext from cache:',
+                    cacheErr
+                  );
+                }
+              }
             }
+          }
+
+          // Ensure we have pageContext before creating session
+          if (!freshPageContext || freshPageContext.trim().length === 0) {
+            console.warn(
+              'No pageContext available for prompt, creating session without context'
+            );
           }
 
           // Recreate session if it doesn't exist or if tabId changed (to ensure fresh pageContext)
@@ -2176,13 +2219,18 @@ ${doc?.body?.textContent || 'No content available'}`;
               {
                 ...options,
                 tabId: currentTabId,
-                pageContext: freshPageContext,
+                pageContext: freshPageContext || '',
               },
               isInSidePanel
             );
             sessionTabId = currentTabId;
-            pageContext = freshPageContext; // Update stored pageContext
-            console.log('Created new session for tabId:', currentTabId);
+            pageContext = freshPageContext || ''; // Update stored pageContext
+            console.log(
+              'Created new session for tabId:',
+              currentTabId,
+              'with pageContext length:',
+              (freshPageContext || '').length
+            );
           }
         }
 
@@ -2225,18 +2273,69 @@ ${doc?.body?.textContent || 'No content available'}`;
         } else {
           if (!apiKey || !model)
             throw new Error('Missing provider credentials');
-          const attach = await shouldAttachPageContext('prompt', userMessage);
+
+          // Always fetch pageContext first for external providers (Firefox)
+          // This ensures pageContext is available before deciding whether to attach it
           if (!pageContext || pageContext.trim().length === 0) {
             try {
               pageContext = await getDocumentInfoHelper(
                 isInSidePanel,
                 currentTabId
               );
+              // If still empty after fetch, try to get from cache as fallback
+              if (
+                (!pageContext || pageContext.trim().length === 0) &&
+                currentTabId
+              ) {
+                const cachedData = await getCachedPageMarkdownWithUrl({
+                  tabId: currentTabId,
+                });
+                if (cachedData?.content) {
+                  pageContext = cachedData.content;
+                  console.log(
+                    'Using cached pageContext for external provider, tabId:',
+                    currentTabId
+                  );
+                }
+              }
             } catch (err) {
               console.warn('Failed to fetch document info for prompt:', err);
+              // Try cache as fallback if fetch failed
+              if (currentTabId) {
+                try {
+                  const cachedData = await getCachedPageMarkdownWithUrl({
+                    tabId: currentTabId,
+                  });
+                  if (cachedData?.content) {
+                    pageContext = cachedData.content;
+                    console.log(
+                      'Using cached pageContext as fallback for external provider, tabId:',
+                      currentTabId
+                    );
+                  }
+                } catch (cacheErr) {
+                  console.warn(
+                    'Failed to get pageContext from cache:',
+                    cacheErr
+                  );
+                }
+              }
             }
           }
-          const sys = attach ? systemPrompt({ pageContext }) : undefined;
+
+          // For 'prompt' intent, always attach pageContext if it exists
+          // This ensures Firefox (external providers) always get page context like Chrome (builtin)
+          const hasPageContext = pageContext && pageContext.trim().length > 0;
+          const attach = hasPageContext; // Always attach if pageContext exists for prompt intent
+          console.log(
+            'External provider (Firefox): pageContext length:',
+            (pageContext || '').length,
+            'attach:',
+            attach
+          );
+          const sys = attach
+            ? systemPrompt({ pageContext: pageContext || '' })
+            : undefined;
           const contentParts: any[] = [];
           if (userMessage.trim()) {
             contentParts.push(textPart(userMessage));
