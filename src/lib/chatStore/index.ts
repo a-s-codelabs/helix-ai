@@ -1372,7 +1372,7 @@ ${doc?.body?.textContent || 'No content available'}`;
         aiStatus: status.message,
       }));
 
-      if (providedPageContext) {
+      if (typeof providedPageContext === 'string') {
         pageContext = providedPageContext;
       } else {
         try {

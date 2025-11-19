@@ -302,58 +302,24 @@ export default defineBackground(() => {
           return;
         }
 
-        chrome.tabs.sendMessage(
-          tabId,
-          { type: MESSAGE_TYPE_EXTRACT_PAGE_CONTENT },
-          async (response) => {
-            if (chrome.runtime.lastError) {
-              console.error(
-                'Background: Error communicating with content script:',
-                chrome.runtime.lastError.message
-              );
-              sendResponse({
-                success: false,
-                error: 'Content script not available. Please reload the page.',
-              });
-              return;
-            }
-
-            if (response && response.success && response.pageContext) {
-              // Store in cache if we have the tab ID and URL
-              if (tabId && tabUrl) {
-                try {
-                  const { storePageMarkdown } = await import(
-                    '@/lib/chatStore/markdown-cache-helper'
-                  );
-                  await storePageMarkdown({
-                    url: tabUrl,
-                    content: response.pageContext,
-                    tabId,
-                  });
-                } catch (storeErr) {
-                  console.warn(
-                    'Background: Failed to store markdown in cache:',
-                    storeErr
-                  );
-                }
-              }
-
-              sendResponse({
-                success: true,
-                pageContext: response.pageContext,
-              });
-            } else {
-              console.error(
-                'Background: Failed to get page content:',
-                response?.error
-              );
-              sendResponse({
-                success: false,
-                error: response?.error || 'Failed to extract page content',
-              });
+        let result = await requestPageContentFromTab(tabId, tabUrl);
+        if (!result.response.success && result.shouldRetry) {
+          const injected = await ensureContentScriptsInjected(tabId);
+          if (injected) {
+            result = await requestPageContentFromTab(tabId, tabUrl);
+          } else {
+            const fallbackContext = await extractPageContentViaScripting(tabId);
+            if (fallbackContext) {
+              await cachePageContext(tabId, tabUrl, fallbackContext);
+              result = {
+                response: { success: true, pageContext: fallbackContext },
+                shouldRetry: false,
+              };
             }
           }
-        );
+        }
+
+        sendResponse(result.response);
       })();
 
       return true;
@@ -427,6 +393,232 @@ export default defineBackground(() => {
     } catch (error) {
       console.error('Background: Error updating active tab ID:', error);
     }
+  }
+
+  type PageContentResponse =
+    | { success: true; pageContext: string }
+    | { success: false; error: string };
+
+  interface PageContentResult {
+    response: PageContentResponse;
+    shouldRetry: boolean;
+  }
+
+  function isRecoverableContentScriptError(message?: string): boolean {
+    if (!message) return false;
+    const normalized = message.toLowerCase();
+    return (
+      normalized.includes('receiving end does not exist') ||
+      normalized.includes('could not establish connection') ||
+      normalized.includes('no connection established') ||
+      normalized.includes('disconnected port') ||
+      normalized.includes('does not exist') ||
+      normalized.includes('missing script') ||
+      normalized.includes('content script not available')
+    );
+  }
+
+  async function cachePageContext(
+    tabId: number | null,
+    tabUrl: string | null,
+    content: string
+  ): Promise<void> {
+    if (!tabId || !tabUrl || !content) return;
+    try {
+      const { storePageMarkdown } = await import(
+        '@/lib/chatStore/markdown-cache-helper'
+      );
+      await storePageMarkdown({
+        url: tabUrl,
+        content,
+        tabId,
+      });
+    } catch (storeErr) {
+      console.warn('Background: Failed to store markdown in cache:', storeErr);
+    }
+  }
+
+  async function ensureContentScriptsInjected(tabId: number): Promise<boolean> {
+    try {
+      const scripting = (chrome as any)?.scripting;
+      const manifest = (chrome.runtime as any)?.getManifest?.();
+      const contentScripts = Array.isArray(manifest?.content_scripts)
+        ? (manifest.content_scripts as Array<{ js?: string[] }>)
+        : [];
+      const scriptFiles = contentScripts.flatMap((script) => script.js || []);
+
+      if (scriptFiles.length === 0) {
+        console.warn('Background: No content scripts declared in manifest.');
+        return false;
+      }
+
+      if (scripting?.executeScript) {
+        await scripting.executeScript({
+          target: { tabId },
+          files: scriptFiles,
+        });
+        console.log(
+          'Background: Re-injected content scripts via chrome.scripting into tab',
+          tabId
+        );
+        return true;
+      }
+
+      const tabsApi = chrome.tabs as any;
+      if (tabsApi?.executeScript) {
+        for (const file of scriptFiles) {
+          await new Promise<void>((resolve, reject) => {
+            tabsApi.executeScript(tabId, { file }, () => {
+              if (chrome.runtime?.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+              }
+              resolve();
+            });
+          });
+        }
+        console.log(
+          'Background: Re-injected content scripts via tabs.executeScript into tab',
+          tabId
+        );
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Background: Failed to inject content scripts:', error);
+      return false;
+    }
+  }
+
+  async function extractPageContentViaScripting(
+    tabId: number
+  ): Promise<string | null> {
+    try {
+      const scripting = (chrome as any)?.scripting;
+      const fallbackExtractor = () => {
+        try {
+          const doc = document;
+          if (!doc) return null;
+          const metaDescription =
+            doc
+              .querySelector('meta[name="description"]')
+              ?.getAttribute?.('content') || '';
+          const title = doc.title || 'Web Page';
+          const url = window.location.href;
+          const timestamp = new Date().toISOString();
+          const header = `# ${title}
+**Title:** ${title}
+**Description:** ${metaDescription}
+**URL:** ${url}
+**Date:** ${timestamp}
+
+---
+
+`;
+          const body =
+            doc.body?.innerText ||
+            doc.documentElement?.innerText ||
+            'No content available';
+          const content = header + body;
+          const maxLength = 60000;
+          return content.length > maxLength
+            ? content.slice(0, maxLength) +
+                '\n\n... [Content truncated for AI context]'
+            : content;
+        } catch (err) {
+          console.error('Fallback extraction failed:', err);
+          return null;
+        }
+      };
+
+      if (scripting?.executeScript) {
+        const [result] = await scripting.executeScript({
+          target: { tabId },
+          func: fallbackExtractor,
+        });
+        return (result && result.result) || null;
+      }
+
+      const tabsApi = chrome.tabs as any;
+      if (tabsApi?.executeScript) {
+        const code = `(${fallbackExtractor.toString()})()`;
+        return await new Promise<string | null>((resolve, reject) => {
+          tabsApi.executeScript(tabId, { code }, (results: any) => {
+            if (chrome.runtime?.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+              return;
+            }
+            resolve(
+              Array.isArray(results) ? (results[0] as string | null) : null
+            );
+          });
+        });
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Background: Fallback extraction error:', error);
+      return null;
+    }
+  }
+
+  function requestPageContentFromTab(
+    tabId: number,
+    tabUrl: string | null
+  ): Promise<PageContentResult> {
+    return new Promise((resolve) => {
+      chrome.tabs.sendMessage(
+        tabId,
+        { type: MESSAGE_TYPE_EXTRACT_PAGE_CONTENT },
+        async (response) => {
+          const runtimeError = chrome.runtime.lastError;
+          if (runtimeError) {
+            console.error(
+              'Background: Error communicating with content script:',
+              runtimeError.message
+            );
+            resolve({
+              response: {
+                success: false,
+                error: 'Content script not available. Please reload the page.',
+              },
+              shouldRetry: isRecoverableContentScriptError(
+                runtimeError.message
+              ),
+            });
+            return;
+          }
+
+          if (response && response.success && response.pageContext) {
+            await cachePageContext(tabId, tabUrl, response.pageContext);
+
+            resolve({
+              response: {
+                success: true,
+                pageContext: response.pageContext,
+              },
+              shouldRetry: false,
+            });
+            return;
+          }
+
+          const errorMessage =
+            response?.error || 'Failed to extract page content';
+          console.error(
+            'Background: Failed to get page content:',
+            errorMessage
+          );
+          resolve({
+            response: {
+              success: false,
+              error: errorMessage,
+            },
+            shouldRetry: isRecoverableContentScriptError(errorMessage),
+          });
+        }
+      );
+    });
   }
 
   if (typeof chrome !== 'undefined' && chrome.tabs) {
