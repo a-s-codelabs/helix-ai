@@ -17,7 +17,8 @@
   import SettingsPopup from "./SettingsPopup.svelte";
   import ModelSelectorPopup from "./ModelSelectorPopup.svelte";
   import ModelSelectorIcon from "./icons/ModelSelector.svelte";
-  import { multiModelStore, AVAILABLE_MODELS } from "@/lib/multiModelStore";
+import { multiModelStore, AVAILABLE_MODELS } from "@/lib/multiModelStore";
+import { QUOTED_CONTENT_SEPARATOR } from "./constants";
   type Intent =
     | "prompt"
     | "summarize"
@@ -267,7 +268,7 @@
   function handleSendData(audioBlobId?: string) {
     const quotedText =
       quotedContent.length > 0
-        ? quotedContent.join("\n\n---\n\n") + "\n\n"
+        ? quotedContent.join(QUOTED_CONTENT_SEPARATOR) + QUOTED_CONTENT_SEPARATOR
         : "";
     const finalMessage = quotedText + inputValue;
     onAsk?.({

@@ -4,9 +4,10 @@ import { defineConfig } from 'wxt';
 export default defineConfig({
   srcDir: 'src',
   modules: ['@wxt-dev/module-svelte'],
-  manifest: {
-    name: "Helix AI",
-    description: "Free AI Sidebar Chatbot in any site to prompt, attach images with Chrome AI.",
+  manifest: ({ browser }) => ({
+    name: 'Helix AI',
+    description:
+      'Free AI Sidebar Chatbot in any site to prompt, attach images with Chrome AI.',
     permissions: ['storage', 'sidePanel', 'activeTab', 'contextMenus'],
     host_permissions: ['<all_urls>'],
     icons: {
@@ -14,16 +15,18 @@ export default defineConfig({
       '48': 'icon/48.png',
       '128': 'icon/128.png',
     },
-    browser_specific_settings: {
-      gecko: {
-        id: 'helix-ai@helix.ai',
-        strict_min_version: '115.0',
+    ...(browser === 'firefox' && {
+      browser_specific_settings: {
+        gecko: {
+          id: 'helix-ai@helix.ai',
+          strict_min_version: '115.0',
+        },
       },
-    },
-    sidebar_action: {
-      default_title: 'Helix AI',
-      default_panel: 'sidepanel.html',
-    },
+      sidebar_action: {
+        default_title: 'Helix AI',
+        default_panel: 'sidepanel.html',
+      },
+    }),
     side_panel: {
       default_path: 'sidepanel.html',
     },
@@ -36,9 +39,9 @@ export default defineConfig({
           default: 'Ctrl+Y',
           mac: 'Command+Y',
         },
-        "global": true,
+        global: true,
         description: 'Open floating telescope search',
       },
     },
-  },
+  }),
 });
