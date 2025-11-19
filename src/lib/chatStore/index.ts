@@ -17,11 +17,13 @@ import {
 } from './prompt';
 import {
   runProviderStream,
+  runProviderFullText,
   imagePartFromDataURL,
   textPart,
   audioPartFromBlob,
   getDefaultModels,
   type Provider,
+  type RunOptions,
 } from '../ai/providerClient';
 import { loadProviderKey } from '../secureStore';
 import {
@@ -85,6 +87,33 @@ async function processStream<T>(
   if (!hasReceivedChunks) {
     console.warn(`No chunks received from ${operationName}`);
     throw new Error(`No chunks received from ${operationName}`);
+  }
+}
+
+function isNoChunkError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.message.toLowerCase().includes('no chunks received')
+  );
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () =>
+      reject(new Error('Failed to convert file to data URL'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function normalizeImageForProvider(image: string): Promise<string> {
+  try {
+    const pngFile = await ensurePngFile(image, 'image.png');
+    return await fileToDataUrl(pngFile);
+  } catch (error) {
+    console.warn('Failed to normalize image for provider:', error);
+    return image;
   }
 }
 
@@ -2104,11 +2133,21 @@ ${doc?.body?.textContent || 'No content available'}`;
         ? await createAudioUrl(audioBlobId)
         : undefined;
 
+      const normalizedImages =
+        images && images.length
+          ? await Promise.all(
+              images.map((img) => normalizeImageForProvider(img))
+            )
+          : [];
+      const displayImages = normalizedImages.length
+        ? normalizedImages
+        : undefined;
+
       const displayMessage = userMessage.trim() ?? '';
       const userMsg = createChatMessage(
         'user',
         displayMessage,
-        images,
+        displayImages,
         audioUrl
       );
       const assistantMsg = createChatMessage('assistant', '');
@@ -2218,13 +2257,18 @@ ${doc?.body?.textContent || 'No content available'}`;
           }
         }
 
-        if (images && images.length > 0 && session && provider === 'builtin') {
+        if (
+          displayImages &&
+          displayImages.length > 0 &&
+          session &&
+          provider === 'builtin'
+        ) {
           if (!sessionSupportsInputType(session, 'image')) {
             throw new Error(
               'Chrome Built-in AI session is missing image support. Please update Chrome or disable image attachments.'
             );
           }
-          for await (const image of images) {
+          for await (const image of displayImages) {
             const rawFile = await imageStringToFile(image, 'image');
             const file = await ensurePngFile(rawFile, 'image.png');
 
@@ -2334,8 +2378,8 @@ ${doc?.body?.textContent || 'No content available'}`;
           if (userMessage.trim()) {
             contentParts.push(textPart(userMessage));
           }
-          if (images && images.length) {
-            for (const img of images)
+          if (displayImages && displayImages.length) {
+            for (const img of displayImages)
               contentParts.push(imagePartFromDataURL(img));
           }
           if (audioBlob) {
@@ -2420,11 +2464,21 @@ ${doc?.body?.textContent || 'No content available'}`;
         ? await createAudioUrl(audioBlobId)
         : undefined;
 
+      const normalizedImages =
+        images && images.length
+          ? await Promise.all(
+              images.map((img) => normalizeImageForProvider(img))
+            )
+          : [];
+      const displayImages = normalizedImages.length
+        ? normalizedImages
+        : undefined;
+
       const displayMessage = userMessage.trim() ?? '';
       const userMsg = createChatMessage(
         'user',
         displayMessage,
-        images,
+        displayImages,
         audioUrl
       );
 
@@ -2457,8 +2511,8 @@ ${doc?.body?.textContent || 'No content available'}`;
       if (userMessage.trim()) {
         contentParts.push(textPart(userMessage));
       }
-      if (images && images.length) {
-        for (const img of images) {
+      if (displayImages && displayImages.length) {
+        for (const img of displayImages) {
           contentParts.push(imagePartFromDataURL(img));
         }
       }
@@ -2497,14 +2551,20 @@ ${doc?.body?.textContent || 'No content available'}`;
 
         try {
           let stream: ReadableStream<string>;
+          let providerConfigForRetry: {
+            provider: Provider;
+            model: string;
+            apiKey: string;
+          } | null = null;
+          let providerRequestPayload: RunOptions | null = null;
 
           // Build content parts for this specific model
           const modelContentParts: any[] = [];
           if (userMessage.trim()) {
             modelContentParts.push(textPart(userMessage));
           }
-          if (images && images.length) {
-            for (const img of images) {
+          if (displayImages && displayImages.length) {
+            for (const img of displayImages) {
               modelContentParts.push(imagePartFromDataURL(img));
             }
           }
@@ -2545,13 +2605,13 @@ ${doc?.body?.textContent || 'No content available'}`;
               isInSidePanel
             );
 
-            if (images && images.length > 0) {
+            if (displayImages && displayImages.length > 0) {
               if (!sessionSupportsInputType(session, 'image')) {
                 throw new Error(
                   'Chrome Built-in AI session is missing image support. Please update Chrome or resend without images.'
                 );
               }
-              for await (const image of images) {
+              for await (const image of displayImages) {
                 const rawFile = await imageStringToFile(image, 'image');
                 const file = await ensurePngFile(rawFile, 'image.png');
                 await session?.append([
@@ -2587,40 +2647,68 @@ ${doc?.body?.textContent || 'No content available'}`;
               throw new Error(`API key not found for ${modelConfig.provider}`);
             }
 
-            const result = await runProviderStream(
-              {
-                provider: modelConfig.provider as Provider,
-                model: modelConfig.model,
-                apiKey,
-              },
-              {
-                system: sys,
-                messages: [{ role: 'user', content: modelContentParts }],
-              }
-            );
+            providerConfigForRetry = {
+              provider: modelConfig.provider as Provider,
+              model: modelConfig.model,
+              apiKey,
+            };
+            providerRequestPayload = {
+              system: sys,
+              messages: [{ role: 'user', content: modelContentParts }],
+            };
 
+            const result = await runProviderStream(
+              providerConfigForRetry,
+              providerRequestPayload
+            );
             stream = result.stream;
           }
 
-          await processStream(
-            stream,
-            abortController,
-            (chunk: string) => {
-              if (
-                chunk &&
-                typeof chunk === 'string' &&
-                !abortController.signal.aborted
-              ) {
-                multiModelStore.appendToStreamingMessage(
-                  modelId,
-                  assistantMsgId,
-                  chunk
-                );
+          try {
+            await processStream(
+              stream,
+              abortController,
+              (chunk: string) => {
+                if (
+                  chunk &&
+                  typeof chunk === 'string' &&
+                  !abortController.signal.aborted
+                ) {
+                  multiModelStore.appendToStreamingMessage(
+                    modelId,
+                    assistantMsgId,
+                    chunk
+                  );
+                }
+              },
+              60000,
+              `multi-model stream for ${modelId}`
+            );
+          } catch (streamError) {
+            if (
+              providerConfigForRetry &&
+              providerRequestPayload &&
+              isNoChunkError(streamError)
+            ) {
+              console.warn(
+                `No chunks for ${modelId}, retrying without streaming`
+              );
+              const fallbackText = await runProviderFullText(
+                providerConfigForRetry,
+                providerRequestPayload
+              );
+              if (!fallbackText || !fallbackText.trim()) {
+                throw streamError;
               }
-            },
-            60000,
-            `multi-model stream for ${modelId}`
-          );
+              multiModelStore.updateMessageContent(
+                modelId,
+                assistantMsgId,
+                fallbackText
+              );
+            } else {
+              throw streamError;
+            }
+          }
 
           multiModelStore.updateStreamingState(modelId, false, null);
           multiModelStore.setLoading(modelId, false);
