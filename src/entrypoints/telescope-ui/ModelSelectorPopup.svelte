@@ -18,6 +18,7 @@
 
   let enabledModels = $state<string[]>(AVAILABLE_MODELS.map((m) => m.id));
   let popupElement = $state<HTMLDivElement | null>(null);
+  let modelsLoaded = $state(false);
 
   let rafId: number | null = null;
   let mutationObserver: MutationObserver | null = null;
@@ -32,13 +33,33 @@
   }
 
   async function handleSave() {
+    let storageError: Error | null = null;
+    let storeError: Error | null = null;
+
+    const modelsToSave = [...enabledModels];
+
     try {
-      await storage.set('enabledModels', enabledModels);
-      multiModelStore.setEnabledModels(enabledModels);
-      // multiModelStore.initializeModelResponses(enabledModels);
+      await storage.set('enabledModels', modelsToSave);
+      console.log('Storage save successful:', modelsToSave);
+    } catch (error) {
+      storageError = error instanceof Error ? error : new Error(String(error));
+      console.error('Storage save failed:', storageError);
+    }
+
+    if (storageError) {
+      alert(`Failed to save to storage: ${storageError.message}`);
+      return;
+    }
+
+    try {
+      multiModelStore.setEnabledModels(modelsToSave);
+      multiModelStore.initializeModelResponses(modelsToSave);
+      console.log('Store update successful');
       onClose?.();
     } catch (error) {
-      console.error('Failed to save enabled models:', error);
+      storeError = error instanceof Error ? error : new Error(String(error));
+      console.error('Store update failed:', storeError);
+      alert(`Saved to storage but failed to update UI: ${storeError.message}`);
     }
   }
 
@@ -180,18 +201,13 @@
 
 
   $effect(() => {
-    const unsubscribe = multiModelStore.subscribe((state) => {
-      if (state.enabledModels.length > 0) {
-        enabledModels = state.enabledModels;
-      }
-    });
+    if (modelsLoaded) return;
 
     (async () => {
       const savedModels = await loadEnabledModelsFromStorage();
       enabledModels = savedModels;
+      modelsLoaded = true;
     })();
-
-    return unsubscribe;
   });
 </script>
 
