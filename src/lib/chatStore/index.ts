@@ -519,40 +519,27 @@ export const detectLanguageFromText = async (
   }
 };
 
-/**
- * Check if LanguageModel supports specific expectedInputs
- * @param expectedInputs - Array of input types to check
- * @returns true if all input types are supported, false otherwise
- */
-async function checkLanguageModelCapabilities(
-  expectedInputs: { type: string }[]
-): Promise<boolean> {
-  if (typeof LanguageModel === 'undefined') {
-    return false;
-  }
+type HelixSession = AILanguageModel & {
+  __helixExpectedInputs?: string[];
+};
 
-  try {
-    // First check basic availability
-    const basicAvailability = await LanguageModel.availability();
-    if (basicAvailability === 'no') {
-      return false;
-    }
+function annotateSessionInputs(
+  session: AILanguageModel,
+  expectedInputs?: { type: string }[]
+): HelixSession {
+  (session as HelixSession).__helixExpectedInputs = expectedInputs
+    ? expectedInputs.map((input) => input.type)
+    : [];
+  return session as HelixSession;
+}
 
-    // Try to check availability with expectedInputs if supported
-    try {
-      const availability = await (LanguageModel as any).availability({
-        expectedInputs,
-      });
-      return availability === 'readily' || availability === 'available';
-    } catch {
-      // If availability doesn't support expectedInputs parameter,
-      // assume capabilities are not available to be safe
-      return false;
-    }
-  } catch (error) {
-    console.warn('Error checking LanguageModel capabilities:', error);
-    return false;
-  }
+function sessionSupportsInputType(
+  session: AILanguageModel | null,
+  type: string
+): boolean {
+  if (!session) return false;
+  const inputs = (session as HelixSession).__helixExpectedInputs || [];
+  return inputs.includes(type);
 }
 
 async function createAISession({
@@ -567,7 +554,7 @@ async function createAISession({
   outputLanguage?: string;
   temperature?: number;
   topK?: number;
-}): Promise<AILanguageModel> {
+}): Promise<HelixSession> {
   console.log('createAISession', pageContext);
   if (typeof LanguageModel !== 'undefined') {
     const baseConfig = {
@@ -596,34 +583,31 @@ async function createAISession({
       },
     };
 
-    // Check if model supports multimodal inputs before including them
     const desiredInputs: { type: string }[] = [
       { type: 'image' },
       { type: 'audio' },
     ];
-    const supportsMultimodal = await checkLanguageModelCapabilities(
-      desiredInputs
-    );
-
-    const config: AILanguageModelCreateOptions = supportsMultimodal
-      ? { ...baseConfig, expectedInputs: desiredInputs }
-      : baseConfig;
 
     try {
-      return await LanguageModel.create(config);
+      const sessionWithInputs = await LanguageModel.create({
+        ...baseConfig,
+        expectedInputs: desiredInputs,
+      });
+      return annotateSessionInputs(sessionWithInputs, desiredInputs);
     } catch (error: any) {
-      // If creation fails with expectedInputs, retry without them
-      if (
-        config.expectedInputs &&
-        error?.message?.includes('capability') &&
-        error?.message?.includes('not available')
-      ) {
-        console.warn(
-          'Model does not support requested capabilities, creating session without expectedInputs'
-        );
-        return await LanguageModel.create(baseConfig);
+      const message = error?.message ?? '';
+      const capabilityError =
+        message.includes('expectedInputs') || message.includes('capability');
+
+      if (!capabilityError) {
+        throw error;
       }
-      throw error;
+
+      console.warn(
+        'Model does not support requested capabilities, creating session without expectedInputs'
+      );
+      const fallbackSession = await LanguageModel.create(baseConfig);
+      return annotateSessionInputs(fallbackSession);
     }
   }
 
@@ -697,7 +681,7 @@ function createChatStore() {
     currentIntent: null,
   });
 
-  let session: AILanguageModel | null = null;
+  let session: HelixSession | null = null;
   let sessionTabId: number | null = null; // Track which tabId the session was created for
   let pageContext = '';
   let isInSidePanel = false;
@@ -2235,6 +2219,11 @@ ${doc?.body?.textContent || 'No content available'}`;
         }
 
         if (images && images.length > 0 && session && provider === 'builtin') {
+          if (!sessionSupportsInputType(session, 'image')) {
+            throw new Error(
+              'Chrome Built-in AI session is missing image support. Please update Chrome or disable image attachments.'
+            );
+          }
           for await (const image of images) {
             const rawFile = await imageStringToFile(image, 'image');
             const file = await ensurePngFile(rawFile, 'image.png');
@@ -2251,6 +2240,11 @@ ${doc?.body?.textContent || 'No content available'}`;
         const audioBlob = audioBlobId ? await loadAudioBlob(audioBlobId) : null;
 
         if (audioBlob && session && provider === 'builtin') {
+          if (!sessionSupportsInputType(session, 'audio')) {
+            throw new Error(
+              'Audio input is not supported by Chrome Built-in AI in this session. Update Chrome or try a different model.'
+            );
+          }
           await session?.append([
             {
               role: 'user',
@@ -2552,6 +2546,11 @@ ${doc?.body?.textContent || 'No content available'}`;
             );
 
             if (images && images.length > 0) {
+              if (!sessionSupportsInputType(session, 'image')) {
+                throw new Error(
+                  'Chrome Built-in AI session is missing image support. Please update Chrome or resend without images.'
+                );
+              }
               for await (const image of images) {
                 const rawFile = await imageStringToFile(image, 'image');
                 const file = await ensurePngFile(rawFile, 'image.png');
@@ -2565,6 +2564,11 @@ ${doc?.body?.textContent || 'No content available'}`;
             }
 
             if (audioBlob) {
+              if (!sessionSupportsInputType(session, 'audio')) {
+                throw new Error(
+                  'Audio input is not supported by Chrome Built-in AI in this session. Update Chrome and retry.'
+                );
+              }
               await session?.append([
                 {
                   role: 'user',
