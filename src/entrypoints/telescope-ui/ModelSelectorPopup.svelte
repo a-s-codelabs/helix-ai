@@ -1,6 +1,7 @@
 <script lang="ts">
   import { multiModelStore, AVAILABLE_MODELS, loadEnabledModelsFromStorage, type ModelConfig } from '@/lib/multiModelStore';
   import { globalStorage } from '@/lib/globalStorage';
+  import { isFirefoxBrowser } from '@/lib/browserEnv';
   import CloseIcon from './icons/Close.svelte';
 
   let {
@@ -17,6 +18,7 @@
 
   let enabledModels = $state<string[]>(AVAILABLE_MODELS.map((m) => m.id));
   let popupElement = $state<HTMLDivElement | null>(null);
+  let modelsLoaded = $state(false);
 
   let rafId: number | null = null;
   let mutationObserver: MutationObserver | null = null;
@@ -31,13 +33,33 @@
   }
 
   async function handleSave() {
+    let storageError: Error | null = null;
+    let storeError: Error | null = null;
+
+    const modelsToSave = [...enabledModels];
+
     try {
-      await storage.set('enabledModels', enabledModels);
-      multiModelStore.setEnabledModels(enabledModels);
-      // multiModelStore.initializeModelResponses(enabledModels);
+      await storage.set('enabledModels', modelsToSave);
+      console.log('Storage save successful:', modelsToSave);
+    } catch (error) {
+      storageError = error instanceof Error ? error : new Error(String(error));
+      console.error('Storage save failed:', storageError);
+    }
+
+    if (storageError) {
+      alert(`Failed to save to storage: ${storageError.message}`);
+      return;
+    }
+
+    try {
+      multiModelStore.setEnabledModels(modelsToSave);
+      multiModelStore.initializeModelResponses(modelsToSave);
+      console.log('Store update successful');
       onClose?.();
     } catch (error) {
-      console.error('Failed to save enabled models:', error);
+      storeError = error instanceof Error ? error : new Error(String(error));
+      console.error('Store update failed:', storeError);
+      alert(`Saved to storage but failed to update UI: ${storeError.message}`);
     }
   }
 
@@ -179,18 +201,13 @@
 
 
   $effect(() => {
-    const unsubscribe = multiModelStore.subscribe((state) => {
-      if (state.enabledModels.length > 0) {
-        enabledModels = state.enabledModels;
-      }
-    });
+    if (modelsLoaded) return;
 
     (async () => {
       const savedModels = await loadEnabledModelsFromStorage();
       enabledModels = savedModels;
+      modelsLoaded = true;
     })();
-
-    return unsubscribe;
   });
 </script>
 
@@ -213,21 +230,23 @@
   </div>
 
   <div class="popup-content">
-    <div class="provider-section">
-      <h4 class="provider-title">Built-in Models</h4>
-      <div class="model-list">
-        {#each getProviderModels('builtin') as model}
-          <label class="model-item">
-            <input
-              type="checkbox"
-              checked={enabledModels.includes(model.id)}
-              onchange={() => toggleModel(model.id)}
-            />
-            <span class="model-name">{model.name}</span>
-          </label>
-        {/each}
+    {#if !isFirefoxBrowser}
+      <div class="provider-section">
+        <h4 class="provider-title">Built-in Models</h4>
+        <div class="model-list">
+          {#each getProviderModels('builtin') as model}
+            <label class="model-item">
+              <input
+                type="checkbox"
+                checked={enabledModels.includes(model.id)}
+                onchange={() => toggleModel(model.id)}
+              />
+              <span class="model-name">{model.name}</span>
+            </label>
+          {/each}
+        </div>
       </div>
-    </div>
+    {/if}
 
     <div class="provider-section">
       <h4 class="provider-title">OpenAI Models</h4>

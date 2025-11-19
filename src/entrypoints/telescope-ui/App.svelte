@@ -4,16 +4,17 @@
   import { sidePanelUtils } from "@/lib/sidePanelStore";
   import { globalStorage } from "@/lib/globalStorage";
   import type { Message, State } from "./type";
-  import TelescopeSidepanelHeader from "./TelescopeSidepanelHeader.svelte";
-  import { handleAskHelper } from "./handleAsk";
-  import type { AskOptions } from "./handleAsk";
-  import { getLanguageByCode, getLanguageName } from "@/lib/languageHelper";
-  import {
-    convertAndStorePageMarkdown,
-    getCachedPageMarkdown,
-  } from "@/lib/chatStore/markdown-cache-helper";
-  import { detectLanguageFromText } from "@/lib/chatStore";
-  import { AVAILABLE_MODELS, multiModelStore, loadEnabledModelsFromStorage } from "@/lib/multiModelStore";
+import TelescopeSidepanelHeader from "./TelescopeSidepanelHeader.svelte";
+import { handleAskHelper } from "./handleAsk";
+import type { AskOptions } from "./handleAsk";
+import { getLanguageByCode, getLanguageName } from "@/lib/languageHelper";
+import {
+  convertAndStorePageMarkdown,
+  getCachedPageMarkdown,
+} from "@/lib/chatStore/markdown-cache-helper";
+import { detectLanguageFromText } from "@/lib/chatStore";
+import { AVAILABLE_MODELS, multiModelStore, loadEnabledModelsFromStorage } from "@/lib/multiModelStore";
+import { QUOTED_CONTENT_SEPARATOR } from "./constants";
 
   let currentState: State = $state("ask");
   let inputValue = $state("");
@@ -253,7 +254,9 @@
     const audioId = storedState.actionSource === 'audio' && storedState.blobId
       ? storedState.blobId
       : '';
-    const stateId = `${storedState.actionSource}-${contentHash}${storedState.targetLanguage || ''}${audioId}`;
+    // StateId includes targetLanguage only if present (avoid undefined case)
+    const targetLanguage = 'targetLanguage' in storedState ? storedState.targetLanguage || '' : '';
+    const stateId = `${storedState.actionSource}-${contentHash}${targetLanguage}${audioId}`;
 
     if (processedActionStateIds.has(stateId)) {
       globalStorage().delete("action_state");
@@ -313,27 +316,49 @@
   }) {
     let formattedValue = value;
     if (quotedContentToFormat.size > 0) {
-      const separator = "\n\n---\n\n";
+      const separator = QUOTED_CONTENT_SEPARATOR;
+      const heading = "Added to chat";
+
+      // Split value by separator to separate quoted content from user input
       const parts = value.split(separator);
+      const quotedParts: string[] = [];
+      let userInput = "";
 
-      const formattedParts = parts.map((part) => {
-        for (const contentToFormat of quotedContentToFormat) {
-          const trimmedPart = part.trim();
-          if (trimmedPart === contentToFormat) {
-            const heading = "Added to chat";
-            return formatQuotedContent(heading, contentToFormat);
-          }
-          if (part.startsWith(contentToFormat + "\n\n")) {
-            const heading = "Added to chat";
-            const formatted = formatQuotedContent(heading, contentToFormat);
-            const remaining = part.slice(contentToFormat.length);
-            return formatted + remaining;
-          }
+      // The last part after removing trailing \n\n is the user input
+      // All previous parts are quoted content
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        // Remove trailing \n\n from quoted parts
+        const cleanPart = part.replace(/\n+$/, "");
+
+        // Check if this part matches any quoted content
+        const isQuotedContent = Array.from(quotedContentToFormat).some(
+          (content) => cleanPart === content || cleanPart.startsWith(content)
+        );
+
+        if (isQuotedContent && i < parts.length - 1) {
+          // This is quoted content (not the last part)
+          quotedParts.push(cleanPart);
+        } else if (i === parts.length - 1) {
+          // Last part is user input (remove leading \n\n if present)
+          userInput = cleanPart.replace(/^\n+/, "").trim();
+        } else {
+          // Fallback: treat as quoted content
+          quotedParts.push(cleanPart);
         }
-        return part;
-      });
+      }
 
-      formattedValue = formattedParts.join(separator);
+      // Format each quoted content item from quotedContentToFormat
+      const formattedQuotedParts: string[] = [];
+      for (const contentToFormat of quotedContentToFormat) {
+        formattedQuotedParts.push(formatQuotedContent(heading, contentToFormat));
+      }
+
+      // Combine formatted quoted content with user input
+      if (formattedQuotedParts.length > 0) {
+        const formattedQuotedText = formattedQuotedParts.join(separator);
+        formattedValue = formattedQuotedText + (userInput ? separator + userInput : "");
+      }
     }
 
     handleAsk({

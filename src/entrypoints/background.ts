@@ -1,6 +1,10 @@
 import { globalStorage } from '@/lib/globalStorage';
 import { getFeatureConfig } from '@/lib/featureConfig';
 
+const SIDEPANEL_HTML_PATH = 'sidepanel.html';
+const CHROME_SHORTCUTS_URL = 'chrome://extensions/shortcuts';
+const FIREFOX_SHORTCUTS_URL = 'about:addons';
+
 export default defineBackground(() => {
   // Setup context menu for images: Helix AI -> Add to chat
   const PARENT_ID = 'helix_ai_menu';
@@ -76,11 +80,53 @@ export default defineBackground(() => {
     }
   }
 
+  type ContextMenusApi = {
+    removeAll: (...args: any[]) => any;
+    create: (...args: any[]) => any;
+    onClicked?: { addListener: (...args: any[]) => void };
+  };
+
+  function getContextMenusApi(): ContextMenusApi | null {
+    const globalAny = globalThis as any;
+    return (
+      globalAny?.chrome?.contextMenus ??
+      globalAny?.browser?.contextMenus ??
+      globalAny?.browser?.menus ??
+      null
+    );
+  }
+
+  async function removeAllContextMenus(ctx: ContextMenusApi): Promise<void> {
+    const removeAll = ctx.removeAll;
+    if (!removeAll) return;
+    try {
+      if (removeAll.length > 0) {
+        await new Promise<void>((resolve, reject) => {
+          try {
+            removeAll.call(ctx, () => resolve());
+          } catch (error) {
+            reject(error);
+          }
+        });
+        return;
+      }
+      const maybePromise = removeAll.call(ctx);
+      if (
+        maybePromise &&
+        typeof (maybePromise as Promise<void>).catch === 'function'
+      ) {
+        await (maybePromise as Promise<void>).catch(() => void 0);
+      }
+    } catch (error) {
+      console.warn('Failed to clear existing context menus', error);
+    }
+  }
+
   async function createContextMenus() {
     try {
-      const ctx = (chrome as any).contextMenus;
+      const ctx = getContextMenusApi();
       if (!ctx) return;
-      await ctx.removeAll().catch(() => void 0);
+      await removeAllContextMenus(ctx);
       ctx.create({
         id: PARENT_ID,
         title: 'Helix AI',
@@ -108,14 +154,14 @@ export default defineBackground(() => {
     });
   }
 
-  const ctx = (chrome as any).contextMenus;
+  const ctx = getContextMenusApi();
   if (ctx && ctx.onClicked) {
     ctx.onClicked.addListener(async (info: any, tab: any) => {
       if (info.menuItemId !== ADD_TO_CHAT_ID) return;
       const imageUrl = info.srcUrl || '';
       try {
-        if (tab && tab.windowId !== undefined && chrome.sidePanel) {
-          await chrome.sidePanel.open({ windowId: tab.windowId });
+        if (tab && tab.windowId !== undefined) {
+          await openPanelForWindow(tab.windowId);
         }
         await globalStorage().set('action_state', {
           actionSource: 'context-image',
@@ -177,23 +223,23 @@ export default defineBackground(() => {
     }
 
     if (message.type === MESSAGE_TYPE_OPEN_SHORTCUTS_PAGE) {
-      chrome.tabs.create(
-        { url: 'chrome://extensions/shortcuts' },
-        (tab: chrome.tabs.Tab) => {
-          if (chrome.runtime.lastError) {
-            console.error(
-              'Error opening shortcuts page:',
-              chrome.runtime.lastError.message
-            );
-            sendResponse({
-              success: false,
-              error: chrome.runtime.lastError.message,
-            });
-          } else {
-            sendResponse({ success: true });
-          }
+      const shortcutsUrl = hasSidebarActionSupport()
+        ? FIREFOX_SHORTCUTS_URL
+        : CHROME_SHORTCUTS_URL;
+      chrome.tabs.create({ url: shortcutsUrl }, (tab: chrome.tabs.Tab) => {
+        if (chrome.runtime.lastError) {
+          console.error(
+            'Error opening shortcuts page:',
+            chrome.runtime.lastError.message
+          );
+          sendResponse({
+            success: false,
+            error: chrome.runtime.lastError.message,
+          });
+        } else {
+          sendResponse({ success: true });
         }
-      );
+      });
       return true;
     }
 
@@ -298,58 +344,24 @@ export default defineBackground(() => {
           return;
         }
 
-        chrome.tabs.sendMessage(
-          tabId,
-          { type: MESSAGE_TYPE_EXTRACT_PAGE_CONTENT },
-          async (response) => {
-            if (chrome.runtime.lastError) {
-              console.error(
-                'Background: Error communicating with content script:',
-                chrome.runtime.lastError.message
-              );
-              sendResponse({
-                success: false,
-                error: 'Content script not available. Please reload the page.',
-              });
-              return;
-            }
-
-            if (response && response.success && response.pageContext) {
-              // Store in cache if we have the tab ID and URL
-              if (tabId && tabUrl) {
-                try {
-                  const { storePageMarkdown } = await import(
-                    '@/lib/chatStore/markdown-cache-helper'
-                  );
-                  await storePageMarkdown({
-                    url: tabUrl,
-                    content: response.pageContext,
-                    tabId,
-                  });
-                } catch (storeErr) {
-                  console.warn(
-                    'Background: Failed to store markdown in cache:',
-                    storeErr
-                  );
-                }
-              }
-
-              sendResponse({
-                success: true,
-                pageContext: response.pageContext,
-              });
-            } else {
-              console.error(
-                'Background: Failed to get page content:',
-                response?.error
-              );
-              sendResponse({
-                success: false,
-                error: response?.error || 'Failed to extract page content',
-              });
+        let result = await requestPageContentFromTab(tabId, tabUrl);
+        if (!result.response.success && result.shouldRetry) {
+          const injected = await ensureContentScriptsInjected(tabId);
+          if (injected) {
+            result = await requestPageContentFromTab(tabId, tabUrl);
+          } else {
+            const fallbackContext = await extractPageContentViaScripting(tabId);
+            if (fallbackContext) {
+              await cachePageContext(tabId, tabUrl, fallbackContext);
+              result = {
+                response: { success: true, pageContext: fallbackContext },
+                shouldRetry: false,
+              };
             }
           }
-        );
+        }
+
+        sendResponse(result.response);
       })();
 
       return true;
@@ -425,6 +437,232 @@ export default defineBackground(() => {
     }
   }
 
+  type PageContentResponse =
+    | { success: true; pageContext: string }
+    | { success: false; error: string };
+
+  interface PageContentResult {
+    response: PageContentResponse;
+    shouldRetry: boolean;
+  }
+
+  function isRecoverableContentScriptError(message?: string): boolean {
+    if (!message) return false;
+    const normalized = message.toLowerCase();
+    return (
+      normalized.includes('receiving end does not exist') ||
+      normalized.includes('could not establish connection') ||
+      normalized.includes('no connection established') ||
+      normalized.includes('disconnected port') ||
+      normalized.includes('does not exist') ||
+      normalized.includes('missing script') ||
+      normalized.includes('content script not available')
+    );
+  }
+
+  async function cachePageContext(
+    tabId: number | null,
+    tabUrl: string | null,
+    content: string
+  ): Promise<void> {
+    if (!tabId || !tabUrl || !content) return;
+    try {
+      const { storePageMarkdown } = await import(
+        '@/lib/chatStore/markdown-cache-helper'
+      );
+      await storePageMarkdown({
+        url: tabUrl,
+        content,
+        tabId,
+      });
+    } catch (storeErr) {
+      console.warn('Background: Failed to store markdown in cache:', storeErr);
+    }
+  }
+
+  async function ensureContentScriptsInjected(tabId: number): Promise<boolean> {
+    try {
+      const scripting = (chrome as any)?.scripting;
+      const manifest = (chrome.runtime as any)?.getManifest?.();
+      const contentScripts = Array.isArray(manifest?.content_scripts)
+        ? (manifest.content_scripts as Array<{ js?: string[] }>)
+        : [];
+      const scriptFiles = contentScripts.flatMap((script) => script.js || []);
+
+      if (scriptFiles.length === 0) {
+        console.warn('Background: No content scripts declared in manifest.');
+        return false;
+      }
+
+      if (scripting?.executeScript) {
+        await scripting.executeScript({
+          target: { tabId },
+          files: scriptFiles,
+        });
+        console.log(
+          'Background: Re-injected content scripts via chrome.scripting into tab',
+          tabId
+        );
+        return true;
+      }
+
+      const tabsApi = chrome.tabs as any;
+      if (tabsApi?.executeScript) {
+        for (const file of scriptFiles) {
+          await new Promise<void>((resolve, reject) => {
+            tabsApi.executeScript(tabId, { file }, () => {
+              if (chrome.runtime?.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+              }
+              resolve();
+            });
+          });
+        }
+        console.log(
+          'Background: Re-injected content scripts via tabs.executeScript into tab',
+          tabId
+        );
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Background: Failed to inject content scripts:', error);
+      return false;
+    }
+  }
+
+  async function extractPageContentViaScripting(
+    tabId: number
+  ): Promise<string | null> {
+    try {
+      const scripting = (chrome as any)?.scripting;
+      const fallbackExtractor = () => {
+        try {
+          const doc = document;
+          if (!doc) return null;
+          const metaDescription =
+            doc
+              .querySelector('meta[name="description"]')
+              ?.getAttribute?.('content') || '';
+          const title = doc.title || 'Web Page';
+          const url = window.location.href;
+          const timestamp = new Date().toISOString();
+          const header = `# ${title}
+**Title:** ${title}
+**Description:** ${metaDescription}
+**URL:** ${url}
+**Date:** ${timestamp}
+
+---
+
+`;
+          const body =
+            doc.body?.innerText ||
+            doc.documentElement?.innerText ||
+            'No content available';
+          const content = header + body;
+          const maxLength = 60000;
+          return content.length > maxLength
+            ? content.slice(0, maxLength) +
+                '\n\n... [Content truncated for AI context]'
+            : content;
+        } catch (err) {
+          console.error('Fallback extraction failed:', err);
+          return null;
+        }
+      };
+
+      if (scripting?.executeScript) {
+        const [result] = await scripting.executeScript({
+          target: { tabId },
+          func: fallbackExtractor,
+        });
+        return (result && result.result) || null;
+      }
+
+      const tabsApi = chrome.tabs as any;
+      if (tabsApi?.executeScript) {
+        const code = `(${fallbackExtractor.toString()})()`;
+        return await new Promise<string | null>((resolve, reject) => {
+          tabsApi.executeScript(tabId, { code }, (results: any) => {
+            if (chrome.runtime?.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+              return;
+            }
+            resolve(
+              Array.isArray(results) ? (results[0] as string | null) : null
+            );
+          });
+        });
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Background: Fallback extraction error:', error);
+      return null;
+    }
+  }
+
+  function requestPageContentFromTab(
+    tabId: number,
+    tabUrl: string | null
+  ): Promise<PageContentResult> {
+    return new Promise((resolve) => {
+      chrome.tabs.sendMessage(
+        tabId,
+        { type: MESSAGE_TYPE_EXTRACT_PAGE_CONTENT },
+        async (response) => {
+          const runtimeError = chrome.runtime.lastError;
+          if (runtimeError) {
+            console.error(
+              'Background: Error communicating with content script:',
+              runtimeError.message
+            );
+            resolve({
+              response: {
+                success: false,
+                error: 'Content script not available. Please reload the page.',
+              },
+              shouldRetry: isRecoverableContentScriptError(
+                runtimeError.message
+              ),
+            });
+            return;
+          }
+
+          if (response && response.success && response.pageContext) {
+            await cachePageContext(tabId, tabUrl, response.pageContext);
+
+            resolve({
+              response: {
+                success: true,
+                pageContext: response.pageContext,
+              },
+              shouldRetry: false,
+            });
+            return;
+          }
+
+          const errorMessage =
+            response?.error || 'Failed to extract page content';
+          console.error(
+            'Background: Failed to get page content:',
+            errorMessage
+          );
+          resolve({
+            response: {
+              success: false,
+              error: errorMessage,
+            },
+            shouldRetry: isRecoverableContentScriptError(errorMessage),
+          });
+        }
+      );
+    });
+  }
+
   if (typeof chrome !== 'undefined' && chrome.tabs) {
     // Listen for tab updates (URL changes, page loads, etc.)
     chrome.tabs.onUpdated.addListener(
@@ -481,12 +719,47 @@ export default defineBackground(() => {
   }
 });
 
+function hasSidebarActionSupport(): boolean {
+  return Boolean((chrome as any)?.sidebarAction?.open);
+}
+
+async function openPanelForWindow(windowId?: number): Promise<boolean> {
+  try {
+    if (chrome.sidePanel) {
+      await chrome.sidePanel.open({ windowId });
+      return true;
+    }
+
+    const sidebarAction = (chrome as any).sidebarAction;
+    if (!sidebarAction) {
+      return false;
+    }
+
+    const panelUrl =
+      chrome.runtime && typeof chrome.runtime.getURL === 'function'
+        ? chrome.runtime.getURL(SIDEPANEL_HTML_PATH)
+        : SIDEPANEL_HTML_PATH;
+
+    if (typeof sidebarAction.setPanel === 'function') {
+      await sidebarAction.setPanel({
+        windowId,
+        panel: panelUrl,
+      });
+    }
+
+    if (typeof sidebarAction.open === 'function') {
+      await sidebarAction.open(
+        typeof windowId === 'number' ? { windowId } : undefined
+      );
+      return true;
+    }
+  } catch (error) {
+    console.error('Error opening Helix side interface:', error);
+  }
+
+  return false;
+}
+
 function openSidePanel(message: any, sender: any) {
-  chrome.sidePanel
-    .open({
-      windowId: sender.tab?.windowId,
-    })
-    .catch((error) => {
-      console.error('Error opening side panel:', error);
-    });
+  void openPanelForWindow(sender.tab?.windowId);
 }

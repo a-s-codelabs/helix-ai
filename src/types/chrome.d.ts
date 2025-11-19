@@ -72,6 +72,22 @@ declare namespace chrome {
     };
   }
 
+  namespace sidebarAction {
+    interface PanelOptions {
+      panel: string;
+      tabId?: number;
+      windowId?: number;
+    }
+
+    interface OpenDetails {
+      windowId?: number;
+    }
+
+    function setPanel(options: PanelOptions): Promise<void>;
+    function open(details?: OpenDetails): Promise<void>;
+    function close(details?: OpenDetails): Promise<void>;
+  }
+
   namespace tabs {
     interface Tab {
       id?: number;

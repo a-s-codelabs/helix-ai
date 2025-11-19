@@ -140,21 +140,66 @@ export const sidePanelUtils = {
 
   async getPageContent(): Promise<string | null> {
     try {
-      return new Promise((resolve) => {
-        if (typeof chrome === 'undefined' || !chrome.runtime) {
-          console.error('Chrome runtime not available');
-          resolve(null);
-          return;
-        }
+      if (typeof chrome === 'undefined' || !chrome.runtime) {
+        console.error('Chrome runtime not available');
+        return null;
+      }
 
+      const resolveTabInfo = async (): Promise<{
+        tabId: number | null;
+        url: string | null;
+      }> => {
+        return new Promise((resolve) => {
+          chrome.runtime.sendMessage({ type: 'GET_TAB_ID' }, (response) => {
+            if (chrome.runtime.lastError) {
+              console.error(
+                'Chrome runtime error while resolving tab:',
+                chrome.runtime.lastError.message
+              );
+              resolve({ tabId: null, url: null });
+              return;
+            }
+            resolve({
+              tabId:
+                response?.success && typeof response.tabId === 'number'
+                  ? (response.tabId as number)
+                  : null,
+              url: response?.url ?? null,
+            });
+          });
+        });
+      };
+
+      const { tabId } = await resolveTabInfo();
+
+      const resolveFromCache = async (): Promise<string | null> => {
+        if (!tabId) return null;
+        try {
+          const cache = await globalStorage().get('pageMarkdown');
+          const cachedEntry =
+            cache && typeof cache === 'object'
+              ? (cache as Record<string, { content: string }>)[tabId.toString()]
+              : null;
+          return cachedEntry?.content || null;
+        } catch (cacheError) {
+          console.error('Failed to load cached page content:', cacheError);
+          return null;
+        }
+      };
+
+      return new Promise((resolve) => {
         const timeout = setTimeout(() => {
           console.error('Timeout: No response from background script');
-          resolve(null);
+          void (async () => {
+            const cached = await resolveFromCache();
+            resolve(cached);
+          })();
         }, 10000);
 
         chrome.runtime.sendMessage(
           {
             type: 'GET_PAGE_CONTENT',
+            tabId: tabId ?? undefined,
           },
           (response) => {
             clearTimeout(timeout);
@@ -164,7 +209,10 @@ export const sidePanelUtils = {
                 'Chrome runtime error:',
                 chrome.runtime.lastError.message
               );
-              resolve(null);
+              void (async () => {
+                const cached = await resolveFromCache();
+                resolve(cached);
+              })();
               return;
             }
 
@@ -172,7 +220,10 @@ export const sidePanelUtils = {
               resolve(response.pageContext);
             } else {
               console.error('Failed to get page content:', response?.error);
-              resolve(null);
+              void (async () => {
+                const cached = await resolveFromCache();
+                resolve(cached);
+              })();
             }
           }
         );
