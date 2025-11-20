@@ -1,5 +1,6 @@
 import { globalStorage } from '@/lib/globalStorage';
 import { getFeatureConfig } from '@/lib/featureConfig';
+import { clearCachedMarkdown, cleanupStaleMarkdownEntries } from '@/lib/chatStore/markdown-cache-helper';
 
 const SIDEPANEL_HTML_PATH = 'sidepanel.html';
 const CHROME_SHORTCUTS_URL = 'chrome://extensions/shortcuts';
@@ -372,66 +373,65 @@ export default defineBackground(() => {
 
   /**
    * Update active_tab_id in storage
-   * This is called whenever a tab is activated or updated
+   * Always updates if the tab is currently active
    */
   async function updateActiveTabId(
     tabId: number,
     url: string | null = null
   ): Promise<void> {
     try {
-      // If URL not provided, get it from the tab
-      if (!url) {
-        try {
-          const tab = await new Promise<chrome.tabs.Tab | null>((resolve) => {
-            chrome.tabs.get(tabId, (result) => {
-              if (chrome.runtime.lastError) {
-                resolve(null);
-                return;
-              }
-              resolve(result || null);
-            });
+      let tabInfo: chrome.tabs.Tab | null = null;
+      try {
+        tabInfo = await new Promise<chrome.tabs.Tab | null>((resolve) => {
+          chrome.tabs.get(tabId, (result) => {
+            if (chrome.runtime.lastError) {
+              resolve(null);
+              return;
+            }
+            resolve(result || null);
           });
-          url = tab?.url || null;
+        });
+      } catch (err) {
+        console.warn(
+          'Background: Failed to get tab info for tabId',
+          tabId,
+          err
+        );
+      }
+
+      // If we know the tab is not active, skip updating
+      if (tabInfo && tabInfo.active === false) {
+        return;
+      }
+
+      let resolvedUrl = url || tabInfo?.url || null;
+
+      // Clear cached markdown entries when navigating to restricted URLs
+      if (
+        resolvedUrl &&
+        (resolvedUrl.startsWith('chrome://') ||
+          resolvedUrl.startsWith('chrome-extension://'))
+      ) {
+        try {
+          await clearCachedMarkdown({ tabId });
         } catch (err) {
           console.warn(
-            'Background: Failed to get tab URL for tabId',
-            tabId,
-            ':',
+            'Background: Failed to clear cache for restricted URL:',
             err
           );
         }
       }
 
-      // Check if this tab is actually the active tab before updating
-      try {
-        const activeTabs = await new Promise<chrome.tabs.Tab[]>((resolve) => {
-          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            resolve(tabs || []);
-          });
-        });
-        const activeTab = activeTabs[0];
-
-        // Only update if this is the active tab
-        if (activeTab?.id === tabId) {
-          await globalStorage().set('active_tab_id', {
-            tabId,
-            url,
-          });
-          console.log(
-            'Background: Updated active_tab_id to tabId',
-            tabId,
-            'URL:',
-            url
-          );
-        }
-      } catch (err) {
-        console.warn('Background: Failed to verify active tab:', err);
-        // Still update if verification fails (better than not updating)
-        await globalStorage().set('active_tab_id', {
-          tabId,
-          url,
-        });
-      }
+      await globalStorage().set('active_tab_id', {
+        tabId,
+        url: resolvedUrl,
+      });
+      console.log(
+        'Background: Updated active_tab_id to tabId',
+        tabId,
+        'URL:',
+        resolvedUrl
+      );
     } catch (error) {
       console.error('Background: Error updating active tab ID:', error);
     }
@@ -465,7 +465,15 @@ export default defineBackground(() => {
     tabUrl: string | null,
     content: string
   ): Promise<void> {
-    if (!tabId || !tabUrl || !content) return;
+    if (
+      !tabId ||
+      !tabUrl ||
+      !content ||
+      tabUrl.startsWith('chrome://') ||
+      tabUrl.startsWith('chrome-extension://')
+    ) {
+      return;
+    }
     try {
       const { storePageMarkdown } = await import(
         '@/lib/chatStore/markdown-cache-helper'
@@ -681,6 +689,7 @@ export default defineBackground(() => {
                 enabled: true,
               });
             }
+            // Update active_tab_id with final URL after page load
             await updateActiveTabId(tabId, tab.url);
           } catch (error) {
             console.error(
@@ -695,10 +704,7 @@ export default defineBackground(() => {
     // Listen for tab activation (when user switches tabs)
     chrome.tabs.onActivated.addListener(async (activeInfo) => {
       try {
-        // Immediately update with the tabId, then get URL
-        await updateActiveTabId(activeInfo.tabId);
-
-        // Also try to get the full tab info for better URL
+        // Get the full tab info immediately for accurate URL
         const tab = await new Promise<chrome.tabs.Tab | null>((resolve) => {
           chrome.tabs.get(activeInfo.tabId, (result) => {
             if (chrome.runtime.lastError) {
@@ -709,14 +715,58 @@ export default defineBackground(() => {
           });
         });
 
-        if (tab?.url) {
-          await updateActiveTabId(activeInfo.tabId, tab.url);
-        }
+        // Update with tabId and URL immediately
+        await updateActiveTabId(activeInfo.tabId, tab?.url || null);
       } catch (error) {
         console.error('Background: Error tracking active tab:', error);
       }
     });
+
+    // Listen for tab removal to clean up storage
+    chrome.tabs.onRemoved.addListener(async (tabId: number) => {
+      try {
+        await clearCachedMarkdown({ tabId });
+      } catch (error) {
+        console.error('Background: Error clearing cache for closed tab:', error);
+      }
+    });
   }
+
+  // Firefox compatibility
+  if (typeof browser !== 'undefined' && browser.tabs) {
+    browser.tabs.onRemoved.addListener(async (tabId: number) => {
+      try {
+        await clearCachedMarkdown({ tabId });
+      } catch (error) {
+        console.error('Background: Error clearing cache for closed tab:', error);
+      }
+    });
+  }
+
+  // Periodic cleanup of stale entries (every 5 minutes)
+  // This ensures entries for closed tabs are removed even if onRemoved listener fails
+  setInterval(async () => {
+    try {
+      const cleanedCount = await cleanupStaleMarkdownEntries();
+      if (cleanedCount > 0) {
+        console.log(`Background: Cleaned up ${cleanedCount} stale markdown entries`);
+      }
+    } catch (error) {
+      console.error('Background: Error in periodic cleanup:', error);
+    }
+  }, 5 * 60 * 1000); // 5 minutes
+
+  // Initial cleanup on extension startup
+  (async () => {
+    try {
+      const cleanedCount = await cleanupStaleMarkdownEntries();
+      if (cleanedCount > 0) {
+        console.log(`Background: Initial cleanup removed ${cleanedCount} stale entries`);
+      }
+    } catch (error) {
+      console.error('Background: Error in initial cleanup:', error);
+    }
+  })();
 });
 
 function hasSidebarActionSupport(): boolean {

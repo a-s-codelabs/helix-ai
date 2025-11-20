@@ -94,6 +94,7 @@ declare namespace chrome {
       url?: string;
       title?: string;
       windowId?: number;
+      active?: boolean;
     }
 
     function query(
@@ -119,6 +120,11 @@ declare namespace chrome {
     var onActivated: {
       addListener(
         callback: (activeInfo: { tabId: number; windowId: number }) => void
+      ): void;
+    };
+    var onRemoved: {
+      addListener(
+        callback: (tabId: number, removeInfo: any) => void
       ): void;
     };
   }

@@ -713,6 +713,7 @@ function createChatStore() {
   let session: HelixSession | null = null;
   let sessionTabId: number | null = null; // Track which tabId the session was created for
   let pageContext = '';
+  let pageContextTabId: number | null = null;
   let isInSidePanel = false;
   let lastSuggestedAssistantMessageId: number | null = null;
 
@@ -810,6 +811,18 @@ function createChatStore() {
     }
 
     return filtered;
+  }
+
+  function markPageContextForTab(
+    tabId: number | null,
+    context?: string | null
+  ) {
+    if (context && context.trim().length > 0 && tabId) {
+      pageContextTabId = tabId;
+      pageContext = context;
+    } else if (!context || context.trim().length === 0) {
+      pageContextTabId = null;
+    }
   }
 
   function extractFallbackTopics(text: string): string[] {
@@ -968,6 +981,15 @@ function createChatStore() {
 
   async function getActiveTabId(): Promise<number | null> {
     try {
+      // Prefer asking background script since side panel/floating contexts
+      // might not have access to the real active tab (especially in Chrome)
+      if (typeof chrome !== 'undefined' && chrome.runtime) {
+        const tabInfo = await getTabIdFromBackground();
+        if (tabInfo.tabId !== null) {
+          return tabInfo.tabId;
+        }
+      }
+
       if (typeof chrome !== 'undefined' && chrome.tabs) {
         const tabs = await new Promise<chrome.tabs.Tab[]>((resolve) => {
           chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -1110,63 +1132,44 @@ function createChatStore() {
         }
       }
 
-      const cached = await getCachedPageMarkdown({ tabId });
-      if (cached) {
-        // Verify URL matches to avoid using stale cache
-        const cachedData = await getCachedPageMarkdownWithUrl({ tabId });
-
-        if (cachedData && cachedData.url && currentUrl) {
-          // Normalize URLs for comparison (remove trailing slashes, query params, hash)
-          const normalizeUrl = (url: string) => {
-            try {
-              const urlObj = new URL(url);
-              return `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`.replace(
-                /\/$/,
-                ''
-              );
-            } catch {
-              // Fallback if URL parsing fails
-              return url.split('#')[0].split('?')[0].replace(/\/$/, '');
-            }
-          };
-
-          const normalizedCached = normalizeUrl(cachedData.url);
-          const normalizedCurrent = normalizeUrl(currentUrl);
-
-          if (normalizedCached === normalizedCurrent) {
-            console.log(
-              'ChatStore: Using cached markdown for tab',
-              tabId,
-              '- URL matches. Cached URL:',
-              cachedData.url,
-              'Current URL:',
-              currentUrl
-            );
-            return cached;
-          } else {
-            console.warn(
-              'ChatStore: Cached markdown URL mismatch - NOT using cache. TabId:',
-              tabId,
-              'Cached URL:',
-              cachedData.url,
-              'Current URL:',
-              currentUrl,
-              '- Will fetch fresh content'
-            );
-            // Don't use stale cache - continue to fetch fresh content
-          }
-        } else if (cachedData && !currentUrl) {
-          // If we don't have current URL but have cached data, use it with warning
+      // Use getCachedPageMarkdownWithUrl with expectedUrl for validation (DRY)
+      if (currentUrl) {
+        const cachedData = await getCachedPageMarkdownWithUrl({
+          tabId,
+          expectedUrl: currentUrl,
+        });
+        if (cachedData) {
+          console.log(
+            'ChatStore: Using cached markdown for tab',
+            tabId,
+            '- URL matches. Cached URL:',
+            cachedData.url,
+            'Current URL:',
+            currentUrl
+          );
+          return cachedData.content;
+        } else {
+          console.warn(
+            'ChatStore: Cached markdown URL mismatch or not found for tab',
+            tabId,
+            'Current URL:',
+            currentUrl,
+            '- Will fetch fresh content'
+          );
+        }
+      } else {
+        // Fallback: try without URL validation if we don't have current URL
+        const cached = await getCachedPageMarkdown({ tabId });
+        if (cached) {
           console.warn(
             'ChatStore: Using cached markdown for tab',
             tabId,
-            'without URL verification (could be stale). Cached URL:',
-            cachedData.url
+            'without URL verification (could be stale)'
           );
           return cached;
         } else {
           console.warn(
-            'ChatStore: Cached markdown exists but missing URL data for tab',
+            'ChatStore: No cached markdown found for tab',
             tabId,
             '- Will fetch fresh content'
           );
@@ -1361,10 +1364,17 @@ ${doc?.body?.textContent || 'No content available'}`;
     const hints = [
       'this page',
       'this site',
+      'this website',
+      'what site',
+      'what website',
+      'which site',
+      'which website',
       'the page',
       'current page',
+      'current site',
+      'current website',
       'on this page',
-      'summarize the page',
+      'on this site',
       'summarize the page',
     ];
     return hints.some((h) => text.includes(h));
@@ -1416,6 +1426,7 @@ ${doc?.body?.textContent || 'No content available'}`;
      */
     setPageContext(context: string) {
       pageContext = context;
+      pageContextTabId = null;
     },
 
     /**
@@ -2247,7 +2258,7 @@ ${doc?.body?.textContent || 'No content available'}`;
               isInSidePanel
             );
             sessionTabId = currentTabId;
-            pageContext = freshPageContext || ''; // Update stored pageContext
+            markPageContextForTab(currentTabId, freshPageContext || '');
             console.log(
               'Created new session for tabId:',
               currentTabId,
@@ -2314,12 +2325,19 @@ ${doc?.body?.textContent || 'No content available'}`;
 
           // Always fetch pageContext first for external providers (Firefox)
           // This ensures pageContext is available before deciding whether to attach it
-          if (!pageContext || pageContext.trim().length === 0) {
+          const shouldRefreshContext =
+            !pageContext ||
+            pageContext.trim().length === 0 ||
+            pageContextTabId !== currentTabId;
+
+          if (shouldRefreshContext) {
             try {
-              pageContext = await getDocumentInfoHelper(
+              const latestContext = await getDocumentInfoHelper(
                 isInSidePanel,
                 currentTabId
               );
+              pageContext = latestContext;
+              markPageContextForTab(currentTabId, latestContext);
               // If still empty after fetch, try to get from cache as fallback
               if (
                 (!pageContext || pageContext.trim().length === 0) &&
@@ -2329,7 +2347,7 @@ ${doc?.body?.textContent || 'No content available'}`;
                   tabId: currentTabId,
                 });
                 if (cachedData?.content) {
-                  pageContext = cachedData.content;
+                  markPageContextForTab(currentTabId, cachedData.content);
                   console.log(
                     'Using cached pageContext for external provider, tabId:',
                     currentTabId
@@ -2345,7 +2363,7 @@ ${doc?.body?.textContent || 'No content available'}`;
                     tabId: currentTabId,
                   });
                   if (cachedData?.content) {
-                    pageContext = cachedData.content;
+                    markPageContextForTab(currentTabId, cachedData.content);
                     console.log(
                       'Using cached pageContext as fallback for external provider, tabId:',
                       currentTabId
