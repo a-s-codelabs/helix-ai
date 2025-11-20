@@ -353,13 +353,26 @@ export default defineBackground(() => {
         if (!result.response.success && result.shouldRetry) {
           const injected = await ensureContentScriptsInjected(tabId);
           if (injected) {
-            result = await requestPageContentFromTab(tabId, tabUrl);
-          } else {
+            const retryResult = await requestPageContentFromTab(tabId, tabUrl);
+            result = retryResult;
+          }
+
+          if (!result.response.success) {
             const fallbackContext = await extractPageContentViaScripting(tabId);
             if (fallbackContext) {
               await cachePageContext(tabId, tabUrl, fallbackContext);
               result = {
                 response: { success: true, pageContext: fallbackContext },
+                shouldRetry: false,
+              };
+            } else if (!injected) {
+              result = {
+                response: {
+                  success: false,
+                  error:
+                    result.response.error ||
+                    'Failed to extract page content and reinjection failed',
+                },
                 shouldRetry: false,
               };
             }
