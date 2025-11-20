@@ -38,20 +38,24 @@
     anchorEl,
   } = $props();
 
+  const getOptionsForIntent = (intentKey: IntentKey): OptionConfig[] => {
+    const opts = option[intentKey] ?? [];
+    return opts as unknown as OptionConfig[];
+  };
+
   const currentOptions = $derived<OptionConfig[]>(() => {
     if (!intent) return [];
     const intentKey = intent as IntentKey;
-    const opts = option[intentKey] ?? [];
-    return opts as unknown as OptionConfig[];
+    return getOptionsForIntent(intentKey);
   });
 
-let popupEl = $state<HTMLDivElement | null>(null);
+  let popupEl = $state<HTMLDivElement | null>(null);
 
   $effect(() => {
     if (!intent) return;
 
     const intentKey = intent as IntentKey;
-    const options = option[intentKey] || [];
+    const options = getOptionsForIntent(intentKey);
 
     const currentOptionIds = new Set(
       options.map((opt) => opt.id).filter(Boolean)
@@ -87,7 +91,7 @@ let popupEl = $state<HTMLDivElement | null>(null);
     if (!intent) return {};
 
     const intentKey = intent as IntentKey;
-    const options = option[intentKey] || [];
+    const options = getOptionsForIntent(intentKey);
     const defaults: SettingsValues = {};
 
     options.forEach((opt) => {

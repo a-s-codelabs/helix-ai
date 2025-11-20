@@ -476,15 +476,15 @@
   :global(html),
   :global(body),
   :global(#app) {
-    height: 100%;
-    min-height: 100%;
+    min-height: fit-content;
+    height: auto;
     overflow-y: auto;
     background: #131723;
   }
 
   main {
     width: 400px;
-    min-height: 100vh;
+    min-height: fit-content;
     padding: 20px;
     font-family:
       "Sora",
