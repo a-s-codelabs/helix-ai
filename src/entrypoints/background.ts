@@ -6,6 +6,10 @@ const SIDEPANEL_HTML_PATH = 'sidepanel.html';
 const CHROME_SHORTCUTS_URL = 'chrome://extensions/shortcuts';
 const FIREFOX_SHORTCUTS_URL = 'about:addons';
 
+const SIDEPANEL_HTML_PATH = 'sidepanel.html';
+const CHROME_SHORTCUTS_URL = 'chrome://extensions/shortcuts';
+const FIREFOX_SHORTCUTS_URL = 'about:addons';
+
 export default defineBackground(() => {
   // Setup context menu for images: Helix AI -> Add to chat
   const PARENT_ID = 'helix_ai_menu';
