@@ -4,13 +4,15 @@
   import HelixIcon from "@/entrypoints/telescope-ui/icons/Helix.svelte";
   import { saveProviderKey, loadProviderKey } from "@/lib/secureStore";
   import { getDefaultModels } from "@/lib/ai/providerClient";
+  import { isFirefoxBrowser } from "@/lib/browserEnv";
 
   let floatingTelescopeEnabled = $state(true);
   let selectionTelescopeEnabled = $state(true);
   let writerTelescopeEnabled = $state(true);
 
+  const defaultProvider: "builtin" | "openai" = isFirefoxBrowser ? "openai" : "builtin";
   let aiProvider = $state<"builtin" | "openai" | "anthropic" | "gemini">(
-    "builtin"
+    defaultProvider
   );
   let aiModel = $state<string>("");
   let openaiKey = $state("");
@@ -30,7 +32,12 @@
         selectionTelescopeEnabled =
           (config as any).selectionTelescopeEnabled ?? true;
         writerTelescopeEnabled = (config as any).writerTelescopeEnabled ?? true;
-        aiProvider = (config as any).aiProvider ?? "builtin";
+        const storedProvider =
+          (config as any).aiProvider ?? defaultProvider;
+        aiProvider =
+          isFirefoxBrowser && storedProvider === "builtin"
+            ? "openai"
+            : storedProvider;
         aiModel = (config as any).aiModel ?? "";
         // Load keys (decrypted) for convenience in UI; do not persist back unless changed
         openaiKey = (await loadProviderKey("openai")) || "";
@@ -45,12 +52,16 @@
   async function saveSettings() {
     try {
       const currentConfig = await globalStorage().get("config");
+      const providerToSave =
+        isFirefoxBrowser && aiProvider === "builtin" ? "openai" : aiProvider;
+      aiProvider = providerToSave;
+
       await globalStorage().set("config", {
         ...(currentConfig || {}),
         floatingTelescopeEnabled,
         selectionTelescopeEnabled,
         writerTelescopeEnabled,
-        aiProvider,
+        aiProvider: providerToSave,
         aiModel,
       } as any);
     } catch (error) {
@@ -204,6 +215,11 @@
 
   async function checkBuiltinAvailability() {
     try {
+      if (isFirefoxBrowser) {
+        isBuiltinAvailable = false;
+        return;
+      }
+
       if (typeof window === "undefined") {
         isBuiltinAvailable = false;
         return;
@@ -276,7 +292,9 @@
           bind:value={aiProvider}
           onchange={() => saveSettings()}
         >
-          <option value="builtin">Built-in (private and secure)</option>
+          {#if !isFirefoxBrowser}
+            <option value="builtin">Built-in (private and secure)</option>
+          {/if}
           <option value="openai">OpenAI</option>
           <!-- <option value="anthropic">Claude</option> -->
           <option value="gemini">Gemini</option>
@@ -284,7 +302,7 @@
       </div>
     </div>
 
-    {#if !isBuiltinAvailable}
+    {#if !isFirefoxBrowser && !isBuiltinAvailable}
       <div class="builtin-unavailable-note">
         Built-in is not available in this chrome version, use open ai or gemini
       </div>
