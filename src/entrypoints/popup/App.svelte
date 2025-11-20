@@ -473,9 +473,18 @@
     padding: 0;
   }
 
+  :global(html),
+  :global(body),
+  :global(#app) {
+    height: 100%;
+    min-height: 100%;
+    overflow-y: auto;
+    background: #131723;
+  }
+
   main {
     width: 400px;
-    min-height: auto;
+    min-height: 100vh;
     padding: 20px;
     font-family:
       "Sora",
@@ -487,6 +496,9 @@
     background: #131723;
     color: #f2f8fc;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
   }
 
   .header {
@@ -789,8 +801,8 @@
   }
 
   .footer {
-    margin-top: 24px;
-    padding-top: 16px;
+    margin-top: auto;
+    padding-top: 24px;
     border-top: 1px solid #374151;
     display: flex;
     align-items: center;
