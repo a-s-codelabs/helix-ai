@@ -662,30 +662,28 @@ ${document.body.textContent || 'No content available'}`,
     // Convert and store page markdown
     async function convertAndStoreCurrentPageMarkdown() {
       try {
-        const { tabId, url } = await getTabInfo();
+        const { tabId } = await getTabInfo();
 
         if (!tabId) {
           console.warn('Content: Unable to get tab ID for markdown conversion');
           return;
         }
 
-        const currentUrl = url || window.location.href;
+        // Always use window.location.href to ensure URL matches the actual page content
+        // The URL from getTabInfo() might be stale from previous navigation
+        const currentUrl = window.location.href;
         if (!currentUrl) {
           console.warn('Content: Unable to get URL for markdown conversion');
           return;
         }
 
-        // Check cache first
-        // const cached = await getCachedPageMarkdown({ tabId });
-        // if (cached) {
-        //   console.log('Content: Using cached markdown for tab', tabId);
-        //   return;
-        // }
-
-        // Convert and store
+        // Convert and store - URL will be extracted from window.location.href in the helper
         await convertAndStorePageMarkdown({ tabId, url: currentUrl });
       } catch (err) {
-        console.error('Content: Error converting and storing page markdown:', err);
+        console.error(
+          'Content: Error converting and storing page markdown:',
+          err
+        );
       }
     }
 
@@ -739,11 +737,18 @@ ${document.body.textContent || 'No content available'}`,
     // Initial conversion on page load
     (async () => {
       // Wait a bit for page to fully load
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       const { tabId } = await getTabInfo();
       currentTabId = tabId;
       currentUrl = window.location.href;
       if (currentTabId) {
+        // Clear any existing entry for this tab before storing new content
+        // This ensures we replace old content when page reloads
+        try {
+          await clearCachedMarkdown({ tabId: currentTabId });
+        } catch (err) {
+          console.warn('Content: Error clearing cache on init:', err);
+        }
         await convertAndStoreCurrentPageMarkdown();
       }
     })();

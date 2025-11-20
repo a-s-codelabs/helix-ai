@@ -170,17 +170,23 @@ export const sidePanelUtils = {
         });
       };
 
-      const { tabId } = await resolveTabInfo();
+      const { tabId, url } = await resolveTabInfo();
 
       const resolveFromCache = async (): Promise<string | null> => {
-        if (!tabId) return null;
+        if (!tabId || !url) return null;
         try {
-          const cache = await globalStorage().get('pageMarkdown');
-          const cachedEntry =
-            cache && typeof cache === 'object'
-              ? (cache as Record<string, { content: string }>)[tabId.toString()]
-              : null;
-          return cachedEntry?.content || null;
+          const { getCachedPageMarkdownWithUrl } = await import(
+            './chatStore/markdown-cache-helper'
+          );
+          // Always validate URL matches - reject if mismatch
+          const cached = await getCachedPageMarkdownWithUrl({
+            tabId,
+            expectedUrl: url,
+          });
+          if (cached && cached.url === url) {
+            return cached.content;
+          }
+          return null;
         } catch (cacheError) {
           console.error('Failed to load cached page content:', cacheError);
           return null;
