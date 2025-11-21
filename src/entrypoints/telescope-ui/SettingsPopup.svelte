@@ -38,16 +38,9 @@
     anchorEl,
   } = $props();
 
-  const getOptionsForIntent = (intentKey: IntentKey): OptionConfig[] => {
-    const opts = option[intentKey] ?? [];
-    return opts as unknown as OptionConfig[];
-  };
-
-  const currentOptions = $derived<OptionConfig[]>(() => {
-    if (!intent) return [];
-    const intentKey = intent as IntentKey;
-    return getOptionsForIntent(intentKey);
-  });
+  const currentOptions = $derived(
+    intent && option[intent as IntentKey] ? option[intent as IntentKey] : []
+  );
 
   let popupEl = $state<HTMLDivElement | null>(null);
 
@@ -55,7 +48,7 @@
     if (!intent) return;
 
     const intentKey = intent as IntentKey;
-    const options = getOptionsForIntent(intentKey);
+    const options = option[intentKey] || [];
 
     const currentOptionIds = new Set(
       options.map((opt) => opt.id).filter(Boolean)
@@ -69,7 +62,7 @@
 
     options.forEach((opt) => {
       if (opt.id && values[opt.id] === undefined) {
-        if ('defaultValue' in opt && opt.defaultValue !== undefined) {
+        if (opt.defaultValue !== undefined) {
           values[opt.id] = opt.defaultValue;
         } else if (
           opt.uiType === "dropdown" &&
@@ -91,12 +84,13 @@
     if (!intent) return {};
 
     const intentKey = intent as IntentKey;
-    const options = getOptionsForIntent(intentKey);
+    const options = option[intentKey] || [];
+
     const defaults: SettingsValues = {};
 
     options.forEach((opt) => {
       if (opt.id) {
-        if ('defaultValue' in opt && opt.defaultValue !== undefined) {
+        if (opt.defaultValue !== undefined) {
           defaults[opt.id] = opt.defaultValue;
         } else if (
           opt.uiType === "dropdown" &&
@@ -243,8 +237,8 @@
       </div>
 
       <div class="settings-content">
-        {#each currentOptions as opt (opt.id)}
-          {#if opt.id}
+        {#each currentOptions as opt (opt.id || opt.name)}
+          {#if opt.id && opt.name}
             <div class="settings-option">
               {#if opt.uiType === "dropdown" && opt.options}
                 <label class="option-label" for={opt.id}>
