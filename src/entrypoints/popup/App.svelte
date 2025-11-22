@@ -477,8 +477,9 @@
   :global(body),
   :global(#app) {
     min-height: fit-content;
-    height: auto;
+    max-height: 600px;
     overflow-y: auto;
+    overflow-x: hidden;
     background: #131723;
   }
 
@@ -498,7 +499,6 @@
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
   }
 
   .header {

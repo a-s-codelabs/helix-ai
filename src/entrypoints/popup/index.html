@@ -9,11 +9,13 @@
   <style>
     #app {
       width: 400px !important;
-      height: auto;
+      min-height: fit-content;
+      max-height: 600px;
       padding: 0 !important;
       margin: 0 !important;
       box-sizing: border-box;
-      overflow: hidden;
+      overflow-y: auto;
+      overflow-x: hidden;
       max-width: none !important;
       text-align: left !important;
     }
@@ -21,9 +23,11 @@
     body {
       margin: 0 !important;
       padding: 0 !important;
-      overflow: hidden;
+      overflow-y: auto;
+      overflow-x: hidden;
       width: 400px;
-      height: auto;
+      min-height: fit-content;
+      max-height: 600px;
       box-sizing: border-box;
       background-color: #131723;
     }
@@ -32,7 +36,8 @@
       margin: 0 !important;
       padding: 0 !important;
       width: 400px;
-      height: auto;
+      min-height: fit-content;
+      max-height: 600px;
       box-sizing: border-box;
       background-color: #131723;
     }
@@ -41,8 +46,6 @@
     * {
       box-sizing: border-box;
       max-width: 100%;
-      overflow-x: hidden;
-      overflow-y: hidden;
     }
 
     /* Hide scrollbars completely */

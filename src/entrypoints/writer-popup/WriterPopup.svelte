@@ -185,7 +185,8 @@
             : "Proofreader";
 
       if (availability === "unavailable") {
-        error = `${apiName} API is not available. Please use Chrome 129+ with Built-in AI enabled.`;
+        // Fallback will be used automatically via prompt API
+        error = "";
       } else if (availability === "after-download") {
         error = `${apiName} API is downloading. Please wait and try again in a few moments.`;
       } else {
@@ -400,7 +401,8 @@
             break;
           }
 
-          streamedContent = chunk;
+          // Accumulate chunks for fallback (incremental), built-in API returns full text in first chunk
+          streamedContent = streamedContent ? streamedContent + chunk : chunk;
 
           if (targetElement) {
             if (selectionStart !== null && selectionEnd !== null) {
