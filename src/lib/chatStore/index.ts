@@ -14,6 +14,8 @@ import {
   buildTranslatePrompt,
   buildWritePrompt,
   buildRewritePrompt,
+  languageDetectorFallbackSystemPrompt,
+  proofreaderFallbackSystemPrompt,
 } from './prompt';
 import {
   runProviderStream,
@@ -31,7 +33,52 @@ import {
   AVAILABLE_MODELS,
   type ModelConfig,
 } from '../multiModelStore';
-import { RewriterOptions, WriterOptions } from '../writerApiHelper';
+import {
+  RewriterOptions,
+  WriterOptions,
+  checkProofreaderAvailability,
+} from '../writerApiHelper';
+
+// Helper function to resolve fallback provider config (DRY)
+async function resolveFallbackProviderConfigForProofreader(): Promise<{
+  provider: Provider;
+  model: string;
+  apiKey: string;
+}> {
+  const store = globalStorage();
+  const config = (await store.get('config')) || ({} as any);
+  const settings =
+    (await store.get('telescopeSettings')) ||
+    ({} as Record<string, Record<string, string | number>>);
+
+  // Try to get provider from settings first, then config, then default
+  const intentSettings = settings['write'] || {};
+  let providerConfig =
+    (intentSettings.aiPlatform as any) || config.aiProvider || 'openai';
+  if (providerConfig === 'builtin') {
+    providerConfig = 'openai';
+  }
+  const provider = providerConfig as Provider;
+
+  // Try to get model from settings, then config, then default
+  let model = (intentSettings.aiModel as any) || config.aiModel;
+  if (!model || typeof model !== 'string') {
+    const defaults = getDefaultModels(provider);
+    model = defaults[0];
+  }
+
+  const apiKey = await loadProviderKey(provider);
+  if (!apiKey) {
+    throw new Error(
+      `Missing API key for ${provider}. Please configure your API key in settings.`
+    );
+  }
+  if (!model) {
+    throw new Error(`Missing model configuration for ${provider}`);
+  }
+
+  return { provider, model, apiKey };
+}
 import {
   cleanHTML,
   htmlToMarkdown,
@@ -526,12 +573,14 @@ export const detectLanguageFromText = async (
       typeof window === 'undefined' ||
       typeof window.LanguageDetector === 'undefined'
     ) {
-      return null;
+      // Fallback to prompt API
+      return await detectLanguageFallback(text);
     }
 
     const availability = await window.LanguageDetector.availability();
     if (availability === 'unavailable') {
-      return null;
+      // Fallback to prompt API
+      return await detectLanguageFallback(text);
     }
 
     const detector = await window.LanguageDetector.create();
@@ -544,9 +593,60 @@ export const detectLanguageFromText = async (
     return null;
   } catch (error) {
     console.warn('Language detection failed:', error);
-    return null;
+    // Try fallback on error
+    try {
+      return await detectLanguageFallback(text);
+    } catch (fallbackError) {
+      console.warn('Language detection fallback failed:', fallbackError);
+      return null;
+    }
   }
 };
+
+async function detectLanguageFallback(text: string): Promise<string | null> {
+  try {
+    const store = globalStorage();
+    const config = (await store.get('config')) || ({} as any);
+    let providerConfig = config.aiProvider || 'openai';
+    // Ensure we never use 'builtin' for fallback
+    if (providerConfig === 'builtin') {
+      providerConfig = 'openai';
+    }
+    const provider = providerConfig as Provider;
+
+    let model = config.aiModel as string | undefined;
+    if (!model || typeof model !== 'string') {
+      const defaults = getDefaultModels(provider);
+      model = defaults[0];
+    }
+
+    const apiKey = await loadProviderKey(provider);
+    if (!apiKey) {
+      console.warn('Missing API key for language detection fallback');
+      return null;
+    }
+
+    const prompt = `Detect the language of the following text and return only the BCP 47 language code (e.g., "en", "fr", "ja", "es", "pt"). Do not include any explanation or additional text.\n\nText: ${text}`;
+
+    const result = await runProviderFullText(
+      { provider, model, apiKey },
+      {
+        system: languageDetectorFallbackSystemPrompt,
+        messages: [{ role: 'user', content: prompt }],
+      }
+    );
+
+    // Extract language code from response (should be just the code, but handle cases where there's extra text)
+    const langCode = result
+      .trim()
+      .toLowerCase()
+      .split(/[\s,\.;:]/)[0];
+    return langCode || null;
+  } catch (error) {
+    console.warn('Language detection fallback error:', error);
+    return null;
+  }
+}
 
 type HelixSession = AILanguageModel & {
   __helixExpectedInputs?: string[];
@@ -2024,75 +2124,177 @@ ${doc?.body?.textContent || 'No content available'}`;
 
       updateStreamingState(update, assistantMsgId, abortController, true);
 
-      let proofreader: any = null;
-
+      let proofreaderSession: any = null;
       try {
-        if (typeof Proofreader === 'undefined') {
-          throw new Error('Proofreader API not available');
-        }
+        const { provider, model, apiKey } = await resolveProviderConfig(
+          'write'
+        );
+        let stream: ReadableStream<string>;
 
-        const availability = await Proofreader.availability();
-        if (availability === 'unavailable') {
-          throw new Error(
-            'Proofreader API is unavailable. Please ensure Chrome 141+ and the Proofreader API flag is enabled.'
-          );
-        }
-
-        proofreader = await createAISessionWithMonitor('proofreader', {
-          expectedInputLanguages: ['en'],
-          tabId: currentTabId,
-        });
-
-        const result = await proofreader.proofread(userMessage);
-        let formattedResult = '';
-
-        if (result.corrections && result.corrections.length > 0) {
-          const errorsByType: Record<string, typeof result.corrections> = {};
-          for (const correction of result.corrections) {
-            const errorType =
-              (correction as any).label ||
-              (correction as any).correctionType ||
-              'Other';
-            if (!errorsByType[errorType]) {
-              errorsByType[errorType] = [];
-            }
-            errorsByType[errorType].push(correction);
-          }
-
-          formattedResult += `## 📝 Proofreading Results\n\n`;
-          formattedResult += `**Found ${
-            result.corrections.length
-          } error(s) in ${
-            Object.keys(errorsByType).length
-          } category/categories**\n\n`;
-
-          for (const [errorType, corrections] of Object.entries(errorsByType)) {
-            formattedResult += `### ${errorType} (${corrections.length})\n\n`;
-
-            for (const correction of corrections) {
-              const original = userMessage.substring(
-                correction.startIndex,
-                correction.endIndex
+        // In Chrome: Try to use built-in API if provider is builtin
+        // In Firefox: Always use fallback (built-in AI not available)
+        if (provider === 'builtin' && !isFirefoxBrowser) {
+          // Check availability - only use built-in API if it's actually available
+          // Skip "after-download" and "downloadable" states to prevent hanging
+          const availability = await checkProofreaderAvailability();
+          if (availability === 'available') {
+            try {
+              // Add timeout to session creation to prevent hanging
+              const createSessionPromise = createAISessionWithMonitor(
+                'proofreader',
+                {
+                  expectedInputLanguages: ['en'],
+                  tabId: currentTabId,
+                }
               );
-              const explanation = correction.explanation || '';
+              const createTimeoutPromise = new Promise((_, reject) =>
+                setTimeout(
+                  () =>
+                    reject(new Error('Proofreader session creation timeout')),
+                  10000
+                )
+              );
+              proofreaderSession = await Promise.race([
+                createSessionPromise,
+                createTimeoutPromise,
+              ]);
 
-              formattedResult += `- **"${original}"** (position ${correction.startIndex}-${correction.endIndex})\n`;
-              if (explanation) {
-                formattedResult += `  💡 ${explanation}\n`;
+              // Add timeout wrapper to prevent hanging (30 seconds)
+              const proofreadPromise =
+                proofreaderSession!.proofread(userMessage);
+              const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(
+                  () => reject(new Error('Proofreader API timeout')),
+                  30000
+                )
+              );
+              const result = await Promise.race([
+                proofreadPromise,
+                timeoutPromise,
+              ]);
+              // Convert result to streaming format
+              let formattedResult = '';
+              if (result.corrections && result.corrections.length > 0) {
+                const errorsByType: Record<string, typeof result.corrections> =
+                  {};
+                for (const correction of result.corrections) {
+                  const errorType =
+                    (correction as any).label ||
+                    (correction as any).correctionType ||
+                    'Other';
+                  if (!errorsByType[errorType]) {
+                    errorsByType[errorType] = [];
+                  }
+                  errorsByType[errorType].push(correction);
+                }
+
+                formattedResult += `## 📝 Proofreading Results\n\n`;
+                formattedResult += `**Found ${
+                  result.corrections.length
+                } error(s) in ${
+                  Object.keys(errorsByType).length
+                } category/categories**\n\n`;
+
+                for (const [errorType, corrections] of Object.entries(
+                  errorsByType
+                )) {
+                  formattedResult += `### ${errorType} (${corrections.length})\n\n`;
+
+                  for (const correction of corrections) {
+                    const original = userMessage.substring(
+                      correction.startIndex,
+                      correction.endIndex
+                    );
+                    const explanation = correction.explanation || '';
+
+                    formattedResult += `- **"${original}"** (position ${correction.startIndex}-${correction.endIndex})\n`;
+                    if (explanation) {
+                      formattedResult += `  💡 ${explanation}\n`;
+                    }
+                    formattedResult += `\n`;
+                  }
+                }
+              } else {
+                formattedResult = `✅ **No errors found!**\n\nThe text appears to be grammatically correct.`;
               }
-              formattedResult += `\n`;
+              // Create a stream from the formatted result
+              stream = new ReadableStream({
+                start(controller) {
+                  controller.enqueue(formattedResult);
+                  controller.close();
+                },
+              });
+            } catch (builtinError) {
+              // Fallback to prompt API if built-in API fails
+              console.warn(
+                '[Proofreader] Built-in API failed, using fallback:',
+                builtinError
+              );
+              const fallbackConfig =
+                await resolveFallbackProviderConfigForProofreader();
+              const prompt = `Please proofread the following text and return only the corrected version:\n\n${userMessage}`;
+              const result = await runProviderStream(fallbackConfig, {
+                system: proofreaderFallbackSystemPrompt,
+                messages: [{ role: 'user', content: prompt }],
+              });
+              stream = result.stream;
             }
+          } else {
+            // Availability is 'unavailable', use fallback
+            const fallbackConfig =
+              await resolveFallbackProviderConfigForProofreader();
+            const prompt = `Please proofread the following text and return only the corrected version:\n\n${userMessage}`;
+            const result = await runProviderStream(fallbackConfig, {
+              system: proofreaderFallbackSystemPrompt,
+              messages: [{ role: 'user', content: prompt }],
+            });
+            stream = result.stream;
           }
         } else {
-          formattedResult = `✅ **No errors found!**\n\nThe text appears to be grammatically correct.`;
+          // Non-builtin provider or builtin but API unavailable - use fallback
+          // Try to use the configured provider first, fallback to default if needed
+          let fallbackConfig: {
+            provider: Provider;
+            model: string;
+            apiKey: string;
+          };
+          if (provider !== 'builtin' && apiKey && model) {
+            // Use the configured non-builtin provider
+            fallbackConfig = {
+              provider: provider as Provider,
+              model,
+              apiKey,
+            };
+          } else {
+            // Use fallback helper for builtin or missing credentials
+            fallbackConfig =
+              await resolveFallbackProviderConfigForProofreader();
+          }
+          const prompt = `Please proofread the following text and return only the corrected version:\n\n${userMessage}`;
+          const result = await runProviderStream(fallbackConfig, {
+            system: proofreaderFallbackSystemPrompt,
+            messages: [{ role: 'user', content: prompt }],
+          });
+          stream = result.stream;
         }
 
-        updateMessageContent(update, assistantMsgId, formattedResult, {
-          isLoading: false,
-          isStreaming: false,
-          streamingMessageId: null,
-          abortController: null,
-        });
+        let hasReceivedChunks = false;
+        for await (const chunk of stream) {
+          if (abortController.signal.aborted) {
+            break;
+          }
+
+          if (chunk && typeof chunk === 'string') {
+            hasReceivedChunks = true;
+            appendToStreamingMessage(update, assistantMsgId, chunk);
+          }
+        }
+
+        if (!hasReceivedChunks) {
+          throw new Error('No content received from Proofreader API');
+        }
+
+        updateStreamingState(update, assistantMsgId, abortController, false);
       } catch (err) {
         console.error('Proofreading error:', err);
         const errorMessage = getErrorMessage(err);
@@ -2110,14 +2312,14 @@ ${doc?.body?.textContent || 'No content available'}`;
           }
         );
       } finally {
-        if (proofreader) {
+        // Cleanup proofreader session if it was created
+        if (proofreaderSession) {
           try {
-            proofreader.destroy?.();
+            proofreaderSession.destroy?.();
           } catch (cleanupError) {
-            console.warn('Error destroying proofreader:', cleanupError);
+            console.warn('Error destroying proofreader session:', cleanupError);
           }
         }
-        updateStreamingState(update, assistantMsgId, abortController, false);
       }
     },
     async promptStreaming({

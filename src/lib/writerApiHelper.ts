@@ -9,6 +9,9 @@ import {
   buildWritePrompt,
   buildRewritePrompt,
   systemPrompt,
+  writerFallbackSystemPrompt,
+  rewriterFallbackSystemPrompt,
+  proofreaderFallbackSystemPrompt,
 } from './chatStore/prompt';
 import { isFirefoxBrowser } from './browserEnv';
 
@@ -60,6 +63,43 @@ async function resolveProviderConfig(
     model,
     apiKey: apiKey || undefined,
     pageContext,
+  };
+}
+
+async function resolveFallbackProviderConfig(): Promise<{
+  provider: Provider;
+  model: string;
+  apiKey: string;
+}> {
+  const store = globalStorage();
+  const config = (await store.get('config')) || ({} as any);
+  const settings =
+    (await store.get('telescopeSettings')) ||
+    ({} as Record<string, Record<string, string | number>>);
+
+  // Try to get provider from settings, fallback to config, then default to 'openai'
+  let providerConfig = config.aiProvider || 'openai';
+  // Ensure we never use 'builtin' for fallback
+  if (providerConfig === 'builtin') {
+    providerConfig = 'openai';
+  }
+  const provider = providerConfig as Provider;
+
+  let model = config.aiModel as string | undefined;
+  if (!model || typeof model !== 'string') {
+    const defaults = getDefaultModels(provider);
+    model = defaults[0];
+  }
+
+  const apiKey = await loadProviderKey(provider);
+  if (!apiKey) {
+    throw new Error('Missing API key for fallback provider');
+  }
+
+  return {
+    provider,
+    model,
+    apiKey,
   };
 }
 
@@ -190,7 +230,8 @@ export async function writeContent(
   options: WriterOptions = {}
 ): Promise<string> {
   try {
-    const { provider, model, apiKey, pageContext } = await resolveProviderConfig('write', options.sharedContext);
+    const { provider, model, apiKey, pageContext } =
+      await resolveProviderConfig('write', options.sharedContext);
 
     if (provider === 'builtin') {
       const writer = await createWriter(options);
@@ -215,10 +256,13 @@ export async function writeContent(
       });
 
       const sys = pageContext ? systemPrompt({ pageContext }) : undefined;
-      const { stream } = await runProviderStream({ provider, model, apiKey }, {
-        system: sys,
-        messages: [{ role: 'user', content: prompt }]
-      });
+      const { stream } = await runProviderStream(
+        { provider, model, apiKey },
+        {
+          system: sys,
+          messages: [{ role: 'user', content: prompt }],
+        }
+      );
 
       let text = '';
       for await (const chunk of stream as any) {
@@ -251,10 +295,38 @@ export async function* writeContentStreaming(
   let writer: WriterInstance | null = null;
   let isBuiltin = false;
   try {
-    const { provider, model, apiKey, pageContext } = await resolveProviderConfig('write', options.sharedContext);
+    const { provider, model, apiKey, pageContext } =
+      await resolveProviderConfig('write', options.sharedContext);
     isBuiltin = provider === 'builtin';
 
     if (provider === 'builtin') {
+      // Check availability before using built-in API
+      const availability = await checkWriterAvailability();
+      if (availability === 'unavailable') {
+        // Fallback to prompt API
+        const fallbackConfig = await resolveFallbackProviderConfig();
+        const prompt = buildWritePrompt({
+          text: request.prompt,
+          tone: options.tone || 'neutral',
+          format: options.format || 'plain-text',
+          length: options.length || 'medium',
+          outputLanguage: options.outputLanguage,
+          pageContext: pageContext || options.sharedContext,
+        });
+
+        const { stream } = await runProviderStream(fallbackConfig, {
+          system: writerFallbackSystemPrompt,
+          messages: [{ role: 'user', content: prompt }],
+        });
+
+        for await (const chunk of stream as any) {
+          if (chunk && typeof chunk === 'string') {
+            yield chunk;
+          }
+        }
+        return;
+      }
+
       writer = await createWriter(options);
 
       if (!writer) {
@@ -268,7 +340,6 @@ export async function* writeContentStreaming(
       for await (const chunk of stream) {
         yield chunk;
       }
-
     } else {
       if (!apiKey || !model) {
         throw new Error('Missing API key or model for selected provider');
@@ -284,10 +355,13 @@ export async function* writeContentStreaming(
       });
 
       const sys = pageContext ? systemPrompt({ pageContext }) : undefined;
-      const { stream } = await runProviderStream({ provider, model, apiKey }, {
-        system: sys,
-        messages: [{ role: 'user', content: prompt }]
-      });
+      const { stream } = await runProviderStream(
+        { provider, model, apiKey },
+        {
+          system: sys,
+          messages: [{ role: 'user', content: prompt }],
+        }
+      );
 
       for await (const chunk of stream as any) {
         if (chunk && typeof chunk === 'string') {
@@ -354,7 +428,8 @@ export async function rewriteContent(
   options: RewriterOptions = {}
 ): Promise<string> {
   try {
-    const { provider, model, apiKey, pageContext } = await resolveProviderConfig('rewrite', options.sharedContext);
+    const { provider, model, apiKey, pageContext } =
+      await resolveProviderConfig('rewrite', options.sharedContext);
 
     if (provider === 'builtin') {
       const rewriter = await createRewriter(options);
@@ -379,10 +454,13 @@ export async function rewriteContent(
       });
 
       const sys = pageContext ? systemPrompt({ pageContext }) : undefined;
-      const { stream } = await runProviderStream({ provider, model, apiKey }, {
-        system: sys,
-        messages: [{ role: 'user', content: prompt }]
-      });
+      const { stream } = await runProviderStream(
+        { provider, model, apiKey },
+        {
+          system: sys,
+          messages: [{ role: 'user', content: prompt }],
+        }
+      );
 
       let text = '';
       for await (const chunk of stream as any) {
@@ -404,10 +482,38 @@ export async function* rewriteContentStreaming(
   let rewriter: RewriterInstance | null = null;
   let isBuiltin = false;
   try {
-    const { provider, model, apiKey, pageContext } = await resolveProviderConfig('rewrite', options.sharedContext);
+    const { provider, model, apiKey, pageContext } =
+      await resolveProviderConfig('rewrite', options.sharedContext);
     isBuiltin = provider === 'builtin';
 
     if (provider === 'builtin') {
+      // Check availability before using built-in API
+      const availability = await checkRewriterAvailability();
+      if (availability === 'unavailable') {
+        // Fallback to prompt API
+        const fallbackConfig = await resolveFallbackProviderConfig();
+        const prompt = buildRewritePrompt({
+          text: request.text,
+          tone: options.tone || 'as-is',
+          format: options.format || 'as-is',
+          length: options.length || 'as-is',
+          outputLanguage: options.outputLanguage,
+          pageContext: pageContext || options.sharedContext,
+        });
+
+        const { stream } = await runProviderStream(fallbackConfig, {
+          system: rewriterFallbackSystemPrompt,
+          messages: [{ role: 'user', content: prompt }],
+        });
+
+        for await (const chunk of stream as any) {
+          if (chunk && typeof chunk === 'string') {
+            yield chunk;
+          }
+        }
+        return;
+      }
+
       rewriter = await createRewriter(options);
 
       if (!rewriter) {
@@ -421,7 +527,6 @@ export async function* rewriteContentStreaming(
       for await (const chunk of stream) {
         yield chunk;
       }
-
     } else {
       if (!apiKey || !model) {
         throw new Error('Missing API key or model for selected provider');
@@ -436,17 +541,19 @@ export async function* rewriteContentStreaming(
       });
 
       const sys = pageContext ? systemPrompt({ pageContext }) : undefined;
-      const { stream } = await runProviderStream({ provider, model, apiKey }, {
-        system: sys,
-        messages: [{ role: 'user', content: prompt }]
-      });
+      const { stream } = await runProviderStream(
+        { provider, model, apiKey },
+        {
+          system: sys,
+          messages: [{ role: 'user', content: prompt }],
+        }
+      );
 
       for await (const chunk of stream as any) {
         if (chunk && typeof chunk === 'string') {
           yield chunk;
         }
       }
-
     }
   } catch (error) {
     console.error(
@@ -520,20 +627,108 @@ export async function* proofreadContentStreaming(
 ): AsyncGenerator<string, void, unknown> {
   let proofreader: any = null;
   try {
-    proofreader = await createProofreader(options);
+    // In Firefox, always use fallback (built-in AI not available)
+    if (isFirefoxBrowser) {
+      const fallbackConfig = await resolveFallbackProviderConfig();
+      const prompt = `Please proofread the following text and return only the corrected version:\n\n${request.text}`;
 
-    const result = await proofreader.proofread(request.text);
+      const { stream } = await runProviderStream(fallbackConfig, {
+        system: proofreaderFallbackSystemPrompt,
+        messages: [{ role: 'user', content: prompt }],
+      });
 
-    yield result.corrected;
+      for await (const chunk of stream as any) {
+        if (chunk && typeof chunk === 'string') {
+          yield chunk;
+        }
+      }
+      return;
+    }
+
+    // In Chrome: Check availability - only use built-in API if it's actually available
+    // Skip "after-download" and "downloadable" states to prevent hanging
+    const availability = await checkProofreaderAvailability();
+    // Only use built-in API if it's actually available (skip downloading states)
+    if (availability !== 'available') {
+      // Fallback to prompt API
+      const fallbackConfig = await resolveFallbackProviderConfig();
+      const prompt = `Please proofread the following text and return only the corrected version:\n\n${request.text}`;
+
+      const { stream } = await runProviderStream(fallbackConfig, {
+        system: proofreaderFallbackSystemPrompt,
+        messages: [{ role: 'user', content: prompt }],
+      });
+
+      for await (const chunk of stream as any) {
+        if (chunk && typeof chunk === 'string') {
+          yield chunk;
+        }
+      }
+      return;
+    }
+
+    // Use built-in API with timeout to prevent hanging
+    // Add timeout to proofreader creation to prevent hanging
+    const createProofreaderPromise = createProofreader(options);
+    const createTimeoutPromise = new Promise((_, reject) =>
+      setTimeout(
+        () => reject(new Error('Proofreader session creation timeout')),
+        10000
+      )
+    );
+    proofreader = await Promise.race([
+      createProofreaderPromise,
+      createTimeoutPromise,
+    ]);
+
+    // Add timeout wrapper to prevent hanging (30 seconds)
+    const proofreadPromise = proofreader.proofread(request.text);
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Proofreader API timeout')), 30000)
+    );
+
+    const result = await Promise.race([proofreadPromise, timeoutPromise]);
+
+    if (result && typeof result === 'object' && 'corrected' in result) {
+      yield result.corrected;
+    } else {
+      // If result format is unexpected, fallback
+      throw new Error('Unexpected result format from Proofreader API');
+    }
   } catch (error) {
     console.error(
       '[Proofreader API] Error proofreading content with streaming:',
       error
     );
-    throw error;
+    // Fallback to prompt API on any error
+    try {
+      const fallbackConfig = await resolveFallbackProviderConfig();
+      const prompt = `Please proofread the following text and return only the corrected version:\n\n${request.text}`;
+
+      const { stream } = await runProviderStream(fallbackConfig, {
+        system: proofreaderFallbackSystemPrompt,
+        messages: [{ role: 'user', content: prompt }],
+      });
+
+      for await (const chunk of stream as any) {
+        if (chunk && typeof chunk === 'string') {
+          yield chunk;
+        }
+      }
+    } catch (fallbackError) {
+      console.error('[Proofreader API] Fallback also failed:', fallbackError);
+      throw error; // Throw original error
+    }
   } finally {
     if (proofreader) {
-      proofreader.destroy();
+      try {
+        proofreader.destroy();
+      } catch (destroyError) {
+        console.warn(
+          '[Proofreader API] Error destroying proofreader:',
+          destroyError
+        );
+      }
     }
   }
 }

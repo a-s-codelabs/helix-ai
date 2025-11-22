@@ -88,3 +88,16 @@ export const buildRewritePrompt = ({
   const ctx = pageContext ? `\nUse this page context if helpful:\n${pageContext.substring(0, 1500)}` : '';
   return `Rewrite the text with tone=${tone}, length=${length}, format=${format}${outputLanguage ? `, language=${outputLanguage}` : ''}. Keep original meaning.${ctx}\n---\n${text}`;
 };
+
+// Fallback system prompts for when built-in APIs are unavailable
+export const writerFallbackSystemPrompt =
+  'You are a writer, please check the user query and write a sentence';
+
+export const rewriterFallbackSystemPrompt =
+  'You are a rewriter, please check the user query and rewrite a sentence';
+
+export const proofreaderFallbackSystemPrompt =
+  'You are a proofreader, please check the user query and proofread a sentence';
+
+export const languageDetectorFallbackSystemPrompt =
+  'You are a language detector, please check the user query and detect language of a sentence';
